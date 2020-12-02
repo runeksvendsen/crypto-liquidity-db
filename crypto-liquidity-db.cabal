@@ -1,0 +1,77 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 5ac1fe94c761a788311aa0a7ad6ccb84941fc78c0d32aa573c06f0c0ebb3089e
+
+name:           crypto-liquidity-db
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/runeksvendsen/crypto-liquidity-db#readme>
+homepage:       https://github.com/runeksvendsen/crypto-liquidity-db#readme
+bug-reports:    https://github.com/runeksvendsen/crypto-liquidity-db/issues
+author:         Rune K. Svendsen
+maintainer:     runesvend@gmail.com
+copyright:      CC0
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/runeksvendsen/crypto-liquidity-db
+
+library
+  exposed-modules:
+      Database
+      Internal.Prelude
+      Query
+      Schema.Currency
+      Schema.Path
+      Schema.PathPart
+      Schema.PathQty
+      Schema.Venue
+  other-modules:
+      Paths_crypto_liquidity_db
+  hs-source-dirs:
+      src
+  default-extensions: FlexibleContexts
+  ghc-options: -Wall
+  build-depends:
+      base >=4.7 && <5
+    , beam-core
+    , crypto-orderbook-db
+    , text
+    , time
+  default-language: Haskell2010
+
+executable crypto-liquidity-db-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_crypto_liquidity_db
+  hs-source-dirs:
+      app
+  default-extensions: FlexibleContexts
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , crypto-liquidity-db
+  default-language: Haskell2010
+
+test-suite crypto-liquidity-db-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_crypto_liquidity_db
+  hs-source-dirs:
+      test
+  default-extensions: FlexibleContexts
+  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , crypto-liquidity-db
+  default-language: Haskell2010

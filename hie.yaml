@@ -1,0 +1,8 @@
+cradle:
+    stack:
+    - path: "./src"
+      component: "crypto-liquidity-db:lib"
+    - path: "./test"
+      component: "crypto-liquidity-db:test:crypto-liquidity-db-test"
+    - path: "./app"
+      component: "crypto-liquidity-db:exe:crypto-liquidity-db-exe"
