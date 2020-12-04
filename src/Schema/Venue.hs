@@ -1,10 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 module Schema.Venue
 ( VenueT(..)
 , Venue

@@ -2,9 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 module Schema.PathPart
 ( PathPartT(..)
 , PathPart

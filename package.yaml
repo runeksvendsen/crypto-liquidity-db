@@ -6,10 +6,6 @@ author:              "Rune K. Svendsen"
 maintainer:          "runesvend@gmail.com"
 copyright:           "CC0"
 
-extra-source-files:
-- README.md
-- ChangeLog.md
-
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
 # category:            value
@@ -24,6 +20,7 @@ default-extensions:
 
 dependencies:
 - base >= 4.7 && < 5
+- protolude
 
 ghc-options:
   - -Wall

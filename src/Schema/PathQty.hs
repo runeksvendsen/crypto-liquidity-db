@@ -2,9 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 module Schema.PathQty
 ( PathQtyT(..)
 , PathQty
@@ -16,7 +14,7 @@ where
 import Internal.Prelude
 
 import qualified Schema.Path as Path
-import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
+import qualified Schema.Calculation as Calc
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
@@ -24,9 +22,8 @@ import           Database.Beam              (C, Identity, PrimaryKey)
 
 data PathQtyT f
     = PathQty
-    { pathQtyRun        :: PrimaryKey Run.RunT f
+    { pathQtyRun        :: PrimaryKey Calc.CalculationT f
     , pathQtyPath       :: PrimaryKey Path.PathT f
-    , pathQtySlippage   :: C f Double
     , pathQtyQty        :: C f Integer  -- TODO: precise enough?
     , pathQtyPriceLow   :: C f Double
     , pathQtyPriceHigh  :: C f Double
@@ -39,18 +36,17 @@ type PathQtyId = PrimaryKey PathQtyT Identity
 deriving instance Show PathQty
 deriving instance Eq PathQty
 instance Show PathQtyId where
-    show (PathQtyId run path slippage) =
-        unwords ["PathQtyId (", show run, ") (", show path, ") ", show slippage]
+    show (PathQtyId run path) =
+        unwords ["PathQtyId (", show run, ") (", show path, ")"]
 deriving instance Eq PathQtyId
 
 instance Beam.Beamable PathQtyT
 
 instance Beam.Table PathQtyT where
     data PrimaryKey PathQtyT f = PathQtyId
-        (PrimaryKey Run.RunT f)
+        (PrimaryKey Calc.CalculationT f)
         (PrimaryKey Path.PathT f)
-        (C f Double)
             deriving Generic
-    primaryKey PathQty{..} = PathQtyId pathQtyRun pathQtyPath pathQtySlippage
+    primaryKey PathQty{..} = PathQtyId pathQtyRun pathQtyPath
 
 instance Beam.Beamable (PrimaryKey PathQtyT)

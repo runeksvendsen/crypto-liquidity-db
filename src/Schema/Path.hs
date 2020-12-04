@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 module Schema.Path
 ( PathT(..)
 , Path
@@ -16,8 +14,6 @@ module Schema.Path
 where
 
 import Internal.Prelude
-
-
 import qualified Schema.Currency as Currency
 
 import qualified Database.Beam              as Beam
@@ -31,8 +27,6 @@ data PathT f
     = Path
     { pathId        :: C f (SqlSerial Word)
     , pathStart     :: PrimaryKey Currency.CurrencyT f
-    , pathNumeraire :: PrimaryKey Currency.CurrencyT f  -- only present to improve performance (can be derived from a list of PathPart)
-    , pathCrypto    :: PrimaryKey Currency.CurrencyT f  -- only present to improve performance (can be derived from a list of PathPart)
     } deriving Generic
 
 type Path = PathT Identity

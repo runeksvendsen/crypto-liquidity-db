@@ -1,15 +1,13 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExplicitNamespaces #-}
 module Schema.Currency
 ( CurrencyT(..)
 , Currency
 , CurrencyId
 , PrimaryKey(type CurrencyId)
+, Int32
 )
 where
 
