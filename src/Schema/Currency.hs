@@ -23,7 +23,6 @@ import Data.Int (Int32)
 data CurrencyT f
     = Currency
     { currencyId     :: C f (SqlSerial Int32)
-    , currencyName   :: C f T.Text
     , currencySymbol :: C f T.Text
     } deriving Generic
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 50f1f47c2488b2059a3dcceba99fd448a5e89b8acddfb3cd361c5ee1194eecd3
+-- hash: cc9e47503f6b15515a894f60c3b54d9ddb43c2f700f3f1097be929dd13e7c93d
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -24,9 +24,13 @@ source-repository head
 
 library
   exposed-modules:
+      App.Main
+      App.Orphans
+      App.Source
       Database
       Internal.Prelude
       Query.Calculations
+      Query.Currencies
       Query.RunCurrencies
       Schema.Calculation
       Schema.CalculationParameter
@@ -40,15 +44,25 @@ library
       Paths_crypto_liquidity_db
   hs-source-dirs:
       src
-  default-extensions: FlexibleContexts
+  default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall
   build-depends:
-      base >=4.7 && <5
+      async
+    , base >=4.7 && <5
     , beam-core
+    , beam-postgres
+    , beam-sqlite
+    , bytestring
+    , containers
     , crypto-orderbook-db
+    , mtl
+    , postgresql-simple
     , protolude
+    , sqlite-simple
+    , stm
     , text
     , time
+    , transformers
   default-language: Haskell2010
 
 executable crypto-liquidity-db-exe
@@ -57,7 +71,7 @@ executable crypto-liquidity-db-exe
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app
-  default-extensions: FlexibleContexts
+  default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -72,7 +86,7 @@ test-suite crypto-liquidity-db-test
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test
-  default-extensions: FlexibleContexts
+  default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5

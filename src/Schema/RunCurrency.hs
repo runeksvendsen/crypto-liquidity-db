@@ -21,6 +21,7 @@ import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 
 
+-- | A currency that is present in one or more order books associated with a run
 data RunCurrencyT f
     = RunCurrency
     { runCurrencyRun :: PrimaryKey Run.RunT f

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -8,31 +9,49 @@ module Schema.Calculation
 , Calculation
 , CalculationId
 , PrimaryKey(type CalculationId)
+, new
+, Int32
+, LocalTime
 )
 where
 
 import Internal.Prelude
 
 import qualified Schema.Currency as Currency
+import qualified Schema.RunCurrency as RC
+import qualified Schema.CalculationParameter as CalcParam
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
-import Data.Time.Clock (UTCTime)
+import Database.Beam.Backend (SqlSerial)
+import Data.Time.LocalTime (LocalTime)
+import Data.Int (Int32)
 
 
 data CalculationT f
     = Calculation
-    { calculationRun :: PrimaryKey Run.RunT f
+    { calculationId :: C f (SqlSerial Int32)
+    , calculationRun :: PrimaryKey Run.RunT f
     , calculationCurrency :: PrimaryKey Currency.CurrencyT f
     , calculationNumeraire :: PrimaryKey Currency.CurrencyT f
     , calculationSlippage :: C f Double
-    , calculationStartTime :: C f UTCTime
-    , calculationDurationSeconds :: C (Beam.Nullable f) Float -- null = "in progress" / non-null = "done"
+    , calculationStartTime :: C (Beam.Nullable f) LocalTime -- null = "not started", non-null = "in progress"
+    , calculationDurationSeconds :: C (Beam.Nullable f) Float -- non-null = "done"
     } deriving Generic
 
 type Calculation = CalculationT Identity
 type CalculationId = PrimaryKey CalculationT Identity
+
+new rc cp = Calculation
+    { calculationId = Beam.default_
+    , calculationRun = Beam.val_ $ RC.runCurrencyRun rc
+    , calculationCurrency = Beam.val_ $ RC.runCurrencyCurrency rc
+    , calculationNumeraire = Beam.val_ $ CalcParam.calcParamNumeraire cp
+    , calculationSlippage = Beam.val_ $ CalcParam.calcParamSlippage cp
+    , calculationStartTime = Beam.val_ Nothing
+    , calculationDurationSeconds = Beam.val_ Nothing
+    }
 
 deriving instance Show Calculation
 deriving instance Eq Calculation
