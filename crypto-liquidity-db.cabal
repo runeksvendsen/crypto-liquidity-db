@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cc9e47503f6b15515a894f60c3b54d9ddb43c2f700f3f1097be929dd13e7c93d
+-- hash: e817ed27ed85a019d3ca24776edd7cc126196c6e6aa7941f4aec1dca8f31fc17
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -25,10 +25,15 @@ source-repository head
 library
   exposed-modules:
       App.Main
+      App.Monad
+      App.MPQueue
       App.Orphans
+      App.RunCalc
       App.Source
       Database
+      Insert.Paths
       Internal.Prelude
+      Query.Books
       Query.Calculations
       Query.Currencies
       Query.RunCurrencies
@@ -51,18 +56,20 @@ library
     , base >=4.7 && <5
     , beam-core
     , beam-postgres
-    , beam-sqlite
     , bytestring
     , containers
     , crypto-orderbook-db
+    , lrucache
     , mtl
+    , order-graph
     , postgresql-simple
+    , pqueue
     , protolude
-    , sqlite-simple
     , stm
     , text
     , time
     , transformers
+    , vector
   default-language: Haskell2010
 
 executable crypto-liquidity-db-exe

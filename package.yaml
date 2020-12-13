@@ -34,15 +34,18 @@ library:
   - beam-postgres
   - time
   - text
-  - stm # App
-  - async # App
-  - postgresql-simple # App
-  - bytestring # App
-  - sqlite-simple # App (TMP TEST)
-  - beam-sqlite # App (TMP TEST)
-  - containers # App
-  - transformers # App
-  - mtl # App
+  - vector
+  # App/exe
+  - order-graph
+  - stm
+  - async
+  - postgresql-simple
+  - bytestring
+  - containers
+  - transformers
+  - mtl
+  - pqueue
+  - lrucache
 
 executables:
   crypto-liquidity-db-exe:

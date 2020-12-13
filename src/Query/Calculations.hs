@@ -5,6 +5,7 @@ module Query.Calculations
 , selectUnstartedCalculations
 , selectUnfinishedCalculations
 , insertCalcParam
+, Calculation(..)
 )
 where
 
@@ -23,9 +24,35 @@ import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import Data.Maybe (fromMaybe)
+import Internal.Prelude (Text)
 
 
-startCalculation
+data Calculation = Calculation
+    { calcCalc :: Calc.Calculation
+    , calcNumeraire :: Text
+    , calcCrypto :: Text
+
+    }
+
+
+startCalculation :: Pg.Pg (Maybe Calculation)
+startCalculation = do
+    calcM <- startCalculation'
+    case calcM of
+        Nothing -> return Nothing
+        Just calc -> do
+            (numeraire, crypto) <- fromMaybe (error "") <$> runSelectReturningOne (select $ getSymbols calc)
+            return $ Just $ Calculation calc numeraire crypto
+  where
+    getSymbols calc = do
+        numeraire <- all_ (currencies liquidityDb)
+        crypto <- all_ (currencies liquidityDb)
+        guard_ $ val_ (Calc.calculationNumeraire calc) ==. pk numeraire
+        guard_ $ val_ (Calc.calculationCurrency calc) ==. pk crypto
+        return (Currency.currencySymbol numeraire, Currency.currencySymbol crypto)
+
+
+startCalculation'
   :: ( MonadBeam be m
      , BeamSqlBackendSyntax be ~ Pg.PgCommandSyntax
      , FromBackendRow be Calc.Int32
@@ -36,23 +63,26 @@ startCalculation
      , FromBackendRow be SqlNull
      )
   => m (Maybe Calc.Calculation)
-startCalculation = fmap castSingleResult .
+startCalculation' = fmap castSingleResult .
     Pg.runPgUpdateReturningList $
     Pg.updateReturning (calculations liquidityDb)
         (\c -> Calc.calculationStartTime c <-. just_ currentTimestamp_)
-        (\c -> Calc.calculationId c ==. subquery_ selectQ)
+        (\c -> Calc.calculationId c ==. subquery_ (fst <$> selectQ))
         id
   where
     castSingleResult [] = Nothing
     castSingleResult [res] = Just res
-    castSingleResult lst = error $ "startCalculation: selectQ did not return exactly one result: " ++ show lst
-    --  SELECT id FROM calculations WHERE start_time IS NULL LIMIT 1 FOR UPDATE SKIP LOCKED
+    castSingleResult lst = error $ "BUG (startCalculation): selectQ did not return exactly one result: " ++ show lst
+    getRunId (Run.RunId runId) = runId
+    --  SELECT id FROM calculations WHERE start_time IS NULL ORDER BY run__id LIMIT 1 FOR UPDATE SKIP LOCKED
     selectQ =
         limit_ 1 $
+        orderBy_ (\(_, runId) -> asc_ runId) $
         Pg.lockingFor_ Pg.PgSelectLockingStrengthUpdate (Just Pg.PgSelectLockingOptionsSkipLocked) $ do
             (calcLock, calculation) <- Pg.locked_ (calculations liquidityDb)
             guard_ $ isNothing_ (Calc.calculationStartTime calculation)
-            pure (Calc.calculationId calculation `Pg.withLocks_` calcLock)
+            pure $ (Calc.calculationId calculation, getRunId $ Calc.calculationRun calculation)
+                `Pg.withLocks_` calcLock
 
 -- | Calculations not yet started
 selectUnstartedCalculations ::

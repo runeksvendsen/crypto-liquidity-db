@@ -95,9 +95,6 @@ runBaseQuote run = do
     guard_ $ Book.bookRun book `references_` run
     pure (Book.bookBase book, Book.bookQuote book)
 
--- | TODO
-instance Ord Run.RunId
-
 runCurriencies :: [(Run.RunId, (Text, Text))] -> [(Run.RunId, [Text])]
 runCurriencies runBaseQuoteL = do
     map (\lst -> (fst $ head lst, uniqueCurrencies $ map snd lst)) $ groupOn fst runBaseQuoteL
