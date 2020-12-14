@@ -4,6 +4,7 @@
 module Database
 ( LiquidityDb(..)
 , liquidityDb
+, partsForPath
 )
 where
 
@@ -47,3 +48,11 @@ instance Beam.Database be LiquidityDb
 
 liquidityDb :: Beam.DatabaseSettings be LiquidityDb
 liquidityDb = Beam.defaultDbSettings
+
+partsForPath
+    :: Beam.HasSqlEqualityCheck be Word
+    => Path.PathT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (PathPart.PathPartT (Beam.QExpr be s))
+partsForPath =
+    Beam.oneToMany_ (pathParts liquidityDb)
+                    PathPart.pathPartPath
