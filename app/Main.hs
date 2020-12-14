@@ -5,5 +5,8 @@ import qualified App.Main
 
 main :: IO ()
 main =
-    let cfg = App.Main.Config ["USD"] [0.1, 0.01, 0.5] (10 * 3600) 3600
-    in App.Main.main cfg
+    App.Main.withPoolPg "conn strin TODO" $ \pool ->
+        let cfg = App.Main.Config ["USD"] [0.1, 0.01, 0.5] (10 * 3600) 3600 pool
+        in do
+            App.Main.migrateInteractive cfg
+            App.Main.main cfg

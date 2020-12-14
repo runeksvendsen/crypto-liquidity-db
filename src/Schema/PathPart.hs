@@ -8,6 +8,7 @@ module Schema.PathPart
 , PathPart
 , PathPartId
 , PrimaryKey(type PathPartId)
+, Int16
 )
 where
 
@@ -19,12 +20,13 @@ import qualified Schema.Venue as Venue
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
+import Data.Int (Int16)
 
 
 data PathPartT f
     = PathPart
     { pathPartPath      :: PrimaryKey Path.PathT f
-    , pathPartIndex     :: C f Int
+    , pathPartIndex     :: C f Int16
     , pathPartVenue     :: PrimaryKey Venue.VenueT f
     , pathPartCurrency  :: PrimaryKey Currency.CurrencyT f
     } deriving Generic
@@ -44,7 +46,7 @@ instance Beam.Beamable PathPartT
 instance Beam.Table PathPartT where
     data PrimaryKey PathPartT f = PathPartId
         (PrimaryKey Path.PathT f)
-        (C f Int)
+        (C f Int16)
             deriving Generic
     primaryKey PathPart{..} = PathPartId pathPartPath pathPartIndex
 

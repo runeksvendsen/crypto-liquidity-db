@@ -41,7 +41,7 @@ data CalculationT f
     , calculationSlippage :: C f Double
     , calculationCreationTime :: C f LocalTime
     , calculationStartTime :: C (Beam.Nullable f) LocalTime -- null = "not started", non-null = "in progress"
-    , calculationDurationSeconds :: C (Beam.Nullable f) Float -- non-null = "done"
+    , calculationDurationSeconds :: C (Beam.Nullable f) Double -- non-null = "done"
     } deriving Generic
 
 type Calculation = CalculationT Identity

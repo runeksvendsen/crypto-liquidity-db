@@ -58,7 +58,6 @@ startCalculation'
      , FromBackendRow be Text
      , FromBackendRow be Run.Word32
      , FromBackendRow be Double
-     , FromBackendRow be Float
      , FromBackendRow be Calc.LocalTime
      , FromBackendRow be SqlNull
      )
@@ -92,7 +91,6 @@ selectUnstartedCalculations ::
     , FromBackendRow be Run.Word32
     , FromBackendRow be Calc.Int32
     , FromBackendRow be Text
-    , FromBackendRow be Float
     , FromBackendRow be Double
     , FromBackendRow be Calc.LocalTime
     , FromBackendRow be SqlNull
@@ -113,7 +111,6 @@ selectUnfinishedCalculations ::
     , FromBackendRow be Run.Word32
     , FromBackendRow be Calc.Int32
     , FromBackendRow be Text
-    , FromBackendRow be Float
     , FromBackendRow be Double
     , FromBackendRow be Calc.LocalTime
     , FromBackendRow be SqlNull

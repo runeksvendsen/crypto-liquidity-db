@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6fb637d92e3f061c57d37f4e0bf01338bd67886a557f03c492249d53a811fc41
+-- hash: 67d5d13d08ecba54b286d0832c0fcad5ef2db89bd3653fc95760d173bf359320
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -25,13 +25,17 @@ source-repository head
 library
   exposed-modules:
       App.Main
+      App.Migrate
       App.Monad
       App.MPQueue
       App.Orphans
+      App.PgConnect
+      App.Pool
       App.RunCalc
       App.Source
+      App.Timed
       Database
-      Insert.Paths
+      Insert.PathQtys
       Internal.Prelude
       Query.Books
       Query.Calculations
@@ -44,6 +48,7 @@ library
       Schema.PathQty
       Schema.RunCurrency
       Schema.Venue
+      Update.Calculation
   other-modules:
       Paths_crypto_liquidity_db
   hs-source-dirs:
@@ -53,17 +58,21 @@ library
   build-depends:
       async
     , base >=4.7 && <5
+    , beam-automigrate
     , beam-core
     , beam-postgres
     , bytestring
     , containers
     , crypto-orderbook-db
+    , gargoyle-postgresql-connect
     , lrucache
     , mtl
     , order-graph
     , postgresql-simple
     , pqueue
     , protolude
+    , resource-pool
+    , retry
     , stm
     , text
     , time

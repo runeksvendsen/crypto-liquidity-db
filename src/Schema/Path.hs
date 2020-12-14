@@ -25,7 +25,7 @@ import Data.Word                            (Word16, Word32)
 
 data PathT f
     = Path
-    { pathId        :: C f (SqlSerial Word)
+    { pathId        :: C f (SqlSerial Word32)
     , pathLength    :: C f Word16
     , pathStart     :: PrimaryKey Currency.CurrencyT f
     } deriving Generic
@@ -43,7 +43,7 @@ instance Beam.Beamable PathT
 
 instance Beam.Table PathT where
     data PrimaryKey PathT f = PathId
-        (C f (SqlSerial Word))
+        (C f (SqlSerial Word32))
             deriving Generic
     primaryKey = PathId . pathId
 

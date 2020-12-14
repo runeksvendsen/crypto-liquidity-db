@@ -2,6 +2,8 @@
 module App.Main
 ( main
 , Config(..)
+, withPoolPg
+, migrateInteractive
 )
 where
 
@@ -10,6 +12,8 @@ import qualified App.Source as Source
 import qualified App.MPQueue as PQ
 import qualified App.RunCalc as RunCalc
 import App.Orphans ()
+import App.Pool (withPoolPg)
+import App.Migrate
 
 import qualified Schema.Calculation as Db
 import qualified Query.Calculations as Calc
@@ -31,7 +35,7 @@ calculationQueue = unsafePerformIO PQ.emptyIO
 
 main :: Config -> IO ()
 main cfg = do
-    a1 <- Async.async processCalculations
+    a1 <- Async.async $ runAppM cfg processCalculations
     a2 <- Async.async $ monitorDeadCalculations (cfgDeadMonitorInterval cfg)
     a3 <- Async.async $ runAppM cfg notificationsListen
     runAppM cfg insertMissingRunCurrencies
@@ -42,11 +46,10 @@ insertMissingRunCurrencies = do
     res <- dbRun Query.insertMissingRunCurrencies
     logInfo $ "Inserted run currencies: " ++ show res
 
-processCalculations :: IO ()
+processCalculations :: AppM ()
 processCalculations = do
-    calculation <- STM.atomically $ PQ.removeMin calculationQueue
-    let liquidityData = RunCalc.runCalculation calculation
-    return ()
+    calculation <- lift $ STM.atomically $ PQ.removeMin calculationQueue
+    RunCalc.runInsertCalculation calculation
 
 notificationsListen :: AppM ()
 notificationsListen = do

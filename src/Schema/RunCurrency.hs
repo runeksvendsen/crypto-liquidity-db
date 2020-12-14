@@ -42,9 +42,9 @@ instance Beam.Beamable RunCurrencyT
 
 instance Beam.Table RunCurrencyT where
     data PrimaryKey RunCurrencyT f = RunCurrencyId
-        (PrimaryKey Path.PathT f)
-        (C f Int)
+        (PrimaryKey Run.RunT f)
+        (PrimaryKey Currency.CurrencyT f)
             deriving Generic
-    primaryKey RunCurrency{..} = RunCurrencyId undefined undefined
+    primaryKey RunCurrency{..} = RunCurrencyId runCurrencyRun runCurrencyCurrency
 
 instance Beam.Beamable (PrimaryKey RunCurrencyT)

@@ -10,6 +10,7 @@ where
 
 import Internal.Prelude
 import qualified CryptoDepth.OrderBook.Db.Schema.Run    as Run
+import qualified CryptoDepth.OrderBook.Db.Schema.Order  as Order
 import qualified CryptoDepth.OrderBook.Db.Schema.Book   as Book
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calculation
@@ -27,6 +28,7 @@ import qualified Database.Beam                          as Beam
 data LiquidityDb f = LiquidityDb
     { -- Managed by 'crypto-orderbook-db'
       runs :: f (Beam.TableEntity Run.RunT)
+    , orders :: f (Beam.TableEntity Order.OrderT)
     , books :: f (Beam.TableEntity Book.BookT)
 
       -- Input data and job queue for calculation
@@ -50,7 +52,7 @@ liquidityDb :: Beam.DatabaseSettings be LiquidityDb
 liquidityDb = Beam.defaultDbSettings
 
 partsForPath
-    :: Beam.HasSqlEqualityCheck be Word
+    :: Beam.HasSqlEqualityCheck be Path.Word32
     => Path.PathT (Beam.QExpr be s)
     -> Beam.Q be LiquidityDb s (PathPart.PathPartT (Beam.QExpr be s))
 partsForPath =

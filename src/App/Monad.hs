@@ -11,9 +11,8 @@ import App.Orphans ()
 
 import Data.Time.Clock (NominalDiffTime)
 import qualified Database.Beam.Postgres as Pg
-import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import qualified Control.Monad.Reader as R
-
+import qualified App.Pool as Pool
 
 
 type AppM = R.ReaderT Config IO
@@ -26,9 +25,8 @@ runAppM = flip R.runReaderT
 
 withDbConn :: (Pg.Connection -> AppM a) -> AppM a
 withDbConn f = do
-    cfg <- R.ask
-    let withConn f = error "TODO"
-    withConn cfg
+    pool <- R.asks cfgDbConnPool
+    Pool.withResource pool f
 
 dbRun :: Pg.Pg a -> AppM a
 dbRun appM = do
@@ -42,4 +40,5 @@ data Config = Config
       -- ^ the amount of time after which a calculation is considered stalled/dead
     , cfgDeadMonitorInterval :: NominalDiffTime
       -- ^ restart dead calculations this often
+    , cfgDbConnPool :: Pool.Pool Pool.Connection
     }

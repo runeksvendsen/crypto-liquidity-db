@@ -46,6 +46,10 @@ library:
   - mtl
   - pqueue
   - lrucache
+  - beam-automigrate
+  - resource-pool
+  - gargoyle-postgresql-connect
+  - retry
 
 executables:
   crypto-liquidity-db-exe:
