@@ -11,6 +11,7 @@ import App.Orphans ()
 
 import Data.Time.Clock (NominalDiffTime)
 import qualified Database.Beam.Postgres as Pg
+import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import qualified Control.Monad.Reader as R
 
 
@@ -32,7 +33,6 @@ withDbConn f = do
 dbRun :: Pg.Pg a -> AppM a
 dbRun appM = do
     withDbConn $ \conn -> R.lift $ Pg.runBeamPostgresDebug putStrLn conn appM
-
 
 -- |
 data Config = Config

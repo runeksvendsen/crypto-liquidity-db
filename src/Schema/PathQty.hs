@@ -22,7 +22,7 @@ import           Database.Beam              (C, Identity, PrimaryKey)
 
 data PathQtyT f
     = PathQty
-    { pathQtyRun        :: PrimaryKey Calc.CalculationT f
+    { pathQtyCalc       :: PrimaryKey Calc.CalculationT f
     , pathQtyPath       :: PrimaryKey Path.PathT f
     , pathQtyQty        :: C f Integer  -- TODO: precise enough?
     , pathQtyPriceLow   :: C f Double
@@ -47,6 +47,6 @@ instance Beam.Table PathQtyT where
         (PrimaryKey Calc.CalculationT f)
         (PrimaryKey Path.PathT f)
             deriving Generic
-    primaryKey PathQty{..} = PathQtyId pathQtyRun pathQtyPath
+    primaryKey PathQty{..} = PathQtyId pathQtyCalc pathQtyPath
 
 instance Beam.Beamable (PrimaryKey PathQtyT)

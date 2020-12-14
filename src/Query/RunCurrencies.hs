@@ -6,8 +6,8 @@ module Query.RunCurrencies
 )
 where
 
+import Internal.Prelude
 import Database
-import qualified Query.Currencies as CQ
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified CryptoDepth.OrderBook.Db.Schema.Book as Book
 import qualified Schema.RunCurrency as RC
@@ -22,7 +22,7 @@ import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runIns
 import Schema.Currency (Int32)
 
 
--- NB: requires transaction
+-- TODO: Tx
 insertMissingRunCurrencies
     :: ( MonadBeamInsertReturning be m
        , HasQBuilder be
@@ -37,12 +37,11 @@ insertMissingRunCurrencies
        )
        => m [RC.RunCurrency]
 insertMissingRunCurrencies = do
-    missingCurrencies <- mapM (mapM CQ.lookupOrInsertCurrencies) =<< selectMissingRunCurrencies
-    runInsertReturningList $
+    missingCurrencies <- selectMissingRunCurrencies
+    fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencies') ->
         insert (runCurrencies liquidityDb) $
-        insertValues $ concatMap (\(runId, currencies') -> map (fromRow runId) currencies') missingCurrencies
-  where
-    fromRow runId = RC.RunCurrency runId . pk
+        insertValues $ for currencies' $ \currency ->
+            RC.RunCurrency runId (Currency.CurrencyId currency)
 
 selectMissingRunCurrencies
     :: ( MonadBeam be m

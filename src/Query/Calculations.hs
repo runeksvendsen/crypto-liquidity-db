@@ -16,7 +16,6 @@ import qualified Schema.Currency as Currency
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calc
 import qualified Schema.CalculationParameter as CalcParam
-import qualified Query.Currencies as QC
 
 import Database.Beam
 import Database.Beam.Backend (BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
@@ -56,6 +55,7 @@ startCalculation'
   :: ( MonadBeam be m
      , BeamSqlBackendSyntax be ~ Pg.PgCommandSyntax
      , FromBackendRow be Calc.Int32
+     , FromBackendRow be Text
      , FromBackendRow be Run.Word32
      , FromBackendRow be Double
      , FromBackendRow be Float
@@ -90,7 +90,8 @@ selectUnstartedCalculations ::
     , BeamSqlBackend be
     , HasQBuilder be
     , FromBackendRow be Run.Word32
-    , FromBackendRow be Currency.Int32
+    , FromBackendRow be Calc.Int32
+    , FromBackendRow be Text
     , FromBackendRow be Float
     , FromBackendRow be Double
     , FromBackendRow be Calc.LocalTime
@@ -110,7 +111,8 @@ selectUnfinishedCalculations ::
     , BeamSqlBackend be
     , HasQBuilder be
     , FromBackendRow be Run.Word32
-    , FromBackendRow be Currency.Int32
+    , FromBackendRow be Calc.Int32
+    , FromBackendRow be Text
     , FromBackendRow be Float
     , FromBackendRow be Double
     , FromBackendRow be Calc.LocalTime
@@ -137,10 +139,10 @@ selectMissingCalculations ::
     , BeamSqlBackend be
     , HasQBuilder be
     , FromBackendRow be Run.Word32
-    , FromBackendRow be Currency.Int32
+    , FromBackendRow be Text
     , FromBackendRow be Double
     , HasSqlEqualityCheck be Run.Word32
-    , HasSqlEqualityCheck be Currency.Int32
+    , HasSqlEqualityCheck be Text
     , HasSqlEqualityCheck be Double
     )
     => m [(RC.RunCurrency, CalcParam.CalcParam)]
@@ -150,7 +152,7 @@ selectMissingCalculations =
 runCurrencyWithNoCalculation ::
     ( HasQBuilder be
     , HasSqlEqualityCheck be Run.Word32
-    , HasSqlEqualityCheck be Currency.Int32
+    , HasSqlEqualityCheck be Text
     , HasSqlEqualityCheck be Double
     )
     => Q be LiquidityDb s
@@ -169,11 +171,10 @@ runCurrencyWithNoCalculation = do
     guard_ (isNothing_ calculation)
     pure (rc, calcParam)
 
+insertCalcParam :: Text -> Double -> Pg.Pg ()
 insertCalcParam numeraire slippage = do
-    numeraireId <- fromMaybe (error $ "Numeraire " ++ show numeraire ++ " not found")
-        <$> runSelectReturningOne (select $ QC.lookupCurrency numeraire)
     runInsert $
         insert (calculationParameters liquidityDb) $
             insertExpressions
-                [ CalcParam.CalcParam (val_ numeraireId) (val_ slippage)
+                [ CalcParam.CalcParam (Currency.CurrencyId $ val_ numeraire) (val_ slippage)
                 ]

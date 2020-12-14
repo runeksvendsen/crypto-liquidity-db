@@ -14,6 +14,7 @@ import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calculation
 import qualified Schema.CalculationParameter as CalcParam
 import qualified Schema.PathQty as PathQty
+import qualified Schema.PathPart as PathPart
 import qualified Schema.Path as Path
 import qualified Schema.Venue as Venue
 import qualified Schema.Currency as Currency
@@ -34,6 +35,7 @@ data LiquidityDb f = LiquidityDb
 
       -- Calculation output data
     , paths :: f (Beam.TableEntity Path.PathT)
+    , pathParts :: f (Beam.TableEntity PathPart.PathPartT)
     , pathQtys :: f (Beam.TableEntity PathQty.PathQtyT)
 
       -- Map text to integer

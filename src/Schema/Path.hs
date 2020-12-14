@@ -20,12 +20,13 @@ import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 import Data.Time.Clock                      (UTCTime)
 import Database.Beam.Backend.SQL.Types      (SqlSerial(unSerial))
-import Data.Word                            (Word32)
+import Data.Word                            (Word16, Word32)
 
 
 data PathT f
     = Path
     { pathId        :: C f (SqlSerial Word)
+    , pathLength    :: C f Word16
     , pathStart     :: PrimaryKey Currency.CurrencyT f
     } deriving Generic
 

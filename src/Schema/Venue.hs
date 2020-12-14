@@ -21,8 +21,7 @@ import Data.Int (Int16)
 
 data VenueT f
     = Venue
-    { venueId   :: C f (SqlSerial Int16) -- supports ~32000 venues
-    , venueName :: C f T.Text
+    { venueName :: C f T.Text
     } deriving Generic
 
 type Venue = VenueT Identity
@@ -31,15 +30,15 @@ type VenueId = PrimaryKey VenueT Identity
 deriving instance Show Venue
 deriving instance Eq Venue
 instance Show VenueId where
-    show (VenueId serial) = "VenueId" ++ show (unSerial serial)
+    show (VenueId venue) = toS venue
 deriving instance Eq VenueId
 
 instance Beam.Beamable VenueT
 
 instance Beam.Table VenueT where
     data PrimaryKey VenueT f = VenueId
-        (C f (SqlSerial Int16))
+        (C f T.Text)
             deriving Generic
-    primaryKey = VenueId . venueId
+    primaryKey = VenueId . venueName
 
 instance Beam.Beamable (PrimaryKey VenueT)

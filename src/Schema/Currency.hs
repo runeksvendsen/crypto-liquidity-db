@@ -8,22 +8,21 @@ module Schema.Currency
 , CurrencyId
 , PrimaryKey(type CurrencyId)
 , Int32
+, textPk
 )
 where
 
 import Internal.Prelude
 
 import qualified Database.Beam              as Beam
-import Database.Beam (C, Identity, PrimaryKey)
+import Database.Beam (SqlValable, C, Identity, PrimaryKey)
 import qualified Data.Text as T
-import Database.Beam.Backend.SQL.Types (SqlSerial(unSerial))
 import Data.Int (Int32)
 
 
 data CurrencyT f
     = Currency
-    { currencyId     :: C f (SqlSerial Int32)
-    , currencySymbol :: C f T.Text
+    { currencySymbol :: C f T.Text
     } deriving Generic
 
 type Currency = CurrencyT Identity
@@ -32,15 +31,18 @@ type CurrencyId = PrimaryKey CurrencyT Identity
 deriving instance Show Currency
 deriving instance Eq Currency
 instance Show CurrencyId where
-    show (CurrencyId serial) = "CurrencyId " ++ show (unSerial serial)
+    show (CurrencyId symbol) = toS symbol
 deriving instance Eq CurrencyId
+
+textPk :: SqlValable (C f Text) => Text -> PrimaryKey CurrencyT f
+textPk _ = undefined -- CurrencyId $ Beam.val_ (toS "hey" :: Text)
 
 instance Beam.Beamable CurrencyT
 
 instance Beam.Table CurrencyT where
     data PrimaryKey CurrencyT f = CurrencyId
-        (C f (SqlSerial Int32))
+        (C f T.Text)
             deriving Generic
-    primaryKey = CurrencyId . currencyId
+    primaryKey = CurrencyId . currencySymbol
 
 instance Beam.Beamable (PrimaryKey CurrencyT)
