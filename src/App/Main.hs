@@ -4,6 +4,7 @@ module App.Main
 , Config(..)
 , withPoolPg
 , migrateInteractive
+, runMigration
 )
 where
 
@@ -57,6 +58,7 @@ processCalculations = do
 --    * INSERT/UPDATE calculations  ->  add calculations to calculations-queue
 notificationsListen :: AppM ()
 notificationsListen = do
+    logInfo "Waiting for notification..."
     notification <- withDbConn (R.lift . PgNotify.getNotification)
     case Source.parseByteString $ PgNotify.notificationChannel notification of
         Left errMsg -> logInfo $ "ERROR: "++ errMsg

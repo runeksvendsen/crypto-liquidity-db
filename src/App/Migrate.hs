@@ -3,6 +3,7 @@
 
 module App.Migrate
 ( migrateInteractive
+, runMigration
 )
 where
 
@@ -33,13 +34,22 @@ exampleAutoMigration =
     withDbConn $ \conn ->
         lift $ BA.tryRunMigrationsWithEditUpdate annotatedDb conn
 
+runMigration :: Config -> IO ()
+runMigration cfg = do
+    putStrLn "----------------------------------------------------"
+    putStrLn "MIGRATION PLAN (if migration needed):"
+    putStrLn "----------------------------------------------------"
+    runAppM cfg $ do
+        exampleShowMigration
+        exampleAutoMigration
+
 migrateInteractive :: Config -> IO ()
 migrateInteractive cfg = do
     putStrLn ""
     putStrLn "----------------------------------------------------"
     putStrLn "MIGRATION PLAN (if migration needed):"
     putStrLn "----------------------------------------------------"
-    runAppM cfg exampleShowMigration
+    runAppM cfg exampleAutoMigration
     putStrLn ""
     putStrLn "----------------------------------------------------"
     putStrLn "MIGRATE?"
