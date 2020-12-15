@@ -24,8 +24,8 @@ import           Database.Beam              (C, Identity, PrimaryKey)
 -- | A currency that is present in one or more order books associated with a run
 data RunCurrencyT f
     = RunCurrency
-    { runCurrencyRun :: PrimaryKey Run.RunT f
-    , runCurrencyCurrency :: PrimaryKey Currency.CurrencyT f
+    { rcRun :: PrimaryKey Run.RunT f
+    , rcCurrency :: PrimaryKey Currency.CurrencyT f
     } deriving Generic
 
 type RunCurrency = RunCurrencyT Identity
@@ -45,6 +45,6 @@ instance Beam.Table RunCurrencyT where
         (PrimaryKey Run.RunT f)
         (PrimaryKey Currency.CurrencyT f)
             deriving Generic
-    primaryKey RunCurrency{..} = RunCurrencyId runCurrencyRun runCurrencyCurrency
+    primaryKey RunCurrency{..} = RunCurrencyId rcRun rcCurrency
 
 instance Beam.Beamable (PrimaryKey RunCurrencyT)

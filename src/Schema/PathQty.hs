@@ -24,11 +24,11 @@ import Data.Word (Word64)
 
 data PathQtyT f
     = PathQty
-    { pathQtyCalc       :: PrimaryKey Calc.CalculationT f
-    , pathQtyPath       :: PrimaryKey Path.PathT f
-    , pathQtyQty        :: C f Word64  -- TODO: precise enough?
-    , pathQtyPriceLow   :: C f Double
-    , pathQtyPriceHigh  :: C f Double
+    { pathqtyCalc       :: PrimaryKey Calc.CalculationT f
+    , pathqtyPath       :: PrimaryKey Path.PathT f
+    , pathqtyQty        :: C f Word64  -- TODO: precise enough?
+    , pathqtyPriceLow   :: C f Double
+    , pathqtyPriceHigh  :: C f Double
     } deriving Generic
 
 
@@ -49,6 +49,6 @@ instance Beam.Table PathQtyT where
         (PrimaryKey Calc.CalculationT f)
         (PrimaryKey Path.PathT f)
             deriving Generic
-    primaryKey PathQty{..} = PathQtyId pathQtyCalc pathQtyPath
+    primaryKey PathQty{..} = PathQtyId pathqtyCalc pathqtyPath
 
 instance Beam.Beamable (PrimaryKey PathQtyT)

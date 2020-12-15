@@ -25,6 +25,7 @@ dependencies:
 
 ghc-options:
   - -Wall
+  - -fno-warn-unused-imports
 
 library:
   source-dirs: src
@@ -50,6 +51,7 @@ library:
   - resource-pool
   - gargoyle-postgresql-connect
   - retry
+  - pretty-simple
 
 executables:
   crypto-liquidity-db-exe:

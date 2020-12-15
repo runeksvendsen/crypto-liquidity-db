@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Database
 ( LiquidityDb(..)
 , liquidityDb
@@ -32,7 +33,7 @@ data LiquidityDb f = LiquidityDb
     , books :: f (Beam.TableEntity Book.BookT)
 
       -- Input data and job queue for calculation
-    , runCurrencies :: f (Beam.TableEntity RC.RunCurrencyT)
+    , runCurrencys :: f (Beam.TableEntity RC.RunCurrencyT)
     , calculationParameters :: f (Beam.TableEntity CalcParam.CalcParamT)
     , calculations :: f (Beam.TableEntity Calculation.CalculationT)
 
@@ -43,13 +44,32 @@ data LiquidityDb f = LiquidityDb
 
       -- Map text to integer
     , venues :: f (Beam.TableEntity Venue.VenueT)
-    , currencies :: f (Beam.TableEntity Currency.CurrencyT)
+    , currencys :: f (Beam.TableEntity Currency.CurrencyT)
     } deriving Generic
 
 instance Beam.Database be LiquidityDb
 
 liquidityDb :: Beam.DatabaseSettings be LiquidityDb
-liquidityDb = Beam.defaultDbSettings
+liquidityDb = Beam.defaultDbSettings -- `Beam.withDbModification`
+--     Beam.dbModification {
+--         currencys = Beam.setEntityName "currencys" -- <>
+--             -- modifyTableFields tableModification {
+--             -- _addressLine1 = "address1",
+--             -- _addressLine2 = "address2"
+--             -- },
+--         , runCurrencys = Beam.setEntityName "run_currencys"
+--         -- _shoppingCartOrders = setEntityName "orders" <>
+--         --                         modifyTableFields tableModification {
+--         --                         _orderShippingInfo = ShippingInfoId "shipping_info__id"
+--         --                         },
+--         -- _shoppingCartShippingInfos = setEntityName "shipping_info" <>
+--         --                             modifyTableFields tableModification {
+--         --                                 _shippingInfoId = "id",
+--         --                                 _shippingInfoCarrier = "carrier",
+--         --                                 _shippingInfoTrackingNumber = "tracking_number"
+--         --                             },
+--         -- _shoppingCartLineItems = setEntityName "line_items"
+--     }
 
 partsForPath
     :: Beam.HasSqlEqualityCheck be Path.Word32
@@ -57,4 +77,21 @@ partsForPath
     -> Beam.Q be LiquidityDb s (PathPart.PathPartT (Beam.QExpr be s))
 partsForPath =
     Beam.oneToMany_ (pathParts liquidityDb)
-                    PathPart.pathPartPath
+                    PathPart.pathpartPath
+
+
+
+-- lel = [InvalidTableConstraint
+--             (ForeignKey
+--                 "calculations_currency__symbol_fkey"
+--                 (TableName {tableName = "currencys"})
+--                 (fromList [(ColumnName {columnName = "currency__symbol"},ColumnName {columnName = "symbol"})])
+--                 NoAction
+--                 NoAction
+--             )
+--             (NotAllColumnsExist
+--                 (TableName {tableName = "currencys"})
+--                 (fromList [ColumnName {columnName = "symbol"}])
+--                 (fromList [ColumnName {columnName = "currency__symbol"},ColumnName {columnName = "run__id"}])
+--             )
+--         ]

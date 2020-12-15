@@ -44,19 +44,19 @@ main cfg = do
 insertMissingRunCurrencies :: AppM ()
 insertMissingRunCurrencies = do
     res <- dbRun Query.insertMissingRunCurrencies
-    logInfo $ "Inserted run currencies: " ++ show res
+    logInfo $ "Inserted run currencys: " ++ show res
 
 processCalculations :: AppM ()
 processCalculations = do
     calculation <- lift $ STM.atomically $ PQ.removeMin calculationQueue
     RunCalc.runInsertCalculation calculation
 
+-- | Listen for:
+--    * INSERT runs                 ->  insertMissingRunCurrencies
+--    * INSERT run_currencies       ->  insertMissingCalculations
+--    * INSERT/UPDATE calculations  ->  add calculations to calculations-queue
 notificationsListen :: AppM ()
 notificationsListen = do
-    -- listen:
-    --    * INSERT runs                 ->  insertMissingRunCurrencies
-    --    * INSERT run_currencies       ->  insertMissingCalculations
-    --    * INSERT/UPDATE calculations  ->  add calculations to calculations-queue
     notification <- withDbConn (R.lift . PgNotify.getNotification)
     case Source.parseByteString $ PgNotify.notificationChannel notification of
         Left errMsg -> logInfo $ "ERROR: "++ errMsg
@@ -72,7 +72,7 @@ notificationsListen = do
         case calcM of
             Nothing ->
                 logInfo "'startCalculation' returned Nothing: no unprocessed calculations."
-                -- TODO: purge IBuyGraph cache?
+                -- TODO: purge IBuyGraph cache here?
             Just calc -> do
                 R.lift $ STM.atomically $ PQ.insert (Db.getRunId $ Calc.calcCalc calc) calc calculationQueue
                 logInfo $ "Inserted calculation: " ++ show (Beam.pk $ Calc.calcCalc calc)

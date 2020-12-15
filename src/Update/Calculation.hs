@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Update.Calculation where
 
 import           Data.List                                ( sort )

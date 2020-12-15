@@ -21,8 +21,8 @@ import           Database.Beam              (C, Identity, PrimaryKey)
 
 data CalcParamT f
     = CalcParam
-    { calcParamNumeraire :: PrimaryKey Currency.CurrencyT f
-    , calcParamSlippage :: C f Double
+    { cpNumeraire :: PrimaryKey Currency.CurrencyT f
+    , cpSlippage :: C f Double
     } deriving Generic
 
 type CalcParam = CalcParamT Identity
@@ -47,6 +47,6 @@ instance Beam.Table CalcParamT where
         (PrimaryKey Currency.CurrencyT f)
         (C f Double)
             deriving Generic
-    primaryKey CalcParam{..} = CalcParamId calcParamNumeraire calcParamSlippage
+    primaryKey CalcParam{..} = CalcParamId cpNumeraire cpSlippage
 
 instance Beam.Beamable (PrimaryKey CalcParamT)

@@ -71,12 +71,12 @@ insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
     runInsert $ pathQtyInsert (pk pathT)
   where
     pathQtyInsert pathPk = insert (pathQtys liquidityDb) $
-        insertValues [ PQty.PathQty { PQty.pathQtyCalc      = calcPk
-                                    , PQty.pathQtyPath      = pathPk
-                                    , PQty.pathQtyQty       = pathQty
-                                    , PQty.pathQtyPriceLow  =
+        insertValues [ PQty.PathQty { PQty.pathqtyCalc      = calcPk
+                                    , PQty.pathqtyPath      = pathPk
+                                    , PQty.pathqtyQty       = pathQty
+                                    , PQty.pathqtyPriceLow  =
                                           head sortedPathPrices
-                                    , PQty.pathQtyPriceHigh =
+                                    , PQty.pathqtyPriceHigh =
                                           last sortedPathPrices
                                     }
                      ]
@@ -108,12 +108,12 @@ pathLookupOrInsert pathDescr = do
         guard_ $ Path.pathLength path
             ==. val_ (fromIntegral $ length pathPartLst)
         pathPart <- partsForPath path
-        guard_ $ foldr (\pathPart' state -> state ||. PP.pathPartIndex pathPart
-                        ==. val_ (PP.pathPartIndex pathPart')
-                        ||. PP.pathPartVenue pathPart
-                        ==. val_ (PP.pathPartVenue pathPart')
-                        ||. PP.pathPartCurrency pathPart
-                        ==. val_ (PP.pathPartCurrency pathPart'))
+        guard_ $ foldr (\pathPart' state -> state ||. PP.pathpartIndex pathPart
+                        ==. val_ (PP.pathpartIndex pathPart')
+                        ||. PP.pathpartVenue pathPart
+                        ==. val_ (PP.pathpartVenue pathPart')
+                        ||. PP.pathpartCurrency pathPart
+                        ==. val_ (PP.pathpartCurrency pathPart'))
                        (val_ True)
                        pathPartLst
         pure path
@@ -122,8 +122,8 @@ pathLookupOrInsert pathDescr = do
 
     mkPathParts pathPk = for (zip [ 0 .. ] (NE.toList pathEdges)) $
         \(idx, (venue, currency)) ->
-        PP.PathPart { PP.pathPartPath     = pathPk
-                    , PP.pathPartIndex    = idx
-                    , PP.pathPartVenue    = VenueId (toS venue)
-                    , PP.pathPartCurrency = CurrencyId (toS currency)
+        PP.PathPart { PP.pathpartPath     = pathPk
+                    , PP.pathpartIndex    = idx
+                    , PP.pathpartVenue    = VenueId (toS venue)
+                    , PP.pathpartCurrency = CurrencyId (toS currency)
                     }

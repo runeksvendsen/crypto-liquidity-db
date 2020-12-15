@@ -25,10 +25,10 @@ import Data.Int (Int16)
 
 data PathPartT f
     = PathPart
-    { pathPartPath      :: PrimaryKey Path.PathT f
-    , pathPartIndex     :: C f Int16
-    , pathPartVenue     :: PrimaryKey Venue.VenueT f
-    , pathPartCurrency  :: PrimaryKey Currency.CurrencyT f
+    { pathpartPath      :: PrimaryKey Path.PathT f
+    , pathpartIndex     :: C f Int16
+    , pathpartVenue     :: PrimaryKey Venue.VenueT f
+    , pathpartCurrency  :: PrimaryKey Currency.CurrencyT f
     } deriving Generic
 
 type PathPart = PathPartT Identity
@@ -48,6 +48,6 @@ instance Beam.Table PathPartT where
         (PrimaryKey Path.PathT f)
         (C f Int16)
             deriving Generic
-    primaryKey PathPart{..} = PathPartId pathPartPath pathPartIndex
+    primaryKey PathPart{..} = PathPartId pathpartPath pathpartIndex
 
 instance Beam.Beamable (PrimaryKey PathPartT)

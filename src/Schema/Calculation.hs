@@ -27,7 +27,7 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
-import Database.Beam.Backend (SqlSerial(SqlSerial))
+import Database.Beam.Backend (SqlSerial)
 import Data.Time.LocalTime (LocalTime)
 import Data.Int (Int32)
 
@@ -49,10 +49,10 @@ type CalculationId = PrimaryKey CalculationT Identity
 
 new rc cp = Calculation
     { calculationId = Beam.default_
-    , calculationRun = Beam.val_ $ RC.runCurrencyRun rc
-    , calculationCurrency = Beam.val_ $ RC.runCurrencyCurrency rc
-    , calculationNumeraire = Beam.val_ $ CalcParam.calcParamNumeraire cp
-    , calculationSlippage = Beam.val_ $ CalcParam.calcParamSlippage cp
+    , calculationRun = Beam.val_ $ RC.rcRun rc
+    , calculationCurrency = Beam.val_ $ RC.rcCurrency rc
+    , calculationNumeraire = Beam.val_ $ CalcParam.cpNumeraire cp
+    , calculationSlippage = Beam.val_ $ CalcParam.cpSlippage cp
     , calculationCreationTime = Beam.currentTimestamp_
     , calculationStartTime = Beam.val_ Nothing
     , calculationDurationSeconds = Beam.val_ Nothing
@@ -61,32 +61,21 @@ new rc cp = Calculation
 deriving instance Show Calculation
 deriving instance Eq Calculation
 instance Show CalculationId where
-    show (CalculationId run currency numeraire slippage) =
-        let paren s = "(" <> s <> ")"
-        in unwords
-            [ "CalculationId"
-            , paren (show run)
-            , paren (show currency)
-            , paren (show numeraire)
-            , paren (show slippage)
-            ]
+    show (CalculationId num) = "CalculationId " ++ show num
+
 deriving instance Eq CalculationId
 
 instance Beam.Beamable CalculationT
 
 instance Beam.Table CalculationT where
     data PrimaryKey CalculationT f = CalculationId
-        (PrimaryKey Run.RunT f)
-        (PrimaryKey Currency.CurrencyT f)
-        (PrimaryKey Currency.CurrencyT f)
-        (C f Double)
+        (C f (SqlSerial Int32))
             deriving Generic
     primaryKey Calculation{..} = CalculationId
-        calculationRun calculationCurrency calculationNumeraire calculationSlippage
+        calculationId
 
 instance Beam.Beamable (PrimaryKey CalculationT)
 
 getRunId :: Calculation -> Run.RunId
 getRunId calc =
-    let (CalculationId runId _ _ _) = Beam.pk calc
-    in runId
+    calculationRun calc

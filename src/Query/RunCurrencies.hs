@@ -17,7 +17,6 @@ import qualified Schema.Currency as Currency
 import Database.Beam
 import Database.Beam.Backend (BeamSqlBackendSyntax, Sql92SelectSyntax, Sql92SelectSelectTableSyntax, Sql92SelectTableExpressionSyntax, Sql92ExpressionValueSyntax, HasSqlValueSyntax, BeamSqlBackend)
 import Data.Text (Text)
-import Data.List (sortOn, groupBy)
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import Schema.Currency (Int32)
 
@@ -38,9 +37,9 @@ insertMissingRunCurrencies
        => m [RC.RunCurrency]
 insertMissingRunCurrencies = do
     missingCurrencies <- selectMissingRunCurrencies
-    fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencies') ->
-        insert (runCurrencies liquidityDb) $
-        insertValues $ for currencies' $ \currency ->
+    fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencys') ->
+        insert (runCurrencys liquidityDb) $
+        insertValues $ for currencys' $ \currency ->
             RC.RunCurrency runId (Currency.CurrencyId currency)
 
 selectMissingRunCurrencies
@@ -78,8 +77,8 @@ runsWithNoCurrencies = do
     run  <- all_ $ runs liquidityDb
     guard_ $ not_ $ exists_ $
         filter_
-            (\rc -> RC.runCurrencyRun rc `references_` run)
-            (all_ $ runCurrencies liquidityDb)
+            (\rc -> RC.rcRun rc `references_` run)
+            (all_ $ runCurrencys liquidityDb)
     pure run
 
 runBaseQuote
@@ -89,7 +88,7 @@ runBaseQuote
         ( QGenExpr QValueContext be s Text
           , QGenExpr QValueContext be s Text
         )
-runBaseQuote run = do
+runBaseQuote run = nub_ $ do
     book <- all_ $ books liquidityDb
     guard_ $ Book.bookRun book `references_` run
     pure (Book.bookBase book, Book.bookQuote book)
@@ -100,4 +99,3 @@ runCurriencies runBaseQuoteL = do
   where
     uniqueCurrencies = uniqueOn id . uncurry (++) . unzip
     uniqueOn f = map head . groupOn f
-    groupOn f = groupBy (\a1 a2 -> f a1 == f a2) . sortOn f

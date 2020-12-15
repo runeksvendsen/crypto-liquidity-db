@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 67d5d13d08ecba54b286d0832c0fcad5ef2db89bd3653fc95760d173bf359320
+-- hash: 1968b799619e1bae0e8f1e73e73c01d1fdc1f1edefd229155ca13499a34ffe04
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -54,7 +54,7 @@ library
   hs-source-dirs:
       src
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall
+  ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
       async
     , base >=4.7 && <5
@@ -70,6 +70,7 @@ library
     , order-graph
     , postgresql-simple
     , pqueue
+    , pretty-simple
     , protolude
     , resource-pool
     , retry
@@ -87,7 +88,7 @@ executable crypto-liquidity-db-exe
   hs-source-dirs:
       app
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , crypto-liquidity-db
@@ -102,7 +103,7 @@ test-suite crypto-liquidity-db-test
   hs-source-dirs:
       test
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , crypto-liquidity-db

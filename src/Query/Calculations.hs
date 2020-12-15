@@ -44,8 +44,8 @@ startCalculation = do
             return $ Just $ Calculation calc numeraire crypto
   where
     getSymbols calc = do
-        numeraire <- all_ (currencies liquidityDb)
-        crypto <- all_ (currencies liquidityDb)
+        numeraire <- all_ (currencys liquidityDb)
+        crypto <- all_ (currencys liquidityDb)
         guard_ $ val_ (Calc.calculationNumeraire calc) ==. pk numeraire
         guard_ $ val_ (Calc.calculationCurrency calc) ==. pk crypto
         return (Currency.currencySymbol numeraire, Currency.currencySymbol crypto)
@@ -157,13 +157,13 @@ runCurrencyWithNoCalculation ::
         , CalcParam.CalcParamT (QExpr be s)
         )
 runCurrencyWithNoCalculation = do
-    rc  <- all_ $ runCurrencies liquidityDb
+    rc  <- all_ $ runCurrencys liquidityDb
     calcParam  <- all_ $ calculationParameters liquidityDb
     calculation <- leftJoin_ (all_ $ calculations liquidityDb)
-        (\calc -> Calc.calculationRun calc ==. RC.runCurrencyRun rc &&.
-            Calc.calculationCurrency calc ==. RC.runCurrencyCurrency rc &&.
-            Calc.calculationNumeraire calc ==. CalcParam.calcParamNumeraire calcParam &&.
-            Calc.calculationSlippage calc ==. CalcParam.calcParamSlippage calcParam
+        (\calc -> Calc.calculationRun calc ==. RC.rcRun rc &&.
+            Calc.calculationCurrency calc ==. RC.rcCurrency rc &&.
+            Calc.calculationNumeraire calc ==. CalcParam.cpNumeraire calcParam &&.
+            Calc.calculationSlippage calc ==. CalcParam.cpSlippage calcParam
         )
     guard_ (isNothing_ calculation)
     pure (rc, calcParam)

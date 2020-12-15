@@ -8,14 +8,13 @@ module Schema.Currency
 , CurrencyId
 , PrimaryKey(type CurrencyId)
 , Int32
-, textPk
 )
 where
 
 import Internal.Prelude
 
 import qualified Database.Beam              as Beam
-import Database.Beam (SqlValable, C, Identity, PrimaryKey)
+import Database.Beam (C, Identity, PrimaryKey)
 import qualified Data.Text as T
 import Data.Int (Int32)
 
@@ -33,9 +32,6 @@ deriving instance Eq Currency
 instance Show CurrencyId where
     show (CurrencyId symbol) = toS symbol
 deriving instance Eq CurrencyId
-
-textPk :: SqlValable (C f Text) => Text -> PrimaryKey CurrencyT f
-textPk _ = undefined -- CurrencyId $ Beam.val_ (toS "hey" :: Text)
 
 instance Beam.Beamable CurrencyT
 
