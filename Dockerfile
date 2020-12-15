@@ -8,7 +8,7 @@
 FROM ubuntu:16.04 as builder
 
 RUN apt-get update \
-  && apt-get install -y curl libpq-dev libgmp10
+  && apt-get install -y curl libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
 RUN curl -sSL https://get.haskellstack.org/ | sh
 
@@ -17,10 +17,15 @@ RUN curl -sSL https://get.haskellstack.org/ | sh
 COPY stack.yaml ./
 COPY package.yaml ./
 RUN stack setup
+
+# required by dependency: gargoyle-postgresql-nix
+ENV PATH="/usr/lib/postgresql/9.5/bin:$PATH"
+
 RUN stack install --dependencies-only
 
-COPY src ./
-COPY app ./
+COPY src ./src
+COPY test ./test
+COPY app ./app
 
 RUN stack build --test --copy-bins --local-bin-path /tmp/dist/
 
