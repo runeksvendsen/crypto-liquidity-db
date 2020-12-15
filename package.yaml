@@ -49,7 +49,6 @@ library:
   - lrucache
   - beam-automigrate
   - resource-pool
-  - gargoyle-postgresql-connect
   - retry
 
 executables:
