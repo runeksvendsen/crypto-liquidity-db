@@ -51,7 +51,6 @@ library:
   - resource-pool
   - gargoyle-postgresql-connect
   - retry
-  - pretty-simple
 
 executables:
   crypto-liquidity-db-exe:

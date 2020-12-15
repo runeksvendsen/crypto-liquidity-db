@@ -14,8 +14,6 @@ import Data.Proxy (Proxy(..))
 import Database.Beam.Postgres
 import Database.Beam.Schema
 import qualified Database.Beam.AutoMigrate as BA
-import qualified Text.Pretty.Simple as PS
-import Database.PostgreSQL.Simple as Pg
 
 
 annotatedDb :: BA.AnnotatedDatabaseSettings Postgres LiquidityDb
@@ -37,16 +35,12 @@ exampleAutoMigration =
 
 migrateInteractive :: Config -> IO ()
 migrateInteractive cfg = do
-    putStrLn "----------------------------------------------------"
-    putStrLn "Schema:"
-    putStrLn "----------------------------------------------------"
-    PS.pPrintLightBg hsSchema
-
+    putStrLn ""
     putStrLn "----------------------------------------------------"
     putStrLn "MIGRATION PLAN (if migration needed):"
     putStrLn "----------------------------------------------------"
     runAppM cfg exampleShowMigration
-
+    putStrLn ""
     putStrLn "----------------------------------------------------"
     putStrLn "MIGRATE?"
     putStrLn "----------------------------------------------------"
