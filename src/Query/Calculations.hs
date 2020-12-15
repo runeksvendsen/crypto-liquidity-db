@@ -157,8 +157,8 @@ runCurrencyWithNoCalculation ::
         , CalcParam.CalcParamT (QExpr be s)
         )
 runCurrencyWithNoCalculation = do
-    rc  <- all_ $ runCurrencys liquidityDb
-    calcParam  <- all_ $ calculationParameters liquidityDb
+    rc  <- all_ $ run_currencys liquidityDb
+    calcParam  <- all_ $ calculation_parameters liquidityDb
     calculation <- leftJoin_ (all_ $ calculations liquidityDb)
         (\calc -> Calc.calculationRun calc ==. RC.rcRun rc &&.
             Calc.calculationCurrency calc ==. RC.rcCurrency rc &&.
@@ -171,7 +171,7 @@ runCurrencyWithNoCalculation = do
 insertCalcParam :: Text -> Double -> Pg.Pg ()
 insertCalcParam numeraire slippage = do
     runInsert $
-        insert (calculationParameters liquidityDb) $
+        insert (calculation_parameters liquidityDb) $
             insertExpressions
                 [ CalcParam.CalcParam (Currency.CurrencyId $ val_ numeraire) (val_ slippage)
                 ]

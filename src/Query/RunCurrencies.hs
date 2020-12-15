@@ -38,7 +38,7 @@ insertMissingRunCurrencies
 insertMissingRunCurrencies = do
     missingCurrencies <- selectMissingRunCurrencies
     fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencys') ->
-        insert (runCurrencys liquidityDb) $
+        insert (run_currencys liquidityDb) $
         insertValues $ for currencys' $ \currency ->
             RC.RunCurrency runId (Currency.CurrencyId currency)
 
@@ -78,7 +78,7 @@ runsWithNoCurrencies = do
     guard_ $ not_ $ exists_ $
         filter_
             (\rc -> RC.rcRun rc `references_` run)
-            (all_ $ runCurrencys liquidityDb)
+            (all_ $ run_currencys liquidityDb)
     pure run
 
 runBaseQuote

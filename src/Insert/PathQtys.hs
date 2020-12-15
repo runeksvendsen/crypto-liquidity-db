@@ -70,7 +70,7 @@ insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
     pathT <- pathLookupOrInsert pathDescr
     runInsert $ pathQtyInsert (pk pathT)
   where
-    pathQtyInsert pathPk = insert (pathQtys liquidityDb) $
+    pathQtyInsert pathPk = insert (path_qtys liquidityDb) $
         insertValues [ PQty.PathQty { PQty.pathqtyCalc      = calcPk
                                     , PQty.pathqtyPath      = pathPk
                                     , PQty.pathqtyQty       = pathQty
@@ -118,7 +118,7 @@ pathLookupOrInsert pathDescr = do
                        pathPartLst
         pure path
 
-    pathPartInsert = insert (pathParts liquidityDb) . insertValues . mkPathParts
+    pathPartInsert = insert (path_parts liquidityDb) . insertValues . mkPathParts
 
     mkPathParts pathPk = for (zip [ 0 .. ] (NE.toList pathEdges)) $
         \(idx, (venue, currency)) ->
