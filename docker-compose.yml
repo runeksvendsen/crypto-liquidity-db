@@ -1,0 +1,48 @@
+version: "3.4"
+
+services:
+   liquidity-database:
+      image: postgres:9.6
+      container_name: database
+      environment:
+         - POSTGRES_PASSWORD=test
+         - POSTGRES_USER=test
+         - POSTGRES_DB=liquidity
+      restart: always
+      volumes:
+         - liquidity-db-data:/data/db
+      networks:
+         - liquidity-backend-network
+      ports: # for debugging
+         - "54321:5432"
+      expose:
+         - "5432"
+   liquidity-service:
+      image: crypto-liquidity-service:latest
+      container_name: liquidity-service
+      links:
+         - liquidity-database
+      depends_on:
+         - liquidity-database
+      environment:
+         - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+      networks:
+         - liquidity-backend-network
+   orderbook-service:
+      image: testing/crypto-depth/orderbook-service:latest
+      container_name: orderbook-service
+      links:
+         - liquidity-database
+      depends_on:
+         - liquidity-database
+      environment:
+         - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+      networks:
+         - liquidity-backend-network
+
+networks:
+   liquidity-backend-network:
+      driver: bridge
+
+volumes:
+   liquidity-db-data:

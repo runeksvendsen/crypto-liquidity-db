@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 24b2c66c75037dd19c7b44c9ba7fa8698c23ad6201fb0923a6c5fa9dd91a78f7
+-- hash: 4c2217cf8b7f5bd68c158cc83878eb339aff6c495b73612780484ecfb2293ec1
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -24,6 +24,7 @@ source-repository head
 
 library
   exposed-modules:
+      App.Log
       App.Main
       App.Migrate
       App.Monad
@@ -35,10 +36,12 @@ library
       App.Source
       App.Timed
       Database
+      Insert.CalcParams
       Insert.PathQtys
       Internal.Prelude
       Query.Books
       Query.Calculations
+      Query.Currencies
       Query.RunCurrencies
       Schema.Calculation
       Schema.CalculationParameter
@@ -64,9 +67,11 @@ library
     , bytestring
     , containers
     , crypto-orderbook-db
+    , logging
     , lrucache
     , mtl
     , order-graph
+    , pg-client
     , postgresql-simple
     , pqueue
     , protolude

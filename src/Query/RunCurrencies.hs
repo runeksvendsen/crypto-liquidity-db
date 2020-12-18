@@ -12,7 +12,7 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified CryptoDepth.OrderBook.Db.Schema.Book as Book
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Currency as Currency
-
+import qualified Query.Currencies as QC
 
 import Database.Beam
 import Database.Beam.Backend (BeamSqlBackendSyntax, Sql92SelectSyntax, Sql92SelectSelectTableSyntax, Sql92SelectTableExpressionSyntax, Sql92ExpressionValueSyntax, HasSqlValueSyntax, BeamSqlBackend)
@@ -37,6 +37,7 @@ insertMissingRunCurrencies
        => m [RC.RunCurrency]
 insertMissingRunCurrencies = do
     missingCurrencies <- selectMissingRunCurrencies
+    QC.insertMissingCurrencies (concatMap snd missingCurrencies)
     fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencys') ->
         insert (run_currencys liquidityDb) $
         insertValues $ for currencys' $ \currency ->
@@ -98,4 +99,3 @@ runCurriencies runBaseQuoteL = do
     map (\lst -> (fst $ head lst, uniqueCurrencies $ map snd lst)) $ groupOn fst runBaseQuoteL
   where
     uniqueCurrencies = uniqueOn id . uncurry (++) . unzip
-    uniqueOn f = map head . groupOn f

@@ -41,6 +41,7 @@ library:
   - stm
   - async
   - postgresql-simple
+  - pg-client
   - bytestring
   - containers
   - transformers
@@ -50,6 +51,7 @@ library:
   - beam-automigrate
   - resource-pool
   - retry
+  - logging
 
 executables:
   crypto-liquidity-db-exe:
@@ -61,6 +63,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - crypto-liquidity-db
+
+
 
 tests:
   crypto-liquidity-db-test:

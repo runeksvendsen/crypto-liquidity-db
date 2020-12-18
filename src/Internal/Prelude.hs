@@ -5,6 +5,7 @@ module Internal.Prelude
 , groupOn
 , for
 , runInsertReturningOne
+, uniqueOn
 )
 where
 
@@ -18,6 +19,9 @@ import Data.List (groupBy, sortOn)
 
 groupOn :: Ord b => (t -> b) -> [t] -> [[t]]
 groupOn f = groupBy (\a1 a2 -> f a1 == f a2) . sortOn f
+
+uniqueOn :: Ord b => (a -> b) -> [a] -> [a]
+uniqueOn f = map head . groupOn f
 
 for :: [a] -> (a -> b) -> [b]
 for = flip map

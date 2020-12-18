@@ -11,14 +11,22 @@ import App.Orphans ()
 
 import Data.Time.Clock (NominalDiffTime)
 import qualified Database.Beam.Postgres as Pg
+import qualified Database.PostgreSQL.Simple as PgSimple
 import qualified Control.Monad.Reader as R
 import qualified App.Pool as Pool
+import qualified App.Log as Log
+import qualified Control.Concurrent.Async as Async
 
 
 type AppM = R.ReaderT Config IO
 
-logInfo :: String -> AppM ()
-logInfo = R.lift . putStrLn
+logInfo :: String -> String -> AppM ()
+logInfo ctx =
+    R.lift . Log.logInfo (toS ctx)
+
+logDebug :: String -> String -> AppM ()
+logDebug ctx =
+    R.lift . Log.logDebug (toS ctx)
 
 runAppM :: Config -> R.ReaderT Config m a -> m a
 runAppM = flip R.runReaderT
@@ -30,7 +38,15 @@ withDbConn f = do
 
 dbRun :: Pg.Pg a -> AppM a
 dbRun appM = do
-    withDbConn $ \conn -> R.lift $ Pg.runBeamPostgresDebug putStrLn conn appM
+    cfg <- R.ask
+    withDbConn $ \conn -> R.lift $
+        PgSimple.withTransaction conn $
+            Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn appM
+
+async :: AppM () -> AppM (Async.Async ())
+async appM = do
+    cfg <- R.ask
+    R.lift $ Async.async $ runAppM cfg appM
 
 -- |
 data Config = Config
@@ -42,3 +58,9 @@ data Config = Config
       -- ^ restart dead calculations this often
     , cfgDbConnPool :: Pool.Pool Pool.Connection
     }
+
+calculationParameters :: Config -> [(Text, Double)]
+calculationParameters cfg = do
+    numeraire <- cfgNumeraires cfg
+    slippage <- cfgSlippages cfg
+    return (numeraire, slippage)

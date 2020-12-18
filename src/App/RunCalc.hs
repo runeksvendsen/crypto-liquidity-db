@@ -39,13 +39,13 @@ runInsertCalculation calc = do
     inputDataM <- lift $ LRU.lookup cacheKey graphCache
     inputData <- maybe
         buildGraphAndCache
-        (\res -> logInfo ("Cache hit for " ++ show cacheKey) >> return res)
+        (\res -> logInfo "Cache" ("Cache hit for " ++ show cacheKey) >> return res)
         inputDataM
     ((sellPaths, buyPaths), durationSecs) <- lift $ App.Timed.timeEval
         (\input -> return $ ST.runST $ G.matchOrders noLogging numeraire crypto input) inputData
     let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
     dbRun $ Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
-    logInfo $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
+    logInfo "Calculation" $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
     dbRun $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
   where
     numeraire = toS $ Calc.calcNumeraire calc
@@ -61,7 +61,7 @@ runInsertCalculation calc = do
         books <- dbRun $ Books.runBooks runId
         -- create buyGraph
         let (_, buyGraph) = ST.runST $ G.buildBuyGraph noLogging books
-        logInfo $ "Built graph. Updated cache: " ++ show cacheKey
+        logInfo "Calculation" $ "Built graph. Updated cache: " ++ show cacheKey
         -- update cache
         lift $ LRU.insert cacheKey buyGraph graphCache
         return buyGraph
