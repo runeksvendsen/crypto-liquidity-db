@@ -6,6 +6,7 @@ module App.PgConnect
 )
 where
 
+import qualified App.Log as Log
 
 import           Protolude.Conv                     (toS)
 import qualified Data.ByteString                    as BS
@@ -34,12 +35,14 @@ pgConnectRetry maxRetries connStr =
         [ "server closed the connection unexpectedly"
         , "Connection refused"
         , "Connection timed out"
+        , "the database system is starting up"
         ]
     logRetry :: Bool -> IOException -> RT.RetryStatus -> IO ()
     logRetry retrying err rs = do
         let retryStr = if retrying then "Retrying" else "Not retrying"
             attempt  = "(attempt " <> toS (show $ RT.rsIterNumber rs) <> ")"
-            logFun = if retrying then putStrLn . ("WARNING: " ++)  else putStrLn . ("ERROR: " ++)
+            writeLogFun = Log.logInfo "Pg/Connect"
+            logFun = if retrying then writeLogFun . ("WARNING: " ++)  else writeLogFun . ("ERROR: " ++)
         logFun $ attempt <> " " <> retryStr <> " failure: " <> toS (show err)
 
 

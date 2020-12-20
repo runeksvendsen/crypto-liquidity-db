@@ -24,12 +24,6 @@ import           Schema.Venue
 import Data.Word (Word16)
 
 
-updateStartTimeNow calcPk =
-    runUpdate $ update
-        (calculations liquidityDb)
-        (\calc' -> Calc.calculationStartTime calc' <-. just_ currentTimestamp_)
-        (\calc' -> pk calc' ==. val_ (calcPk :: Calc.CalculationId))
-
 updateDuration calcPk durationSecs =
     runUpdate $ update
         (calculations liquidityDb)

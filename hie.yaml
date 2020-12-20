@@ -6,3 +6,5 @@ cradle:
       component: "crypto-liquidity-db:test:crypto-liquidity-db-test"
     - path: "./app"
       component: "crypto-liquidity-db:exe:crypto-liquidity-db-exe"
+    # - path: "./bug"
+    #   component: "crypto-liquidity-db:exe:pg-simple-notify-bug"
