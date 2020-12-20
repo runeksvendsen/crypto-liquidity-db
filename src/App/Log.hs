@@ -1,6 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module App.Log
 ( logInfo
 , logDebug
+, logError
+, logTrace
 , Log.withStdoutLogging
 , Log.withStderrLogging
 )
@@ -18,4 +21,14 @@ logInfo ctx msg = do
 logDebug :: T.Text -> String -> IO ()
 logDebug ctx msg = do
     Log.loggingLogger Log.LevelDebug ctx msg
+    Log.flushLog
+
+logTrace :: T.Text -> String -> IO ()
+logTrace ctx msg = do
+    Log.loggingLogger (Log.LevelOther "TRACE") ctx msg
+    Log.flushLog
+
+logError :: T.Text -> String -> IO ()
+logError ctx msg = do
+    Log.loggingLogger Log.LevelError  ctx msg
     Log.flushLog

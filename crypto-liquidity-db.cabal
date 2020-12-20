@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 79848670fbda34c4d87d48756ac216cb63f9064629e4042dc9aa6f247b63297a
+-- hash: 0a73efd97525a9f84158c1fc66a890c662fce44901a8be7628f16de8fd794f0c
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
       App.RunCalc
       App.Source
       App.Timed
+      App.Util
       Database
       Insert.CalcParams
       Insert.PathQtys
@@ -69,6 +70,7 @@ library
     , crypto-orderbook-db
     , logging
     , lrucache
+    , monad-control
     , mtl
     , order-graph
     , postgresql-simple
@@ -80,6 +82,7 @@ library
     , text
     , time
     , transformers
+    , transformers-base
     , vector
   default-language: Haskell2010
 
@@ -90,7 +93,7 @@ executable crypto-liquidity-db-exe
   hs-source-dirs:
       app
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -fno-warn-unused-imports -O2 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , crypto-liquidity-db

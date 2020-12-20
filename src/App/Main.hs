@@ -14,6 +14,7 @@ import App.Monad
 import qualified App.Source as Source
 import qualified App.MPQueue as PQ
 import qualified App.RunCalc as RunCalc
+import qualified App.Util
 import App.Orphans ()
 import App.Pool (withPoolPg)
 import App.Migrate
@@ -23,14 +24,13 @@ import qualified Query.Calculations as Calc
 import qualified Query.RunCurrencies as Query
 import qualified Insert.CalcParams as CP
 
-import Data.Time.Clock (NominalDiffTime)
+import Data.Time.Clock (getCurrentTime, NominalDiffTime)
 import qualified Control.Monad.STM as STM
 import System.IO.Unsafe (unsafePerformIO)
 import qualified Control.Concurrent.Async as Async
 import qualified Database.PostgreSQL.Simple.Notification as PgNotify
 import qualified Database.PostgreSQL.Simple as PgSimple
 import qualified Database.Beam as Beam
-import qualified Control.Monad.Reader as R
 import GHC.Conc (threadDelay, forkIO)
 import Data.String (IsString(fromString))
 
@@ -39,6 +39,7 @@ import qualified App.PgConnect
 import qualified Database.PostgreSQL.Simple as PgSimple
 import Control.Monad.Except (runExceptT)
 import Data.Void (Void)
+import Data.Time.LocalTime (utcToLocalTime)
 -- TMP!
 
 
@@ -46,17 +47,20 @@ import Data.Void (Void)
 calculationQueue :: PQ.MQueue Db.RunId Calc.Calculation
 calculationQueue = unsafePerformIO PQ.emptyIO
 
+runServices :: Config -> AppM Void
+runServices cfg = do
+    a1 <- async $ processCalculations
+    a2 <- async $ monitorDeadCalculations (cfgDeadMonitorInterval cfg)
+    a3 <- async $ pollingProcess
+    lift $ snd <$> Async.waitAny [a1, a2, a3]
+
 main :: Config -> String -> IO ()
 main cfg connStr = runAppM cfg $ do
     -- Init
     _ <- withDbConn $ \conn -> insertOrReplaceTriggers conn
     dbRun $ CP.setCalcParams (calculationParameters cfg)
-    -- Go
-    a1 <- async $ processCalculations
-    a2 <- async $ monitorDeadCalculations (cfgDeadMonitorInterval cfg)
-    a3 <- async $ pollingProcess
-    insertMissingRunCurrencies
-    _ <- lift $ snd <$> Async.waitAny [a1, a2, a3]
+    -- Run services
+    _ <- runServices cfg
     logInfo "MAIN" "Done. Exiting..."
   where
     insertOrReplaceTriggers conn = do
@@ -73,14 +77,22 @@ insertMissingRunCurrencies = do
 
 processCalculations :: AppM Void
 processCalculations = forever $ do
-    calculation <- lift $ STM.atomically $ PQ.removeMin calculationQueue
-    RunCalc.runInsertCalculation calculation
+    -- calculation <- lift $ STM.atomically $ PQ.removeMin calculationQueue
+    now <- lift App.Util.currentTime
+    calcM <- dbRun $ Calc.startCalculation now
+    case calcM of
+        Nothing ->
+            lift $ threadDelay 10_000_000
+        Just calculation -> do
+            logInfo "Process" $ "Starting calculation " ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation) ++ "..."
+            RunCalc.runInsertCalculation calculation
 
 pollingProcess :: AppM Void
 pollingProcess = forever $ do
-    handleEvent Source.Runs
-    handleEvent Source.RunCurrencies
-    handleEvent Source.Calculations
+    now <- lift App.Util.currentTime
+    handleEvent now Source.Runs
+    handleEvent now Source.RunCurrencies
+    handleEvent now Source.Calculations
     lift $ threadDelay 10_000_000
 
 -- | Listen for:
@@ -96,26 +108,30 @@ notificationsListen connStr = forever $ do
     lift $ PgSimple.close conn
     -- TMP
     logDebug "NOTIFY" $ "Received notification. Raw: " ++ show notification
-    R.ask >>= \cfg -> lift $ forkIO $ runAppM cfg $
+    ask >>= \cfg -> lift $ forkIO $ runAppM cfg $
         case Source.parseByteString $ PgNotify.notificationChannel notification of
             Left errMsg -> logInfo "NOTIFY" $ "ERROR: " ++ errMsg
-            Right source -> logInfo "NOTIFY" ("Received event: " ++ show source) >> handleEvent source
+            Right source -> do
+                logInfo "NOTIFY" ("Received event: " ++ show source)
+                now <- lift App.Util.currentTime
+                handleEvent now source
 
-handleEvent :: Source.Source -> AppM ()
-handleEvent Source.Runs =
+handleEvent :: Db.LocalTime -> Source.Source -> AppM ()
+handleEvent _ Source.Runs =
     insertMissingRunCurrencies
-handleEvent Source.RunCurrencies = do
-    lst <- dbRun Calc.insertMissingCalculations
-    logInfo "Calculation" ("Created " ++ show (length lst) ++ " new calculations")
-handleEvent Source.Calculations = do
-    calcM <- dbRun Calc.startCalculation
-    case calcM of
-        Nothing ->
-            logInfo "Calculation" "'startCalculation' returned Nothing: no unprocessed calculations."
-            -- TODO: purge IBuyGraph cache here?
-        Just calc -> do
-            R.lift $ STM.atomically $ PQ.insert (Db.getRunId $ Calc.calcCalc calc) calc calculationQueue
-            logInfo "Calculation" $ "Inserted calculation: " ++ show (Beam.pk $ Calc.calcCalc calc)
+handleEvent now Source.RunCurrencies = do
+    dbRun $ Calc.insertMissingCalculations now
+    -- logInfo "Calculation" ("Created " ++ show (length lst) ++ " new calculations")
+handleEvent now Source.Calculations =
+    return ()
+    -- calcM <- dbRun $ Calc.startCalculation now
+    -- case calcM of
+    --     Nothing ->
+    --         logInfo "QueueCalc" "no unprocessed calculations."
+    --         -- TODO: purge IBuyGraph cache here?
+    --     Just calc -> do
+    --         lift $ STM.atomically $ PQ.insert (Db.getRunId $ Calc.calcCalc calc) calc calculationQueue
+    --         logInfo "QueueCalc" $ "Queued calculation: " ++ show (Beam.pk $ Calc.calcCalc calc)
 
 -- TODO
 monitorDeadCalculations :: NominalDiffTime -> AppM Void

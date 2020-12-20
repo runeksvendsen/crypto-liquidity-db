@@ -17,8 +17,11 @@ services:
          - "54321:5432"
       expose:
          - "5432"
+
    liquidity-service:
-      image: crypto-liquidity-service:latest
+      build:
+         context: .
+         dockerfile: Dockerfile
       container_name: liquidity-service
       links:
          - liquidity-database
@@ -28,7 +31,9 @@ services:
          - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
       networks:
          - liquidity-backend-network
+
    orderbook-service:
+      # build: https://github.com/runeksvendsen/crypto-orderbook-db-app.git#prepare-deploy
       image: testing/crypto-depth/orderbook-service:latest
       container_name: orderbook-service
       links:
