@@ -43,7 +43,7 @@ dbRun appM = do
         PgSimple.withTransaction conn $
             Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn appM
 
-async :: AppM () -> AppM (Async.Async ())
+async :: AppM a -> AppM (Async.Async a)
 async appM = do
     cfg <- R.ask
     R.lift $ Async.async $ runAppM cfg appM

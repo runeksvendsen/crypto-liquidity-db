@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 09a137804dd1f20c975210a2656f20ea112f2e9083db89a3cec479f18bae61a0
+-- hash: 79848670fbda34c4d87d48756ac216cb63f9064629e4042dc9aa6f247b63297a
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -94,21 +94,6 @@ executable crypto-liquidity-db-exe
   build-depends:
       base >=4.7 && <5
     , crypto-liquidity-db
-    , protolude
-  default-language: Haskell2010
-
-executable pg-simple-notify-bug
-  main-is: Main.hs
-  other-modules:
-      Paths_crypto_liquidity_db
-  hs-source-dirs:
-      bug
-  default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      base >=4.7 && <5
-    , bytestring
-    , postgresql-simple
     , protolude
   default-language: Haskell2010
 
