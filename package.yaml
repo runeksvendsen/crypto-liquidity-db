@@ -41,8 +41,6 @@ library:
   - stm
   - async
   - postgresql-simple
-  - monad-control
-  - transformers-base
   - bytestring
   - containers
   - transformers
@@ -51,15 +49,17 @@ library:
   - lrucache
   - beam-automigrate
   - resource-pool
+  - gargoyle-postgresql-connect
   - retry
-  - logging
 
 executables:
   crypto-liquidity-db-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
-    - -O2
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
     dependencies:
     - crypto-liquidity-db
 

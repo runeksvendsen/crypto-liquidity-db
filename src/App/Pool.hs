@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module App.Pool
 ( Data.Pool.Pool
 , Data.Pool.withResource
@@ -7,7 +6,6 @@ module App.Pool
 )
 where
 
-import qualified App.Log as Log
 import qualified App.PgConnect
 import qualified Data.Pool
 import Database.Beam.Postgres (Connection)
@@ -25,7 +23,7 @@ createPool openConn closeConn = do
     -- Make this function fail immediately if 'openConn' fails
     --  (e.g. in case of invalid connection string)
     _ <- Data.Pool.withResource pool return
-    Log.logInfo "Pg/Connect" "Successfully connected to database"
+    putStrLn "Successfully connected to database"
     return pool
 
 withPool
@@ -42,5 +40,5 @@ withPool openConn closeConn =
 withPoolPg :: String -> (Data.Pool.Pool PgSimple.Connection -> IO a) -> IO a
 withPoolPg connStr = do
     withPool
-        (App.PgConnect.pgConnectRetry 20 (toS connStr))
+        (App.PgConnect.pgConnectRetry 10 (toS connStr))
         PgSimple.close
