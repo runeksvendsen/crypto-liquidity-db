@@ -18,8 +18,9 @@ import           Internal.Prelude
 import qualified OrderBook.Graph                          as G
 
 import qualified Schema.Calculation                       as Calc
-import           Schema.Currency
-                 ( PrimaryKey(CurrencyId) )
+import qualified Schema.Currency                          as Currency
+import qualified Schema.Venue                          as Venue
+
 import qualified Schema.Path                              as Path
 import qualified Schema.PathPart                          as PP
 import qualified Schema.PathQty                           as PQty
@@ -28,31 +29,6 @@ import           Schema.Venue
 import Data.Word (Word16)
 
 
-type Selectable be = HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be)))))
-
-insertAllPathQtys
-    :: ( G.HasPathQuantity path Rational
-       , HasSqlEqualityCheck be Text
-       , HasSqlEqualityCheck be PP.Int16
-       , HasSqlEqualityCheck be Word16
-       , HasSqlEqualityCheck be Path.Word32
-       , HasQBuilder be
-       , MonadBeamInsertReturning be m
-       , FromBackendRow be Path.Word32
-       , FromBackendRow be Word16
-       , FromBackendRow be Text
-       , Selectable be Text
-       , Selectable be Path.Word32
-       , Selectable be Integer
-       , Selectable be Double
-       , Selectable be Word16
-       , Selectable be PP.Int16
-       , Selectable be PQty.Word64
-       , MonadIO m
-       )
-    => PrimaryKey Calc.CalculationT Identity
-    -> [path]
-    -> m ()
 insertAllPathQtys calcPk pathList =
     let groupedPaths = groupOn G.pathDescr pathList
         pathPriceQtyLst =
@@ -67,8 +43,8 @@ insertAllPathQtys calcPk pathList =
                             (sort pathPrices)
 
 insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
-    pathT <- pathLookupOrInsert pathDescr
-    runInsert $ pathQtyInsert (pk pathT)
+    pathPk <- pathLookupOrInsert pathDescr
+    runInsert $ pathQtyInsert pathPk
   where
     pathQtyInsert pathPk = insert (path_qtys liquidityDb) $
         insertValues [ PQty.PathQty { PQty.pathqtyCalc      = calcPk
@@ -82,48 +58,52 @@ insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
                      ]
 
 pathLookupOrInsert pathDescr = do
-    let pathParts' = mkPathParts (Path.PathId 0) -- we use a dummy path ID (which is ignored by "pathLookup")
-    pathTM <- runSelectReturningOne $ select $ pathLookup pathParts'
+    pathTM <- runSelectReturningOne $ select $ pathLookup pathDescr
     case pathTM of
-        Just pathT -> do
-            liftIO $ putStrLn $ "Found existing path " ++ show (pk pathT)
-            return pathT
+        Just pathPk -> do
+            liftIO $ putStrLn $ "Found existing path " ++ toS (G.showPath pathDescr)
+            return pathPk
         Nothing -> do
             pathT <- runInsertReturningOne pathInsert
             runInsert $ pathPartInsert (pk pathT)
-            liftIO $ putStrLn $ "Inserting new path " ++ show (pk pathT)
-            return pathT
+            liftIO $ putStrLn $ "Inserting new path " ++ toS (G.showPath pathDescr)
+            return (pk pathT)
   where
     pathEdges = G.pMoves pathDescr
 
     pathInsert = insert (paths liquidityDb) $
         insertExpressions [ Path.Path default_
                                       (val_ . fromIntegral $ length pathEdges)
-                                      (CurrencyId (val_ . toS $
+                                      (Currency.CurrencyId (val_ . toS $
                                                    G.pStart pathDescr))
                           ]
 
-    pathLookup pathPartLst = do
-        path <- all_ (paths liquidityDb)
-        guard_ $ Path.pathLength path
-            ==. val_ (fromIntegral $ length pathPartLst)
-        pathPart <- partsForPath path
-        guard_ $ foldr (\pathPart' state -> state ||. PP.pathpartIndex pathPart
-                        ==. val_ (PP.pathpartIndex pathPart')
-                        ||. PP.pathpartVenue pathPart
-                        ==. val_ (PP.pathpartVenue pathPart')
-                        ||. PP.pathpartCurrency pathPart
-                        ==. val_ (PP.pathpartCurrency pathPart'))
-                       (val_ True)
-                       pathPartLst
-        pure path
+    pathPartInsert = insert (path_parts liquidityDb) . insertValues . mkPathParts pathEdges
 
-    pathPartInsert = insert (path_parts liquidityDb) . insertValues . mkPathParts
-
-    mkPathParts pathPk = for (zip [ 0 .. ] (NE.toList pathEdges)) $
+    mkPathParts pathEdges' pathPk = for (zip [ 0 .. ] (NE.toList pathEdges')) $
         \(idx, (venue, currency)) ->
         PP.PathPart { PP.pathpartPath     = pathPk
                     , PP.pathpartIndex    = idx
                     , PP.pathpartVenue    = VenueId (toS venue)
-                    , PP.pathpartCurrency = CurrencyId (toS currency)
+                    , PP.pathpartCurrency = Currency.CurrencyId (toS currency)
                     }
+
+pathLookup pathDescr = fmap fst $
+    filter_ (\(_, count) -> count ==. val_ moveCount ) $
+    aggregate_ (\path -> (group_ (pk path), countAll_)) $ do
+        path <- all_ (paths liquidityDb)
+        pathPart <- partsForPath path
+        guard_ $
+            Path.pathStart path ==. val_ (Currency.CurrencyId $ toS $ G.pStart pathDescr) &&.
+            Path.pathPartCount path ==. val_ moveCount &&.
+            foldr (\move state -> state ||. pathPart `equals` move) (val_ False) (zip [0..] moveList)
+        pure path
+  where
+    moveCount = fromIntegral $ length moveList
+    currencyIdSymbol (Currency.CurrencyId symbol) = symbol
+    venueIdSymbol (Venue.VenueId venue) = venue
+    moveList = NE.toList $ G.pMoves pathDescr
+    equals pathPart (idx, (venue', currency')) =
+        PP.pathpartIndex pathPart ==. val_ idx
+        &&. venueIdSymbol (PP.pathpartVenue pathPart) ==. val_ (toS venue')
+        &&. currencyIdSymbol (PP.pathpartCurrency pathPart) ==. val_ (toS currency')

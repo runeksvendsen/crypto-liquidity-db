@@ -41,7 +41,8 @@ library:
   - stm
   - async
   - postgresql-simple
-  - pg-client
+  - monad-control
+  - transformers-base
   - bytestring
   - containers
   - transformers
@@ -52,19 +53,16 @@ library:
   - resource-pool
   - retry
   - logging
+  - ansi-terminal
 
 executables:
   crypto-liquidity-db-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+    - -O2
     dependencies:
     - crypto-liquidity-db
-
-
 
 tests:
   crypto-liquidity-db-test:

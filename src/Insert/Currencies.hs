@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Query.Currencies
+module Insert.Currencies
 ( insertMissingCurrencies
 )
 where

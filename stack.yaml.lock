@@ -39,11 +39,11 @@ packages:
     git: https://github.com/runeksvendsen/order-graph.git
     pantry-tree:
       size: 4022
-      sha256: 4de32c947e0f0e74e5b1ed0056fd207ecbe562ed047fbed2318a309914ae699b
-    commit: 4c153187bed39a62b9c9d455a5245391f9489d97
+      sha256: 1b9176607db76ee2bfcf5b241f000a910ce9bdc0d1c162c0ba8f80f6600ed818
+    commit: f4b54ef11d1b7fd14709034e195fb2faa673dfdd
   original:
     git: https://github.com/runeksvendsen/order-graph.git
-    commit: 4c153187bed39a62b9c9d455a5245391f9489d97
+    commit: f4b54ef11d1b7fd14709034e195fb2faa673dfdd
 - completed:
     name: bellman-ford
     version: 0.1.0.0
@@ -68,17 +68,6 @@ packages:
     subdir: mutable-containers
     git: https://github.com/runeksvendsen/mono-traversable.git
     commit: 5bcff3e91337c071a7855be0691eae1bc91f35b5
-- completed:
-    name: pg-client
-    version: 0.1.0
-    git: https://github.com/hasura/pg-client-hs.git
-    pantry-tree:
-      size: 1496
-      sha256: 29e1c6951ae66195fe27669fa73ce07c87fd9ea89f50f2f9f526a0fbe98d7e5a
-    commit: d9cd4caf4504bf3f8d1e9fff68e89fc14c54c67c
-  original:
-    git: https://github.com/hasura/pg-client-hs.git
-    commit: d9cd4caf4504bf3f8d1e9fff68e89fc14c54c67c
 - completed:
     hackage: thrist-0.4@sha256:f2b6b1b918aa2899669ebcb1c368d57fbd0d4d65e7e316d9203df813348ed732,1943
     pantry-tree:
