@@ -73,10 +73,10 @@ startCalculation' now = fmap castSingleResult .
     castSingleResult [res] = Just res
     castSingleResult lst = error $ "BUG (startCalculation): selectQ did not return exactly one result: " ++ show lst
     getRunId (Run.RunId runId) = runId
-    --  SELECT id FROM calculations WHERE start_time IS NULL ORDER BY run__id LIMIT 1 FOR UPDATE SKIP LOCKED
+    --  SELECT (run__id, id) FROM calculations WHERE start_time IS NULL ORDER BY (run__id, id) LIMIT 1 FOR UPDATE SKIP LOCKED
     selectQ =
         limit_ 1 $
-        orderBy_ (\(_, runId) -> asc_ runId) $
+        orderBy_ (\(calcId, runId) -> (asc_ runId, asc_ calcId)) $
         Pg.lockingFor_ Pg.PgSelectLockingStrengthUpdate (Just Pg.PgSelectLockingOptionsSkipLocked) $ do
             (calcLock, calculation) <- Pg.locked_ (calculations liquidityDb)
             guard_ $ isNothing_ (Calc.calculationStartTime calculation)
@@ -124,7 +124,7 @@ selectUnfinishedCalculations = do
             isNothing_ (Calc.calculationDurationSeconds calculation)
         pure calculation
 
-insertMissingCalculations :: Calc.LocalTime -> Pg.Pg () -- [Calc.Calculation]
+insertMissingCalculations :: Calc.LocalTime -> Pg.Pg ()
 insertMissingCalculations now = do
     rcCalcParam <- selectMissingCalculations
     runInsert $
@@ -165,7 +165,9 @@ runCurrencyWithNoCalculation = do
             Calc.calculationNumeraire calc ==. CalcParam.cpNumeraire calcParam &&.
             Calc.calculationSlippage calc ==. CalcParam.cpSlippage calcParam
         )
-    guard_ (isNothing_ calculation)
+    guard_ $
+        isNothing_ calculation &&.
+        RC.rcCurrency rc /=. CalcParam.cpNumeraire calcParam -- don't calculate the liquidity for the numeraire currency
     pure (rc, calcParam)
 
 insertCalcParam :: Text -> Double -> Pg.Pg ()

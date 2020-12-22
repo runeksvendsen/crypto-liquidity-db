@@ -34,30 +34,22 @@ import qualified Database.Beam as Beam
 import GHC.Conc (threadDelay, forkIO)
 import Data.String (IsString(fromString))
 
--- TMP!
 import qualified App.PgConnect
-import qualified Database.PostgreSQL.Simple as PgSimple
-import Control.Monad.Except (runExceptT)
 import Data.Void (Void)
-import Data.Time.LocalTime (utcToLocalTime)
--- TMP!
+import Text.Printf (printf)
+import Data.List (intercalate)
 
 
-{-# NOINLINE calculationQueue #-}
-calculationQueue :: PQ.MQueue Db.RunId Calc.Calculation
-calculationQueue = unsafePerformIO PQ.emptyIO
-
-runServices :: Config -> AppM Void
+runServices :: Config -> AppM ()
 runServices cfg = do
     a1 <- async $ processCalculations
     a2 <- async $ monitorDeadCalculations (cfgDeadMonitorInterval cfg)
     a3 <- async $ pollingProcess
     lift $ snd <$> Async.waitAny [a1, a2, a3]
 
-main :: Config -> String -> IO ()
-main cfg connStr = runAppM cfg $ do
+main :: Config -> IO ()
+main cfg = runAppM cfg $ do
     -- Init
-    _ <- withDbConn $ \conn -> insertOrReplaceTriggers conn
     dbRun $ CP.setCalcParams (calculationParameters cfg)
     -- Run services
     _ <- runServices cfg
@@ -73,27 +65,35 @@ insertMissingRunCurrencies :: AppM ()
 insertMissingRunCurrencies = do
     res <- dbRun Query.insertMissingRunCurrencies
     unless (null res) $
-        logInfo "RunCurrency" $ "Inserted run currencies: " ++ show res
+        logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
 
-processCalculations :: AppM Void
+processCalculations :: AppM ()
 processCalculations = forever $ do
-    -- calculation <- lift $ STM.atomically $ PQ.removeMin calculationQueue
     now <- lift App.Util.currentTime
     calcM <- dbRun $ Calc.startCalculation now
     case calcM of
         Nothing ->
             lift $ threadDelay 10_000_000
         Just calculation -> do
-            logInfo "Process" $ "Starting calculation " ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation) ++ "..."
+            logInfo "Process" $ "Starting calculation "
+                ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation)
+                ++ " (" ++ showCalc calculation ++ ")..."
             RunCalc.runInsertCalculation calculation
+  where
+    showCalc calc =
+        let dbCalc = Calc.calcCalc calc in
+        intercalate "/" $
+            [ show (Db.calculationRun dbCalc)
+            , toS $ Calc.calcNumeraire calc
+            , toS $ Calc.calcCrypto calc
+            , printf "%f" (Db.calculationSlippage dbCalc)
+            ]
 
-pollingProcess :: AppM Void
+pollingProcess :: AppM void
 pollingProcess = forever $ do
-    now <- lift App.Util.currentTime
-    handleEvent now Source.Runs
-    handleEvent now Source.RunCurrencies
-    handleEvent now Source.Calculations
-    lift $ threadDelay 10_000_000
+    lift App.Util.currentTime >>= handleEvent Source.Runs
+    lift App.Util.currentTime >>= handleEvent Source.RunCurrencies
+    lift $ threadDelay 60_000_000
 
 -- | Listen for:
 --    * INSERT runs                 ->  insertMissingRunCurrencies
@@ -113,28 +113,20 @@ notificationsListen connStr = forever $ do
             Left errMsg -> logInfo "NOTIFY" $ "ERROR: " ++ errMsg
             Right source -> do
                 logInfo "NOTIFY" ("Received event: " ++ show source)
-                now <- lift App.Util.currentTime
-                handleEvent now source
+                lift App.Util.currentTime >>= handleEvent source
 
-handleEvent :: Db.LocalTime -> Source.Source -> AppM ()
-handleEvent _ Source.Runs =
+handleEvent :: Source.Source -> Db.LocalTime -> AppM ()
+handleEvent Source.Runs _ =
     insertMissingRunCurrencies
-handleEvent now Source.RunCurrencies = do
+handleEvent Source.RunCurrencies now = do
     dbRun $ Calc.insertMissingCalculations now
     -- logInfo "Calculation" ("Created " ++ show (length lst) ++ " new calculations")
-handleEvent now Source.Calculations =
+handleEvent Source.Calculations _ =
     return ()
-    -- calcM <- dbRun $ Calc.startCalculation now
-    -- case calcM of
-    --     Nothing ->
-    --         logInfo "QueueCalc" "no unprocessed calculations."
-    --         -- TODO: purge IBuyGraph cache here?
-    --     Just calc -> do
-    --         lift $ STM.atomically $ PQ.insert (Db.getRunId $ Calc.calcCalc calc) calc calculationQueue
-    --         logInfo "QueueCalc" $ "Queued calculation: " ++ show (Beam.pk $ Calc.calcCalc calc)
 
--- TODO
-monitorDeadCalculations :: NominalDiffTime -> AppM Void
+
+-- TODO: implement
+monitorDeadCalculations :: NominalDiffTime -> AppM void
 monitorDeadCalculations sleepTime = forever $ do
     -- add dead calculations to calculations-queue
     -- sleep for x seconds

@@ -17,7 +17,7 @@ import           Database.Beam.Backend.SQL.BeamExtensions
 import qualified OrderBook.Graph                          as G
 
 import qualified Schema.CalculationParameter as CP
-import qualified Query.Currencies as QC
+import qualified Insert.Currencies as QC
 
 import           Schema.Currency
                  ( PrimaryKey(CurrencyId) )

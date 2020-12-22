@@ -1,6 +1,7 @@
+{-# LANGUAGE BangPatterns #-}
 module App.Timed where
 
-import Protolude (NFData(..))
+import Protolude (force, evaluate, NFData(..))
 import GHC.Clock (getMonotonicTime)
 
 
@@ -10,8 +11,22 @@ timeEval
     -> a
     -> IO (b, Double)
 timeEval f val = do
-    _ <- return $ rnf val
+    return $ rnf val
     start <- getMonotonicTime
-    res <- f val >>= \res -> return (rnf val) >> return res
+    res <- f val >>= evaluate . force
     end <- getMonotonicTime
-    return (res, end - start)
+    let !delta = end - start
+    return (res, delta)
+
+timeEvalPure
+    :: (NFData a, NFData b)
+    => (a -> b)
+    -> a
+    -> IO (b, Double)
+timeEvalPure f val = do
+    return $ rnf val
+    start <- getMonotonicTime
+    res <- evaluate $ force (f val)
+    end <- getMonotonicTime
+    let !delta = end - start
+    return (res, delta)

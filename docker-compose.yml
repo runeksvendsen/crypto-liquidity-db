@@ -40,8 +40,8 @@ services:
          - liquidity-database
       depends_on:
          - liquidity-database
-      environment:
-         - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+      environment: # liquidity-database:5432
+         - DATABASE_URL=postgresql://test:test@docker.for.mac.host.internal:5433/liquidity?sslmode=disable
       networks:
          - liquidity-backend-network
 

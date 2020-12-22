@@ -12,7 +12,8 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified CryptoDepth.OrderBook.Db.Schema.Book as Book
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Currency as Currency
-import qualified Query.Currencies as QC
+import qualified Insert.Currencies as QC
+import qualified Insert.Venues as QV
 
 import Database.Beam
 import Database.Beam.Backend (BeamSqlBackendSyntax, Sql92SelectSyntax, Sql92SelectSelectTableSyntax, Sql92SelectTableExpressionSyntax, Sql92ExpressionValueSyntax, HasSqlValueSyntax, BeamSqlBackend)
@@ -21,7 +22,7 @@ import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runIns
 import Schema.Currency (Int32)
 
 
--- TODO: Tx
+-- TODO: Tx for each run
 insertMissingRunCurrencies
     :: ( MonadBeamInsertReturning be m
        , HasQBuilder be
@@ -33,15 +34,26 @@ insertMissingRunCurrencies
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Int32
        , HasSqlEqualityCheck be Text
        , HasSqlEqualityCheck be Book.Word32
+       , FromBackendRow be Book.UTCTime
+       , MonadIO m
        )
-       => m [RC.RunCurrency]
+       => m [(Run.RunId, [Text])]
 insertMissingRunCurrencies = do
     missingCurrencies <- selectMissingRunCurrencies
+    -- currencys
     QC.insertMissingCurrencies (concatMap snd missingCurrencies)
-    fmap concat $ mapM runInsertReturningList $ for missingCurrencies $ \(runId, currencys') ->
+    -- venues
+    runSelectReturningList (select allVenuesUnique) >>= QV.insertMissingVenues
+    -- run_currencys
+    mapM_ runInsert $ for missingCurrencies $ \(runId, currencys') ->
         insert (run_currencys liquidityDb) $
         insertValues $ for currencys' $ \currency ->
             RC.RunCurrency runId (Currency.CurrencyId currency)
+    return missingCurrencies
+  where
+    allVenuesUnique = nub_ $ do
+        book <- all_ $ books liquidityDb
+        pure $ Book.bookVenue book
 
 selectMissingRunCurrencies
     :: ( MonadBeam be m
@@ -54,6 +66,10 @@ selectMissingRunCurrencies
     => m [(Run.RunId, [Text])]
 selectMissingRunCurrencies = do
     runCurriencies <$> runSelectReturningList (select missingRunCurrencies)
+  where
+    runCurriencies runBaseQuoteL =
+        let uniqueCurrencies = uniqueOn id . uncurry (++) . unzip
+        in map (\lst -> (fst $ head lst, uniqueCurrencies $ map snd lst)) $ groupOn fst runBaseQuoteL
 
 missingRunCurrencies
     :: ( HasQBuilder be
@@ -64,38 +80,19 @@ missingRunCurrencies
         , (QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Text)
         )
-missingRunCurrencies = do
-    run <- runsWithNoCurrencies
-    baseQuote <- runBaseQuote run
-    pure (pk run, baseQuote)
-
-runsWithNoCurrencies
-    :: ( HasQBuilder be
-       , HasSqlEqualityCheck be Run.Word32
-       )
-    => Q be LiquidityDb s (Run.RunT (QExpr be s))
-runsWithNoCurrencies = do
-    run  <- all_ $ runs liquidityDb
-    guard_ $ not_ $ exists_ $
-        filter_
-            (\rc -> RC.rcRun rc `references_` run)
-            (all_ $ run_currencys liquidityDb)
-    pure run
-
-runBaseQuote
-    :: HasSqlEqualityCheck be Run.Word32
-    => Run.RunT (QGenExpr QValueContext be s)
-    -> Q be LiquidityDb s
-        ( QGenExpr QValueContext be s Text
-          , QGenExpr QValueContext be s Text
-        )
-runBaseQuote run = nub_ $ do
-    book <- all_ $ books liquidityDb
-    guard_ $ Book.bookRun book `references_` run
-    pure (Book.bookBase book, Book.bookQuote book)
-
-runCurriencies :: [(Run.RunId, (Text, Text))] -> [(Run.RunId, [Text])]
-runCurriencies runBaseQuoteL = do
-    map (\lst -> (fst $ head lst, uniqueCurrencies $ map snd lst)) $ groupOn fst runBaseQuoteL
+missingRunCurrencies = nub_ $ do
+    runPk <- runsWithNoCurrencies
+    baseQuote <- runBaseQuote runPk
+    pure (runPk, baseQuote)
   where
-    uniqueCurrencies = uniqueOn id . uncurry (++) . unzip
+    runsWithNoCurrencies = do
+        run  <- all_ $ runs liquidityDb
+        guard_ $ not_ $ exists_ $
+            filter_
+                (\rc -> RC.rcRun rc `references_` run)
+                (all_ $ run_currencys liquidityDb)
+        pure (pk run)
+    runBaseQuote runId = do
+        book <- all_ $ books liquidityDb
+        guard_ $ Book.bookRun book ==. runId
+        pure (Book.bookBase book, Book.bookQuote book)

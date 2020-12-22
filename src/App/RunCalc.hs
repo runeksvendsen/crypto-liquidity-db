@@ -28,6 +28,7 @@ import qualified Database.Beam as Beam
 import Text.Printf (printf)
 import Control.Exception (try)
 import Control.Exception.Base (SomeException)
+import Data.List (intercalate)
 
 
 {-# NOINLINE graphCache #-}
@@ -43,17 +44,17 @@ runInsertCalculation :: Calc.Calculation -> AppM ()
 runInsertCalculation calc = do
     inputDataM <- lift $ LRU.lookup cacheKey graphCache
     inputData <- maybe
-        (buildGraphAndCache <* logInfo "Process/Cache" ("Built graph. Updated cache: " ++ show cacheKey))
+        buildGraphAndCache
         (\res -> logInfo "Process/Cache" ("Cache hit for " ++ show cacheKey) >> return res)
         inputDataM
-    resE <- lift $ try $ App.Timed.timeEval
-        (\input -> return $ ST.runST $ G.matchOrders logger numeraire crypto input) inputData
+    resE <- lift $ try $ App.Timed.timeEvalPure
+        (\input -> ST.runST (G.matchOrders logger numeraire crypto input)) inputData
     case resE of
         Left err -> do
             logError "Process" $ "matchOrders: " ++ show @SomeException err
             return ()
         Right ((sellPaths, buyPaths), durationSecs) -> do
-            logInfo "Process" $ "Finished calculation in " ++ printf "%.2f seconds" durationSecs
+            logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
             let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
             dbRun $ Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
             logInfo "Process" $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
@@ -71,6 +72,12 @@ runInsertCalculation calc = do
     logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
     buildGraphAndCache = do
         books <- dbRun $ Books.runBooks runId -- look up order books
-        let (_, buyGraph) = ST.runST $ G.buildBuyGraph logger books -- create buyGraph
+        (buyGraph, durationSecs) <- lift $ App.Timed.timeEvalPure
+            (\books' -> snd $ ST.runST (G.buildBuyGraph logger (toRational slippage) books')) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache
+        logInfo "Process/Cache" $ intercalate ". "
+            ["Built graph (book count: " ++ show (length books) ++ ")"
+            , "Updated cache: " ++ show cacheKey
+            , printf "Duration: %.2fs" durationSecs
+            ]
         return buyGraph

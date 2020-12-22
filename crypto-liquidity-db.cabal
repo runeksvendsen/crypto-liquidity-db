@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0a73efd97525a9f84158c1fc66a890c662fce44901a8be7628f16de8fd794f0c
+-- hash: 1c32270dde1f9c5dbdda481d4345da1a9b5ff2ef33a7693d5eb684a0c82e628b
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -38,11 +38,12 @@ library
       App.Util
       Database
       Insert.CalcParams
+      Insert.Currencies
       Insert.PathQtys
+      Insert.Venues
       Internal.Prelude
       Query.Books
       Query.Calculations
-      Query.Currencies
       Query.RunCurrencies
       Schema.Calculation
       Schema.CalculationParameter
@@ -60,7 +61,8 @@ library
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
-      async
+      ansi-terminal
+    , async
     , base >=4.7 && <5
     , beam-automigrate
     , beam-core
@@ -93,7 +95,7 @@ executable crypto-liquidity-db-exe
   hs-source-dirs:
       app
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -fno-warn-unused-imports -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       base >=4.7 && <5
     , crypto-liquidity-db

@@ -26,8 +26,8 @@ import Data.Word                            (Word16, Word32)
 data PathT f
     = Path
     { pathId        :: C f (SqlSerial Word32)
-    , pathLength    :: C f Word16
-    , pathStart     :: PrimaryKey Currency.CurrencyT f
+    , pathPartCount :: C f Word16 -- ^ how many 'PathPart' are associated with this 'Path'?
+    , pathStart     :: PrimaryKey Currency.CurrencyT f -- ^ where does the path start?
     } deriving Generic
 
 type Path = PathT Identity

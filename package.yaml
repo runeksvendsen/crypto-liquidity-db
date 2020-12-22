@@ -53,6 +53,7 @@ library:
   - resource-pool
   - retry
   - logging
+  - ansi-terminal
 
 executables:
   crypto-liquidity-db-exe:
