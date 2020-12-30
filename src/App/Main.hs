@@ -42,15 +42,18 @@ import Data.List (intercalate)
 
 runServices :: Config -> AppM ()
 runServices cfg = do
-    a1 <- async $ processCalculations
-    a2 <- async $ monitorDeadCalculations (cfgDeadMonitorInterval cfg)
-    a3 <- async $ pollingProcess
+    a1 <- async $ forever $
+        processCalculations >> lift (threadDelay 60_000_000)
+    a2 <- async $ monitorDeadCalculations cfg
+    a3 <- async $ forever $
+        lift (threadDelay 60_000_000) >> createCalculations
     lift $ snd <$> Async.waitAny [a1, a2, a3]
 
 main :: Config -> IO ()
 main cfg = runAppM cfg $ do
     -- Init
     dbRun $ CP.setCalcParams (calculationParameters cfg)
+    createCalculations
     -- Run services
     _ <- runServices cfg
     logInfo "MAIN" "Done. Exiting..."
@@ -68,17 +71,19 @@ insertMissingRunCurrencies = do
         logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
 
 processCalculations :: AppM ()
-processCalculations = forever $ do
+processCalculations = do
     now <- lift App.Util.currentTime
     calcM <- dbRun $ Calc.startCalculation now
     case calcM of
-        Nothing ->
-            lift $ threadDelay 10_000_000
+        Nothing -> do
+            logInfo "Process" "No calculations left"
+            return ()
         Just calculation -> do
             logInfo "Process" $ "Starting calculation "
                 ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation)
                 ++ " (" ++ showCalc calculation ++ ")..."
             RunCalc.runInsertCalculation calculation
+            processCalculations
   where
     showCalc calc =
         let dbCalc = Calc.calcCalc calc in
@@ -89,11 +94,10 @@ processCalculations = forever $ do
             , printf "%f" (Db.calculationSlippage dbCalc)
             ]
 
-pollingProcess :: AppM void
-pollingProcess = forever $ do
+createCalculations :: AppM ()
+createCalculations = do
     lift App.Util.currentTime >>= handleEvent Source.Runs
     lift App.Util.currentTime >>= handleEvent Source.RunCurrencies
-    lift $ threadDelay 60_000_000
 
 -- | Listen for:
 --    * INSERT runs                 ->  insertMissingRunCurrencies
@@ -120,15 +124,15 @@ handleEvent Source.Runs _ =
     insertMissingRunCurrencies
 handleEvent Source.RunCurrencies now = do
     dbRun $ Calc.insertMissingCalculations now
-    -- logInfo "Calculation" ("Created " ++ show (length lst) ++ " new calculations")
 handleEvent Source.Calculations _ =
     return ()
 
-
--- TODO: implement
-monitorDeadCalculations :: NominalDiffTime -> AppM void
-monitorDeadCalculations sleepTime = forever $ do
-    -- add dead calculations to calculations-queue
-    -- sleep for x seconds
-    lift $ threadDelay (round $ sleepTime * 1e6)
-    return ()
+-- | Set started calculations older than 'cfgMaxCalculationTime' to unstarted
+monitorDeadCalculations :: Config -> AppM void
+monitorDeadCalculations cfg = forever $ do
+    dbRun $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
+    -- logInfo "MonitorDead" $
+    --     printf "Reset %d calculations: %s"
+    --            (length calculations)
+    --            (show $ map Db.calculationId calculations)
+    lift $ threadDelay (round $ cfgDeadMonitorInterval cfg * 1e6)

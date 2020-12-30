@@ -9,9 +9,9 @@ extra-deps:
 - git: https://github.com/runeksvendsen/orderbook.git
   commit: b0b7babf47e26538af611210b92adf00b3f79b11
 - git: https://github.com/runeksvendsen/order-graph.git
-  commit: f4b54ef11d1b7fd14709034e195fb2faa673dfdd
+  commit: eac429e31c7e78f11f77df51c29720d4d2a01394
 - git: https://github.com/runeksvendsen/bellman-ford.git
-  commit: f5ebad4d2cff23ccf21b8806ae6cdedea2a20e5c
+  commit: a089bfe9d449afbc1907ded5223bba23a5de9e8a
 - git: https://github.com/runeksvendsen/mono-traversable.git
   commit: 5bcff3e91337c071a7855be0691eae1bc91f35b5
   subdirs:
@@ -27,3 +27,7 @@ extra-deps:
 - gargoyle-postgresql-nix-0.3.0.0@sha256:40bae12ca9985c88b5d0969f1cb07ec7b83f85b2797fe0982e8cb839b85a9106,2066
 - posix-escape-0.1@sha256:adbb650397cd8685ea220b40739ee80d4e8329643a98aa2993a6f13a598bd18c,1160
 - which-0.2@sha256:db82ca7d83d64cce8ad579756f02d27c5bd289806ee02474726f7fafb87318e8,858
+- time-1.9.3@sha256:8f1b5448722a12a952248b356c9eb366e351226543d9086a2da71270522d5f45,5679
+- directory-1.3.6.1@sha256:3dc9c69c8e09ec95a7a45c6d06abe0f0d2f604439c37e5f88e5a6c335b088d71,2810
+- process-1.6.10.0@sha256:c0d2d8adaca7cea7ceaa60e67b61c775dc03727b83bdb1c97aa8cbeac9f5dd84,2469
+- unix-2.7.2.2@sha256:55d8af3f25d2a92c86951a2d8fc47aebe80015a895c4f0e57320cfdae78dd7c1,3496

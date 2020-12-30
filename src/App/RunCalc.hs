@@ -47,8 +47,8 @@ runInsertCalculation calc = do
         buildGraphAndCache
         (\res -> logInfo "Process/Cache" ("Cache hit for " ++ show cacheKey) >> return res)
         inputDataM
-    resE <- lift $ try $ App.Timed.timeEvalPure
-        (\input -> ST.runST (G.matchOrders logger numeraire crypto input)) inputData
+    resE <- lift $ try $ App.Timed.timeEval
+        (ST.stToIO . G.matchOrders logger numeraire crypto) inputData
     case resE of
         Left err -> do
             logError "Process" $ "matchOrders: " ++ show @SomeException err
@@ -66,17 +66,15 @@ runInsertCalculation calc = do
     runId = Db.getRunId dbCalc
     dbCalc = Calc.calcCalc calc
     cacheKey = (runId, slippage)
-    noLogging :: Monad m => String -> m ()
-    noLogging = const $ return ()
     logger :: Monad m => String -> m ()
     logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
     buildGraphAndCache = do
         books <- dbRun $ Books.runBooks runId -- look up order books
-        (buyGraph, durationSecs) <- lift $ App.Timed.timeEvalPure
-            (\books' -> snd $ ST.runST (G.buildBuyGraph logger (toRational slippage) books')) books -- create buyGraph
+        (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
+            (fmap snd . ST.stToIO . G.buildBuyGraph logger (toRational slippage)) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache
         logInfo "Process/Cache" $ intercalate ". "
-            ["Built graph (book count: " ++ show (length books) ++ ")"
+            [ "Built graph (book count: " ++ show (length books) ++ ")"
             , "Updated cache: " ++ show cacheKey
             , printf "Duration: %.2fs" durationSecs
             ]

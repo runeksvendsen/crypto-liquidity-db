@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Internal.Prelude
 ( module Export
+, NominalDiffTime
 , toS
 , groupOn
 , for
@@ -15,6 +16,7 @@ import Control.Monad as Export
 import Protolude.Conv (toS)
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import Data.List (groupBy, sortOn)
+import Data.Time.Clock (NominalDiffTime)
 
 
 groupOn :: Ord b => (t -> b) -> [t] -> [[t]]

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1c32270dde1f9c5dbdda481d4345da1a9b5ff2ef33a7693d5eb684a0c82e628b
+-- hash: 67a3acfd24ef70bb736081b53f1390becbeafa52019b8b9b17c8bca91b1ec0db
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -82,7 +82,7 @@ library
     , retry
     , stm
     , text
-    , time
+    , time >=1.9
     , transformers
     , transformers-base
     , vector

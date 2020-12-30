@@ -33,7 +33,7 @@ library:
   - crypto-orderbook-db
   - beam-core
   - beam-postgres
-  - time
+  - time >= 1.9
   - text
   - vector
   # App/exe

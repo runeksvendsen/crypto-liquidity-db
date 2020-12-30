@@ -11,7 +11,7 @@ timeEval
     -> a
     -> IO (b, Double)
 timeEval f val = do
-    return $ rnf val
+    _ <- evaluate (rnf val)
     start <- getMonotonicTime
     res <- f val >>= evaluate . force
     end <- getMonotonicTime
@@ -24,7 +24,7 @@ timeEvalPure
     -> a
     -> IO (b, Double)
 timeEvalPure f val = do
-    return $ rnf val
+    _ <- evaluate (rnf val)
     start <- getMonotonicTime
     res <- evaluate $ force (f val)
     end <- getMonotonicTime

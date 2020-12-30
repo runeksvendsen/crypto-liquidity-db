@@ -2,14 +2,15 @@
 module Query.Calculations
 ( startCalculation
 , insertMissingCalculations
-, selectUnstartedCalculations
-, selectUnfinishedCalculations
+, resetUnfinishedCalculations
 , insertCalcParam
 , Calculation(..)
 )
 where
 
+import Internal.Prelude
 import App.Orphans ()
+import qualified App.Util
 import Database
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified Schema.Currency as Currency
@@ -19,9 +20,10 @@ import qualified Schema.CalculationParameter as CalcParam
 
 import Database.Beam
 import Database.Beam.Backend (BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
+import Database.Beam.Backend.SQL.SQL92
 import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
-import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
+import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpdateReturningList), MonadBeamInsertReturning(runInsertReturningList))
 import Data.Maybe (fromMaybe)
 import Internal.Prelude (Text)
 
@@ -83,8 +85,8 @@ startCalculation' now = fmap castSingleResult .
             pure $ (Calc.calculationId calculation, getRunId $ Calc.calculationRun calculation)
                 `Pg.withLocks_` calcLock
 
--- | Calculations not yet started
-selectUnstartedCalculations ::
+-- | Set started calculations older than @timeout@ to unstarted
+resetUnfinishedCalculations ::
     ( MonadBeam be m
     , BeamSqlBackend be
     , HasQBuilder be
@@ -94,35 +96,24 @@ selectUnstartedCalculations ::
     , FromBackendRow be Double
     , FromBackendRow be Calc.LocalTime
     , FromBackendRow be SqlNull
-    ) => m [Calc.Calculation]
-selectUnstartedCalculations = do
-    runSelectReturningList $ select unstartedCalculation
-  where
-    unstartedCalculation = do
-        calculation <- all_ $ calculations liquidityDb
-        guard_ $ isNothing_ (Calc.calculationStartTime calculation)
-        pure calculation
-
--- | Calculations started but not yet finished
-selectUnfinishedCalculations ::
-    ( MonadBeam be m
-    , BeamSqlBackend be
-    , HasQBuilder be
-    , FromBackendRow be Run.Word32
-    , FromBackendRow be Calc.Int32
-    , FromBackendRow be Text
-    , FromBackendRow be Double
-    , FromBackendRow be Calc.LocalTime
-    , FromBackendRow be SqlNull
-    ) => m [Calc.Calculation]
-selectUnfinishedCalculations = do
-    runSelectReturningList $ select unstartedCalculation
-  where
-    unstartedCalculation = do
-        calculation <- all_ $ calculations liquidityDb
-        guard_ $ isJust_ (Calc.calculationStartTime calculation) &&.
-            isNothing_ (Calc.calculationDurationSeconds calculation)
-        pure calculation
+    , MonadIO m
+    , (HasSqlValueSyntax
+        (Sql92ExpressionValueSyntax
+            (Sql92SelectTableExpressionSyntax
+            (Sql92SelectSelectTableSyntax
+                (Sql92SelectSyntax
+                    (BeamSqlBackendSyntax be)))))
+        Calc.LocalTime)
+    ) => NominalDiffTime
+      -> m ()
+resetUnfinishedCalculations timeout = do
+    now <- liftIO App.Util.currentTime
+    let timeoutTime = (- timeout) `App.Util.addLocalTime` now
+    runUpdate $ update
+        (calculations liquidityDb)
+        (\calc' -> Calc.calculationStartTime calc' <-. nothing_)
+        (\calc' -> isNothing_ (Calc.calculationDurationSeconds calc') &&.
+            Calc.calculationStartTime calc' <. just_ (val_ timeoutTime))
 
 insertMissingCalculations :: Calc.LocalTime -> Pg.Pg ()
 insertMissingCalculations now = do

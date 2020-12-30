@@ -18,32 +18,34 @@ services:
       expose:
          - "5432"
 
-   liquidity-service:
-      build:
-         context: .
-         dockerfile: Dockerfile
-      container_name: liquidity-service
-      links:
-         - liquidity-database
-      depends_on:
-         - liquidity-database
-      environment:
-         - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
-      networks:
-         - liquidity-backend-network
+   # liquidity-service:
+   #    image: eu.gcr.io/crypto-depth/liquidity-service:latest
+   #    restart: always
+   #    # build:
+   #    #    context: .
+   #    #    dockerfile: Dockerfile
+   #    container_name: liquidity-service
+   #    links:
+   #       - liquidity-database
+   #    depends_on:
+   #       - liquidity-database
+   #    environment:
+   #       - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+   #    networks:
+   #       - liquidity-backend-network
 
-   orderbook-service:
-      # build: https://github.com/runeksvendsen/crypto-orderbook-db-app.git#prepare-deploy
-      image: testing/crypto-depth/orderbook-service:latest
-      container_name: orderbook-service
-      links:
-         - liquidity-database
-      depends_on:
-         - liquidity-database
-      environment: # liquidity-database:5432
-         - DATABASE_URL=postgresql://test:test@docker.for.mac.host.internal:5433/liquidity?sslmode=disable
-      networks:
-         - liquidity-backend-network
+   # orderbook-service:
+   #    # build: https://github.com/runeksvendsen/crypto-orderbook-db-app.git#prepare-deploy
+   #    image: testing/crypto-depth/orderbook-service:latest
+   #    container_name: orderbook-service
+   #    links:
+   #       - liquidity-database
+   #    depends_on:
+   #       - liquidity-database
+   #    environment: # docker.for.mac.host.internal:5433
+   #       - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+   #    networks:
+   #       - liquidity-backend-network
 
 networks:
    liquidity-backend-network:

@@ -13,8 +13,15 @@ main = App.Log.withStdoutLogging $ do
     connStrM <- lookupEnv "DATABASE_URL"
     let connStr = maybe (error errorMsg) id connStrM
         errorMsg = "Missing postgres connection string in DATABASE_URL environment variable"
-    App.Main.withPoolPg connStr $ \pool ->
-        let cfg = App.Main.Config ["USD"] [0.01, 0.1, 0.5] (10 * 3600) 3600 pool
-        in do
-            App.Main.autoMigrateIO cfg
-            App.Main.main cfg
+    App.Main.withPoolPg connStr $ \pool -> do
+        let cfg = mkCfg pool
+        App.Main.autoMigrateIO cfg
+        App.Main.main cfg
+  where
+    mkCfg pool = App.Main.Config
+        { App.Main.cfgNumeraires = ["USD"]
+        , App.Main.cfgSlippages = [0.01, 0.1, 0.5]
+        , App.Main.cfgMaxCalculationTime = 1800
+        , App.Main.cfgDeadMonitorInterval = 3600
+        , App.Main.cfgDbConnPool = pool
+        }

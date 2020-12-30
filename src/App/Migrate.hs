@@ -10,7 +10,7 @@ where
 
 import App.Monad
 import qualified App.Log as Log
-import Database (LiquidityDb)
+import Database
 
 import Prelude
 import Data.Proxy (Proxy(..))
@@ -59,9 +59,3 @@ toEdits m = do
     case a of
         Left e -> S.liftIO $ throwIO e
         Right () -> return edits
-
-
--- exampleAutoMigration :: AppM ()
--- exampleAutoMigration =
---     withDbConn $ \conn ->
---         lift $ BA.tryRunMigrationsWithEditUpdate annotatedDb conn
