@@ -54,6 +54,7 @@ library:
   - retry
   - logging
   - ansi-terminal
+  - pretty-show
 
 executables:
   crypto-liquidity-db-exe:

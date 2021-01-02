@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 67a3acfd24ef70bb736081b53f1390becbeafa52019b8b9b17c8bca91b1ec0db
+-- hash: 627a6e7a954cf20cd0bc499f49359a5eb859bc2eb3aec753a714534338111ad5
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -77,6 +77,7 @@ library
     , order-graph
     , postgresql-simple
     , pqueue
+    , pretty-show
     , protolude
     , resource-pool
     , retry
