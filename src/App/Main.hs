@@ -4,8 +4,6 @@ module App.Main
 ( main
 , Config(..)
 , withPoolPg
-, autoMigrate
-, autoMigrateIO
 )
 where
 
@@ -17,7 +15,6 @@ import qualified App.RunCalc as RunCalc
 import qualified App.Util
 import App.Orphans ()
 import App.Pool (withPoolPg)
-import App.Migrate
 
 import qualified Schema.Calculation as Db
 import qualified Query.Calculations as Calc
