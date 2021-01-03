@@ -71,9 +71,13 @@ executables:
     - -O2
     dependencies:
     - crypto-liquidity-db
+    - crypto-orderbook-db
+    - order-graph
     - servant
     - servant-server
     - aeson
+    - beam-postgres
+    - warp
 
 tests:
   crypto-liquidity-db-test:

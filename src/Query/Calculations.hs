@@ -6,6 +6,7 @@ module Query.Calculations
 , insertCalcParam
 , selectUnfinishedCalculations
 , Calculation(..)
+, NominalDiffTime
 )
 where
 
@@ -108,18 +109,22 @@ resetUnfinishedCalculations ::
     ) => NominalDiffTime
       -> m ()
 resetUnfinishedCalculations timeout = do
-    now <- liftIO App.Util.currentTime
-    let timeoutTime = (- timeout) `App.Util.addLocalTime` now
+    timeoutTime <- calcExpirationTime timeout
     runUpdate $ update
         (calculations liquidityDb)
         (\calc' -> Calc.calculationStartTime calc' <-. nothing_)
         (isUnfinishedCalculation timeoutTime)
 
+calcExpirationTime timeout = do
+    now <- liftIO App.Util.currentTime
+    return $ (- timeout) `App.Util.addLocalTime` now
+
 isUnfinishedCalculation timeoutTime calc' = do
     isNothing_ (Calc.calculationDurationSeconds calc') &&.
             Calc.calculationStartTime calc' <. just_ (val_ timeoutTime)
 
-selectUnfinishedCalculations timeoutTime =
+selectUnfinishedCalculations timeout = do
+    timeoutTime <- calcExpirationTime timeout
     runSelectReturningList $ select $ unfinishedCalculations timeoutTime
 
 unfinishedCalculations timeoutTime = do
