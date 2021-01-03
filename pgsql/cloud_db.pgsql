@@ -1,5 +1,3 @@
-START TRANSACTION;
-
 --
 -- PostgreSQL database dump
 --
@@ -138,5 +136,3 @@ ALTER TABLE ONLY public.runs
 --
 -- PostgreSQL database dump complete
 --
-
-COMMIT;

@@ -43,7 +43,7 @@ services:
    #    depends_on:
    #       - liquidity-database
    #    environment: # docker.for.mac.host.internal:5433
-   #       - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
+   #       - DATABASE_URL=postgresql://test:test@liquidity-database:5432/cloud_db_clone?sslmode=disable
    #    networks:
    #       - liquidity-backend-network
 

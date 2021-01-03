@@ -49,7 +49,7 @@ runServices cfg = do
 main :: Config -> IO ()
 main cfg = runAppM cfg $ do
     -- Init
-    dbRun $ CP.setCalcParams (calculationParameters cfg)
+    runBeamTx $ CP.setCalcParams (calculationParameters cfg)
     createCalculations
     -- Run services
     _ <- runServices cfg
@@ -63,14 +63,14 @@ main cfg = runAppM cfg $ do
 
 insertMissingRunCurrencies :: AppM ()
 insertMissingRunCurrencies = do
-    res <- dbRun Query.insertMissingRunCurrencies
+    res <- runBeamTx Query.insertMissingRunCurrencies
     unless (null res) $
         logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
 
 processCalculations :: AppM ()
 processCalculations = do
     now <- lift App.Util.currentTime
-    calcM <- dbRun $ Calc.startCalculation now
+    calcM <- runBeamTx $ Calc.startCalculation now
     case calcM of
         Nothing -> do
             logInfo "Process" "No calculations left"
@@ -120,14 +120,14 @@ handleEvent :: Source.Source -> Db.LocalTime -> AppM ()
 handleEvent Source.Runs _ =
     insertMissingRunCurrencies
 handleEvent Source.RunCurrencies now = do
-    dbRun $ Calc.insertMissingCalculations now
+    runBeamTx $ Calc.insertMissingCalculations now
 handleEvent Source.Calculations _ =
     return ()
 
 -- | Set started calculations older than 'cfgMaxCalculationTime' to unstarted
 monitorDeadCalculations :: Config -> AppM void
 monitorDeadCalculations cfg = forever $ do
-    dbRun $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
+    runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
     -- logInfo "MonitorDead" $
     --     printf "Reset %d calculations: %s"
     --            (length calculations)

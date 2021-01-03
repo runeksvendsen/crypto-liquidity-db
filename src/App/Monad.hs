@@ -47,12 +47,21 @@ withDbConn f = do
     pool <- R.asks cfgDbConnPool
     Pool.withResource pool f
 
-dbRun :: Pg.Pg a -> AppM a
-dbRun appM = do
+runBeamTx :: Pg.Pg a -> AppM a
+runBeamTx pgM = do
+    runDbTx $ \conn -> runBeam conn pgM
+
+runBeam :: Pg.Connection -> Pg.Pg a -> AppM a
+runBeam conn pgM = do
     cfg <- R.ask
-    withDbConn $ \conn -> R.lift $
-        PgSimple.withTransactionLevel PgSimple.Serializable conn $
-            Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn appM
+    R.lift $ Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn pgM
+
+runDbTx :: (Pg.Connection -> AppM a) -> AppM a
+runDbTx action = do
+    cfg <- R.ask
+    withDbConn $ \conn ->
+        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn
+            (runAppM cfg $ action conn)
 
 async :: AppM a -> AppM (Async.Async a)
 async appM = do

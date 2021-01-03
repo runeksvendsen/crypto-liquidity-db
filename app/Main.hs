@@ -3,7 +3,8 @@ module Main where
 
 import qualified App.Main
 import qualified App.Log
-import qualified App.Migrate
+import qualified App.Migrate.BeamAutomigrate
+import qualified App.Migrate.Raw
 import System.Environment (lookupEnv)
 
 
@@ -16,7 +17,7 @@ main = App.Log.withStdoutLogging $ do
         errorMsg = "Missing postgres connection string in DATABASE_URL environment variable"
     App.Main.withPoolPg connStr $ \pool -> do
         let cfg = mkCfg pool
-        App.Migrate.autoMigrateIO cfg
+        App.Migrate.Raw.autoMigrateIO cfg
         App.Main.main cfg
   where
     mkCfg pool = App.Main.Config
