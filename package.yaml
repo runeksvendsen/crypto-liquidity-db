@@ -64,6 +64,16 @@ executables:
     - -O2
     dependencies:
     - crypto-liquidity-db
+  beam-servant-test:
+    main:                Main.hs
+    source-dirs:         test-app
+    ghc-options:
+    - -O2
+    dependencies:
+    - crypto-liquidity-db
+    - servant
+    - servant-server
+    - aeson
 
 tests:
   crypto-liquidity-db-test:

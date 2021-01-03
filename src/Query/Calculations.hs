@@ -4,6 +4,7 @@ module Query.Calculations
 , insertMissingCalculations
 , resetUnfinishedCalculations
 , insertCalcParam
+, selectUnfinishedCalculations
 , Calculation(..)
 )
 where
@@ -112,8 +113,19 @@ resetUnfinishedCalculations timeout = do
     runUpdate $ update
         (calculations liquidityDb)
         (\calc' -> Calc.calculationStartTime calc' <-. nothing_)
-        (\calc' -> isNothing_ (Calc.calculationDurationSeconds calc') &&.
-            Calc.calculationStartTime calc' <. just_ (val_ timeoutTime))
+        (isUnfinishedCalculation timeoutTime)
+
+isUnfinishedCalculation timeoutTime calc' = do
+    isNothing_ (Calc.calculationDurationSeconds calc') &&.
+            Calc.calculationStartTime calc' <. just_ (val_ timeoutTime)
+
+selectUnfinishedCalculations timeoutTime =
+    runSelectReturningList $ select $ unfinishedCalculations timeoutTime
+
+unfinishedCalculations timeoutTime = do
+    calc' <- all_ (calculations liquidityDb)
+    guard_ $ isUnfinishedCalculation timeoutTime calc'
+    pure calc'
 
 insertMissingCalculations :: Calc.LocalTime -> Pg.Pg ()
 insertMissingCalculations now = do

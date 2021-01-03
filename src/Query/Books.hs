@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Query.Books
 ( runBooks
+, G.OrderBook
 )
 where
 

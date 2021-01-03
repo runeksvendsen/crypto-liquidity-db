@@ -21,33 +21,31 @@ autoMigrateIO cfg =
     runAppM cfg autoMigrate
 
 autoMigrate :: AppM ()
-autoMigrate = runDbTx $ \conn -> do
-    currentVersion <- runBeam conn Mig.currentVersion
-    let identifier :: String
-        identifier = printf "migrate-cloud_db-%d" currentVersion
-        filename = printf "pgsql/%s.pgsql" identifier
-    Log.logDebug "MIGRATE" $ "Attempting to reading file " ++ filename
-    sqlFileContentE <- lift $ try (readFile filename)
-    case sqlFileContentE of
-        Left ioErr ->
-            if (isDoesNotExistError ioErr)
-                then Log.logInfo "MIGRATE" $ printf "Schema up-to-date. Version: %d" currentVersion
-                else lift $ throwIO ioErr
-        Right queries -> do
-            Log.logInfo "MIGRATE" $ printf "Migrating database from version %d" currentVersion
-            lift $ executeQueries
-                (void . PgSimple.execute_ conn . fromString)
-                queries
-            runBeam conn (Mig.addMigration currentVersion)
-            autoMigrate
+autoMigrate =
+    runDbTx go
   where
-    isMissingMigrationsTableError sqlError
-        | "42P01" <- PgSimple.sqlState sqlError
-        , PgSimple.FatalError <- PgSimple.sqlExecStatus sqlError
-        , "relation \"migrations\" does not exist" <- PgSimple.sqlErrorMsg sqlError =
-            True
-        | otherwise =
-            False
+    go conn = do
+        currentVersion <- runBeam conn Mig.currentVersion
+        let filename = mkFilename currentVersion
+        Log.logDebug "MIGRATE" $ "Attempting to read file " ++ filename
+        sqlFileContentE <- lift $ try (readFile filename)
+        case sqlFileContentE of
+            Left ioErr ->
+                if (isDoesNotExistError ioErr)
+                    then Log.logInfo "MIGRATE" $ printf "Schema up-to-date. Version: %d" currentVersion
+                    else lift $ throwIO ioErr
+            Right queries -> do
+                Log.logInfo "MIGRATE" $ printf "Migrating database from version %d" currentVersion
+                lift $ executeQueries
+                    (void . PgSimple.execute_ conn . fromString)
+                    queries
+                runBeam conn (Mig.addMigration currentVersion)
+                go conn
+
+    mkFilename currentVersion =
+        let identifier :: String
+            identifier = printf "migrate-cloud_db-%d" currentVersion
+        in printf "pgsql/%s.pgsql" identifier
 
 executeQueries
     :: (String -> IO ()) -- function that executes a single statement

@@ -39,12 +39,19 @@ import Data.List (intercalate)
 
 runServices :: Config -> AppM ()
 runServices cfg = do
-    a1 <- async $ forever $
-        processCalculations >> lift (threadDelay 60_000_000)
-    a2 <- async $ monitorDeadCalculations cfg
-    a3 <- async $ forever $
-        lift (threadDelay 60_000_000) >> createCalculations
+    a1 <- async $ processCalculationsPoll
+    a2 <- async $ resetUnfinishedCalculationsPoll
+    a3 <- async $ createCalculationsPoll
     lift $ snd <$> Async.waitAny [a1, a2, a3]
+  where
+    -- Set started calculations older than 'cfgMaxCalculationTime' to unstarted
+    resetUnfinishedCalculationsPoll = forever $ do
+        runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
+        lift $ threadDelay (round $ cfgDeadMonitorInterval cfg * 1e6)
+    processCalculationsPoll = forever $
+        processCalculations >> lift (threadDelay 60_000_000)
+    createCalculationsPoll = forever $
+        lift (threadDelay 60_000_000) >> createCalculations
 
 main :: Config -> IO ()
 main cfg = runAppM cfg $ do
@@ -52,7 +59,7 @@ main cfg = runAppM cfg $ do
     runBeamTx $ CP.setCalcParams (calculationParameters cfg)
     createCalculations
     -- Run services
-    _ <- runServices cfg
+    runServices cfg
     logInfo "MAIN" "Done. Exiting..."
   where
     insertOrReplaceTriggers conn = do
@@ -60,12 +67,6 @@ main cfg = runAppM cfg $ do
         logInfo "SQL" statement
         lift $ PgSimple.withTransaction conn $
             PgSimple.executeMany conn (fromString statement) ([] :: [()])
-
-insertMissingRunCurrencies :: AppM ()
-insertMissingRunCurrencies = do
-    res <- runBeamTx Query.insertMissingRunCurrencies
-    unless (null res) $
-        logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
 
 processCalculations :: AppM ()
 processCalculations = do
@@ -119,17 +120,12 @@ notificationsListen connStr = forever $ do
 handleEvent :: Source.Source -> Db.LocalTime -> AppM ()
 handleEvent Source.Runs _ =
     insertMissingRunCurrencies
+  where
+    insertMissingRunCurrencies = do
+        res <- runBeamTx Query.insertMissingRunCurrencies
+        unless (null res) $
+            logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
 handleEvent Source.RunCurrencies now = do
     runBeamTx $ Calc.insertMissingCalculations now
 handleEvent Source.Calculations _ =
     return ()
-
--- | Set started calculations older than 'cfgMaxCalculationTime' to unstarted
-monitorDeadCalculations :: Config -> AppM void
-monitorDeadCalculations cfg = forever $ do
-    runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
-    -- logInfo "MonitorDead" $
-    --     printf "Reset %d calculations: %s"
-    --            (length calculations)
-    --            (show $ map Db.calculationId calculations)
-    lift $ threadDelay (round $ cfgDeadMonitorInterval cfg * 1e6)

@@ -1,10 +1,10 @@
 cradle:
-    stack:
+    cabal:
     - path: "./src"
       component: "crypto-liquidity-db:lib"
     - path: "./test"
       component: "crypto-liquidity-db:test:crypto-liquidity-db-test"
     - path: "./app"
       component: "crypto-liquidity-db:exe:crypto-liquidity-db-exe"
-    # - path: "./bug"
-    #   component: "crypto-liquidity-db:exe:pg-simple-notify-bug"
+    - path: "./test-app"
+      component: "crypto-liquidity-db:exe:beam-servant-test"
