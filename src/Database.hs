@@ -21,6 +21,7 @@ import qualified Schema.PathPart as PathPart
 import qualified Schema.Path as Path
 import qualified Schema.Venue as Venue
 import qualified Schema.Currency as Currency
+import qualified Schema.Migration as Migration
 
 import qualified Database.Beam                          as Beam
 
@@ -44,6 +45,9 @@ data LiquidityDb f = LiquidityDb
 
     , venues :: f (Beam.TableEntity Venue.VenueT)
     , currencys :: f (Beam.TableEntity Currency.CurrencyT)
+
+      -- app metadata
+    , migrations :: f (Beam.TableEntity Migration.MigrationT)
     } deriving Generic
 
 instance Beam.Database be LiquidityDb

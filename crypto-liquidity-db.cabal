@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 627a6e7a954cf20cd0bc499f49359a5eb859bc2eb3aec753a714534338111ad5
+-- hash: 4de5ddce36c324f029de0cbf56d52ec8f9fd84e12166a8d617176e4a8d43d392
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -26,7 +26,7 @@ library
   exposed-modules:
       App.Log
       App.Main
-      App.Migrate
+      App.Migrate.BeamAutomigrate
       App.Monad
       App.MPQueue
       App.Orphans
@@ -44,10 +44,12 @@ library
       Internal.Prelude
       Query.Books
       Query.Calculations
+      Query.Migrations
       Query.RunCurrencies
       Schema.Calculation
       Schema.CalculationParameter
       Schema.Currency
+      Schema.Migration
       Schema.Path
       Schema.PathPart
       Schema.PathQty

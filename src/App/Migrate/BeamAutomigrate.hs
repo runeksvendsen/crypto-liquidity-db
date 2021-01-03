@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module App.Migrate
+module App.Migrate.BeamAutomigrate
 ( autoMigrate
 , autoMigrateIO
 )
@@ -48,8 +48,8 @@ runMigration :: Connection -> BA.Migration Pg -> IO ()
 runMigration conn migration = do
     Log.logInfo "MIGRATE" "----------------------------------------------------"
     Log.logInfo "MIGRATE" "MIGRATION PLAN:"
-    Log.logInfo "MIGRATE" "----------------------------------------------------"
     S.liftIO $ BA.printMigrationIO migration
+    Log.logInfo "MIGRATE" "----------------------------------------------------"
     S.liftIO $ BA.runMigrationUnsafe conn migration
 
 printCurrentSchema :: Connection -> IO ()
