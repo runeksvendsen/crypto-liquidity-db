@@ -78,6 +78,7 @@ executables:
     - aeson
     - beam-postgres
     - warp
+    - aeson-casing
 
 tests:
   crypto-liquidity-db-test:

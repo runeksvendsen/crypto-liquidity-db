@@ -5,6 +5,7 @@ module App.Log
 , logWarn
 , logError
 , logTrace
+, withLogging
 , Log.withStdoutLogging
 , Log.withStderrLogging
 , Log.setLogTimeFormat
@@ -24,6 +25,11 @@ import Data.List (stripPrefix)
 import Data.Maybe (fromMaybe)
 import Control.Monad.IO.Class (liftIO, MonadIO)
 
+withLogging :: IO a -> IO a
+withLogging io = do
+    Log.withStdoutLogging $ do
+      Log.setLogTimeFormat "%T.%3q"
+      io
 
 logDebug :: MonadIO m => T.Text -> String -> m ()
 logDebug ctx msg = liftIO $

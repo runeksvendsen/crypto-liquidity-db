@@ -4,9 +4,12 @@
 {-# LANGUAGE DataKinds #-}
 module Main where
 
+import Orphans ()
+
 -- crypto-liquidity-db
 import qualified App.Monad as AppLib
 import qualified App.Pool
+import qualified App.Log
 
 -- crypto-liquidity-db
 import qualified Database as Lib
@@ -35,19 +38,22 @@ import System.Environment (lookupEnv)
 
 
 main :: IO ()
-main = do
+main = App.Log.withLogging $ do
     connStr <- dbConnStr
     App.Pool.withPoolPg connStr $ \pool -> do
         let cfg = mkCfg pool
-        Warp.run 8000 (serve api $ mkServer cfg)
+            port = 8000
+        putStrLn $ "Running on http://localhost:" ++ show port
+        Warp.run port (serve api $ mkServer cfg)
   where
     api = Proxy :: Proxy API
     mkCfg pool = AppLib.Config
-        { AppLib.cfgNumeraires = []
-        , AppLib.cfgSlippages = []
-        , AppLib.cfgMaxCalculationTime = 0
-        , AppLib.cfgDeadMonitorInterval = 0
+        { AppLib.cfgMaxCalculationTime = 600
         , AppLib.cfgDbConnPool = pool
+          -- not used
+        , AppLib.cfgNumeraires = []
+        , AppLib.cfgSlippages = []
+        , AppLib.cfgDeadMonitorInterval = 0
         }
 
 dbConnStr :: IO String
@@ -88,13 +94,3 @@ type GetUnfinishedCalcs =
         :> "unfinished"
         :> "all"
         :> Get '[JSON] [LibCalc.Calculation]
-
--- Orphans
-instance JSON.ToJSON LibCalc.Calculation
-instance JSON.ToJSON Lib.CurrencyId
-instance JSON.ToJSON Run.RunId
-instance JSON.ToJSON (Lib.OrderBook Double) where
-    toJSON = undefined
-
-instance FromHttpApiData Run.RunId where
-    parseUrlPiece = error "TODO"
