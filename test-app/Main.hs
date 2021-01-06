@@ -4,9 +4,12 @@
 {-# LANGUAGE DataKinds #-}
 module Main where
 
+import Orphans ()
+
 -- crypto-liquidity-db
 import qualified App.Monad as AppLib
 import qualified App.Pool
+import qualified App.Log
 
 -- crypto-liquidity-db
 import qualified Database as Lib
@@ -38,20 +41,23 @@ import Data.Maybe (fromMaybe)
 
 
 main :: IO ()
-main = do
+main = App.Log.withLogging $ do
     connStr <- dbConnStr
     App.Pool.withPoolPg connStr $ \pool -> do
         let cfg = mkCfg pool
-        Warp.run 8000 (serve api $ mkServer cfg)
+            port = 8000
+        putStrLn $ "Running on http://localhost:" ++ show port
+        Warp.run port (serve api $ mkServer cfg)
   where
     api = Proxy :: Proxy API
 
     mkCfg pool = AppLib.Config
-        { AppLib.cfgNumeraires = []
-        , AppLib.cfgSlippages = []
-        , AppLib.cfgMaxCalculationTime = 0
-        , AppLib.cfgDeadMonitorInterval = 0
+        { AppLib.cfgMaxCalculationTime = 600
         , AppLib.cfgDbConnPool = pool
+          -- not used
+        , AppLib.cfgNumeraires = []
+        , AppLib.cfgSlippages = []
+        , AppLib.cfgDeadMonitorInterval = 0
         }
 
     dbConnStr = do
@@ -71,7 +77,7 @@ mkServer cfg =
 
 server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
 server timeout =
-         Lib.quantities
+         Lib.selectQuantities
     :<|> Lib.selectUnfinishedCalculations timeout
 
 type API
@@ -84,7 +90,7 @@ type Liquidity =
         :> Capture' '[Description "Zero or more comma-separated currency symbols (zero = all)"] "currency_symbols" [Currency]
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
-        :> Get '[JSON] [(Run.Run, (Text, Lib.Word64))]
+        :> Get '[JSON] [(Run.Word32, Text, Double, Text, Lib.Word64)]
 
 type GetUnfinishedCalcs =
     Summary "Get unfinished calculations"
@@ -92,21 +98,3 @@ type GetUnfinishedCalcs =
         :> "unfinished"
         :> "all"
         :> Get '[JSON] [LibCalc.Calculation]
-
--- Orphans
-instance JSON.ToJSON LibCalc.Calculation
-instance JSON.ToJSON Lib.CurrencyId
-instance JSON.ToJSON Run.RunId
-instance JSON.ToJSON (Lib.OrderBook Double) where
-    toJSON = undefined
-
-instance FromHttpApiData Run.RunId where
-    parseUrlPiece = error "TODO"
-
-
-
--- NEW STUFF
-instance FromHttpApiData [Currency] where
-    parseUrlPiece = error "TODO"
-instance JSON.ToJSON Run.Run
-instance JSON.ToJSON Currency

@@ -132,12 +132,13 @@ unfinishedCalculations timeoutTime = do
     guard_ $ isUnfinishedCalculation timeoutTime calc'
     pure calc'
 
-insertMissingCalculations :: Calc.LocalTime -> Pg.Pg ()
+insertMissingCalculations :: Calc.LocalTime -> Pg.Pg [(RC.RunCurrency, CalcParam.CalcParam)]
 insertMissingCalculations now = do
     rcCalcParam <- selectMissingCalculations
     runInsert $
         insert (calculations liquidityDb) $
         insertExpressions $ map (uncurry $ Calc.new now) rcCalcParam
+    return rcCalcParam
 
 selectMissingCalculations ::
     ( MonadBeam be m

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7b461ed0468bd137c0b63f3a7836e91758bd1a72fe21274b2c04c5891e905407
+-- hash: 75114a6a5a860dd2eaf31c8e9717bce3128d81d9779215e6318f13f69392fd17
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -45,6 +45,7 @@ library
       Internal.Prelude
       Query.Books
       Query.Calculations
+      Query.Liquidity
       Query.Migrations
       Query.RunCurrencies
       Schema.Calculation
@@ -95,6 +96,7 @@ library
 executable beam-servant-test
   main-is: Main.hs
   other-modules:
+      Orphans
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test-app
@@ -102,6 +104,7 @@ executable beam-servant-test
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       aeson
+    , aeson-casing
     , base >=4.7 && <5
     , beam-postgres
     , crypto-liquidity-db

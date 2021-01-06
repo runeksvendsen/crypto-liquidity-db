@@ -1,5 +1,5 @@
 module Query.Liquidity
-( quantities
+( selectQuantities
 , PathQty.Word64
 )
 where
@@ -76,7 +76,7 @@ quantities' currencies fromM toM = do
     (run, calc, pathQty) <- allQuantities
     pure
         ( run
-        , Calc.calculationNumeraire calc
+        , getSymbol $ Calc.calculationNumeraire calc
         , Calc.calculationSlippage calc
         , getSymbol $ Calc.calculationCurrency calc
         , PathQty.pathqtyQty pathQty
@@ -84,9 +84,30 @@ quantities' currencies fromM toM = do
   where
     getSymbol (Currency.CurrencyId symbol) = symbol
 
+-- |
+selectQuantities
+    :: [Currency]
+    -> Maybe Run.UTCTime
+    -> Maybe Run.UTCTime
+    -> Pg.Pg [(Run.Word32, Text, Double, Text, PathQty.Word64)] -- ^ runId, numeraire, slippage, currency, qty
+selectQuantities currencies fromM toM =
+    fmap (map modifyResult) $
+        runSelectReturningList $ select $
+            quantities currencies fromM toM
+  where
+    modifyResult (runId, numeraire, slippage, currency, qty) =
+        (getRunId runId, numeraire, slippage, currency, qty)
+    getRunId (Run.RunId serial) = fromIntegral serial
+
 quantities currencies fromM toM =
     aggregate_
         (\(run, calcNumeraire, calcSlippage, calcCurrency, pathQty) ->
-            (group_ (pk run, calcNumeraire, calcSlippage, calcCurrency), sum_ pathQty)
+            ( group_ (pk run)
+            , group_ calcNumeraire
+            , group_ calcSlippage
+            , group_ calcCurrency
+            , fromMaybe_ (val_ 0) $ sum_ pathQty
+            -- , Pg.pgArrayAgg calcCurrency
+            )
         )
         (quantities' currencies fromM toM)

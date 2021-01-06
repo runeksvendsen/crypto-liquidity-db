@@ -17,6 +17,8 @@ import App.Orphans ()
 import App.Pool (withPoolPg)
 
 import qualified Schema.Calculation as Db
+import qualified Schema.RunCurrency
+import qualified Schema.CalculationParameter
 import qualified Query.Calculations as Calc
 import qualified Query.RunCurrencies as Query
 import qualified Insert.CalcParams as CP
@@ -93,39 +95,29 @@ processCalculations = do
             ]
 
 createCalculations :: AppM ()
-createCalculations = do
-    lift App.Util.currentTime >>= handleEvent Source.Runs
-    lift App.Util.currentTime >>= handleEvent Source.RunCurrencies
-
--- | Listen for:
---    * INSERT runs                 ->  insertMissingRunCurrencies
---    * INSERT run_currencies       ->  insertMissingCalculations
---    * INSERT calculations         ->  add calculations to calculations-queue
-notificationsListen :: String -> AppM Void
-notificationsListen connStr = forever $ do
-    logInfo "NOTIFY" "Waiting for notification..."
-    -- TMP
-    conn <- lift $ App.PgConnect.pgConnectRetry 20 (toS connStr)
-    notification <- lift $ PgNotify.getNotification conn
-    lift $ PgSimple.close conn
-    -- TMP
-    logDebug "NOTIFY" $ "Received notification. Raw: " ++ show notification
-    ask >>= \cfg -> lift $ forkIO $ runAppM cfg $
-        case Source.parseByteString $ PgNotify.notificationChannel notification of
-            Left errMsg -> logInfo "NOTIFY" $ "ERROR: " ++ errMsg
-            Right source -> do
-                logInfo "NOTIFY" ("Received event: " ++ show source)
-                lift App.Util.currentTime >>= handleEvent source
-
-handleEvent :: Source.Source -> Db.LocalTime -> AppM ()
-handleEvent Source.Runs _ =
-    insertMissingRunCurrencies
+createCalculations =
+    go
   where
-    insertMissingRunCurrencies = do
-        res <- runBeamTx Query.insertMissingRunCurrencies
-        unless (null res) $
-            logInfo "RunCurrency" $ "Inserted run currencies (run_id, <currency_count>): " ++ show (map (fmap length) res)
-handleEvent Source.RunCurrencies now = do
-    runBeamTx $ Calc.insertMissingCalculations now
-handleEvent Source.Calculations _ =
-    return ()
+    go = do
+        insertRunRunCurrencies
+        res <- lift App.Util.currentTime >>= insertMissingCalculations
+        case res of
+            [] -> return ()
+            _ -> go
+
+insertRunRunCurrencies :: AppM ()
+insertRunRunCurrencies = do
+    resM <- runBeamTx Query.insertRunRunCurrencies
+    case resM of
+        Nothing -> return ()
+        Just (runId, currencies) -> logInfo "RunCurrency" $ printf
+            "RunId %d: inserted %d run currencies" runId (length currencies)
+
+insertMissingCalculations
+    :: Db.LocalTime
+    -> AppM [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
+insertMissingCalculations now = do
+    calcParams <- runBeamTx $ Calc.insertMissingCalculations now
+    unless (null calcParams) $
+        logInfo "Calculation" $ printf "Inserted %d calculations" (length calcParams)
+    return calcParams
