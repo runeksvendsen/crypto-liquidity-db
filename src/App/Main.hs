@@ -37,6 +37,7 @@ import qualified App.PgConnect
 import Data.Void (Void)
 import Text.Printf (printf)
 import Data.List (intercalate)
+import Data.Maybe (isJust)
 
 
 runServices :: Config -> AppM ()
@@ -99,19 +100,20 @@ createCalculations =
     go
   where
     go = do
-        insertRunRunCurrencies
-        res <- lift App.Util.currentTime >>= insertMissingCalculations
-        case res of
-            [] -> return ()
+        rcM <- insertRunRunCurrencies
+        calcLst <- insertMissingCalculations =<< lift App.Util.currentTime
+        case (rcM, calcLst) of
+            (Nothing, []) -> return ()
             _ -> go
 
-insertRunRunCurrencies :: AppM ()
+insertRunRunCurrencies :: AppM (Maybe (Db.Word32, [Text]))
 insertRunRunCurrencies = do
     resM <- runBeamTx Query.insertRunRunCurrencies
     case resM of
         Nothing -> return ()
         Just (runId, currencies) -> logInfo "RunCurrency" $ printf
             "RunId %d: inserted %d run currencies" runId (length currencies)
+    return resM
 
 insertMissingCalculations
     :: Db.LocalTime
