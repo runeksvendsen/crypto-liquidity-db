@@ -57,14 +57,15 @@ library:
   - pretty-show
 
 executables:
-  crypto-liquidity-db-exe:
+  crypto-liquidity-service:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
     - -O2
     dependencies:
     - crypto-liquidity-db
-  beam-servant-test:
+
+  crypto-liquidity-web-api:
     main:                Main.hs
     source-dirs:         test-app
     ghc-options:
