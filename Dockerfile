@@ -5,12 +5,12 @@
 ## See Dockerfile's for individual executables under the subfolders
 ##  inside "exe/".
 
-FROM build-cache-crypto-liquidity:0.1 as builder
+FROM ubuntu:16.04 as builder
 
 RUN apt-get update \
   && apt-get install -y curl libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
-# RUN curl -sSL https://get.haskellstack.org/ | sh
+RUN curl -sSL https://get.haskellstack.org/ | sh
 
 # Pre-install deps so we can re-use cached layers
 # https://github.com/freebroccolo/docker-haskell/issues/54#issuecomment-283222910
