@@ -55,11 +55,20 @@ library:
   - logging
   - ansi-terminal
   - pretty-show
+  - it-has
 
 executables:
-  crypto-liquidity-service:
+  crypto-liquidity-service-process:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         app/service/process-calc
+    ghc-options:
+    - -O2
+    dependencies:
+    - crypto-liquidity-db
+
+  crypto-liquidity-service-create:
+    main:                Main.hs
+    source-dirs:         app/service/create-calc
     ghc-options:
     - -O2
     dependencies:
@@ -67,7 +76,7 @@ executables:
 
   crypto-liquidity-web-api:
     main:                Main.hs
-    source-dirs:         test-app
+    source-dirs:         app/web-api
     ghc-options:
     - -O2
     dependencies:

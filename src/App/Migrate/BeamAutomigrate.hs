@@ -30,7 +30,7 @@ autoMigrateIO :: Config -> IO ()
 autoMigrateIO cfg =
     runAppM cfg autoMigrate
 
-autoMigrate :: AppM ()
+autoMigrate :: Has DbConn r => AppM r ()
 autoMigrate = do
     cfg <- R.ask
     withDbConn $ \conn -> lift $ runBeamPostgresDebug (runAppM cfg . logDebug "MIGRATE") conn $ do

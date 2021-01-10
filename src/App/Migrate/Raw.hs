@@ -16,11 +16,11 @@ import System.IO.Error (isDoesNotExistError)
 
 
 
-autoMigrateIO :: Config -> IO ()
-autoMigrateIO cfg =
-    runAppM cfg autoMigrate
+autoMigrateIO :: DbConn -> IO ()
+autoMigrateIO dbc =
+    runAppM dbc autoMigrate
 
-autoMigrate :: AppM ()
+autoMigrate :: Has DbConn r => AppM r ()
 autoMigrate =
     runDbTx go
   where

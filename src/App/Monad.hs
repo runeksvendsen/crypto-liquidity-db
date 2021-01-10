@@ -1,9 +1,10 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module App.Monad
 ( module App.Monad
 , R.lift
 , R.ask
+, Has(..)
 )
 where
 
@@ -22,64 +23,74 @@ import qualified App.Log as Log
 import qualified Control.Concurrent.Async as Async
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Base (MonadBase)
+import Data.Has ( Has(..) )
 
 
+type AppM r = R.ReaderT r IO
 
-type AppM = R.ReaderT Config IO
-
-logInfo :: String -> String -> AppM ()
+logInfo :: String -> String -> AppM r ()
 logInfo ctx =
     R.lift . Log.logInfo (toS ctx)
 
-logDebug :: String -> String -> AppM ()
+logDebug :: String -> String -> AppM r ()
 logDebug ctx =
     R.lift . Log.logDebug (toS ctx)
 
-logError :: String -> String -> AppM ()
+logError :: String -> String -> AppM r ()
 logError ctx =
     R.lift . Log.logError (toS ctx)
 
-runAppM :: Config -> R.ReaderT Config m a -> m a
+runAppM :: conf -> R.ReaderT conf m a -> m a
 runAppM = flip R.runReaderT
 
-withDbConn :: (Pg.Connection -> AppM a) -> AppM a
+withDbConn :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
 withDbConn f = do
-    pool <- R.asks cfgDbConnPool
+    pool <- R.asks getter
     Pool.withResource pool f
 
-runBeamTx :: Pg.Pg a -> AppM a
+runBeamTx :: Has DbConn r => Pg.Pg a -> AppM r a
 runBeamTx pgM = do
     runDbTx $ \conn -> runBeam conn pgM
 
-runBeam :: Pg.Connection -> Pg.Pg a -> AppM a
+runBeam :: Pg.Connection -> Pg.Pg a -> AppM r a
 runBeam conn pgM = do
     cfg <- R.ask
     R.lift $ Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn pgM
 
-runDbTx :: (Pg.Connection -> AppM a) -> AppM a
+runDbTx :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
 runDbTx action = do
     cfg <- R.ask
     withDbConn $ \conn ->
         R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn
             (runAppM cfg $ action conn)
 
-async :: AppM a -> AppM (Async.Async a)
+async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
     cfg <- R.ask
     R.lift $ Async.async $ runAppM cfg appM
 
 -- |
 data Config = Config
-    { cfgNumeraires :: [Text]
-    , cfgSlippages :: [Double]
+    { cfgConstants :: CfgConstants
+    , cfgDbConnPool :: Pool.Pool Pool.Connection
+    } deriving (Generic, Has DbConn)
+
+data CfgConstants = CfgConstants
+    { cfgParams :: CfgParams
     , cfgMaxCalculationTime :: NominalDiffTime
       -- ^ the amount of time after which a calculation is considered stalled/dead
     , cfgDeadMonitorInterval :: NominalDiffTime
       -- ^ restart dead calculations this often
-    , cfgDbConnPool :: Pool.Pool Pool.Connection
     }
 
-calculationParameters :: Config -> [(Text, Double)]
+data CfgParams = CfgParams
+    { cfgNumeraires :: [Text]
+    , cfgSlippages :: [Double]
+    }
+
+type DbConn = Pool.Pool Pool.Connection
+
+calculationParameters :: CfgParams -> [(Text, Double)]
 calculationParameters cfg = do
     numeraire <- cfgNumeraires cfg
     slippage <- cfgSlippages cfg

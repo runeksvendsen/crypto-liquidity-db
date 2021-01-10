@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.3.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7e0215d03e9bc30a4b9a65c3c2484a10571730a18205fd5333ceb60751a728ff
+-- hash: 32651cdf6a2ab43f3f39387717cd54c7afb77b7deac68d6a1bc83dbbb6c7f397
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -25,7 +25,9 @@ source-repository head
 library
   exposed-modules:
       App.Log
-      App.Main
+      App.Main.CreateCalc
+      App.Main.ProcessCalc
+      App.Main.Util
       App.Migrate.BeamAutomigrate
       App.Migrate.Raw
       App.Monad
@@ -74,6 +76,7 @@ library
     , bytestring
     , containers
     , crypto-orderbook-db
+    , it-has
     , logging
     , lrucache
     , monad-control
@@ -93,12 +96,26 @@ library
     , vector
   default-language: Haskell2010
 
-executable crypto-liquidity-service
+executable crypto-liquidity-service-create
   main-is: Main.hs
   other-modules:
       Paths_crypto_liquidity_db
   hs-source-dirs:
-      app
+      app/service/create-calc
+  default-extensions: FlexibleContexts StrictData
+  ghc-options: -Wall -fno-warn-unused-imports -O2
+  build-depends:
+      base >=4.7 && <5
+    , crypto-liquidity-db
+    , protolude
+  default-language: Haskell2010
+
+executable crypto-liquidity-service-process
+  main-is: Main.hs
+  other-modules:
+      Paths_crypto_liquidity_db
+  hs-source-dirs:
+      app/service/process-calc
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
@@ -113,7 +130,7 @@ executable crypto-liquidity-web-api
       Orphans
       Paths_crypto_liquidity_db
   hs-source-dirs:
-      test-app
+      app/web-api
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:

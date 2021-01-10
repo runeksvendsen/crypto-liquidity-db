@@ -1,9 +1,7 @@
 {-# LANGUAGE NumericUnderscores #-}
-{-# LANGUAGE OverloadedStrings #-}
-module App.Main
+module App.Main.CreateCalc
 ( main
 , Config(..)
-, withPoolPg
 )
 where
 
@@ -40,62 +38,29 @@ import Data.List (intercalate)
 import Data.Maybe (isJust)
 
 
-runServices :: Config -> AppM ()
+runServices :: Has DbConn r => Config -> AppM r ()
 runServices cfg = do
-    a1 <- async $ processCalculationsPoll
-    a2 <- async $ resetUnfinishedCalculationsPoll
-    a3 <- async $ createCalculationsPoll
-    lift $ snd <$> Async.waitAny [a1, a2, a3]
+    a1 <- async resetUnfinishedCalculationsPoll
+    a2 <- async createCalculationsPoll
+    lift $ snd <$> Async.waitAny [a1, a2]
   where
     -- Set started calculations older than 'cfgMaxCalculationTime' to unstarted
     resetUnfinishedCalculationsPoll = forever $ do
-        runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime cfg)
-        lift $ threadDelay (round $ cfgDeadMonitorInterval cfg * 1e6)
-    processCalculationsPoll = forever $
-        processCalculations >> lift (threadDelay 60_000_000)
-    createCalculationsPoll = forever $
-        lift (threadDelay 60_000_000) >> createCalculations
+        runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime $ cfgConstants cfg)
+        lift $ threadDelay (round $ cfgDeadMonitorInterval (cfgConstants cfg) * 1e6)
+    createCalculationsPoll = forever $ do
+        createCalculations
+        lift (threadDelay 60_000_000)
 
 main :: Config -> IO ()
 main cfg = runAppM cfg $ do
     -- Init
-    runBeamTx $ CP.setCalcParams (calculationParameters cfg)
-    createCalculations
+    runBeamTx $ CP.setCalcParams (calculationParameters $ cfgParams (cfgConstants cfg))
     -- Run services
     runServices cfg
     logInfo "MAIN" "Done. Exiting..."
-  where
-    insertOrReplaceTriggers conn = do
-        statement <- lift $ readFile "pgsql/notify_trigger.pgsql"
-        logInfo "SQL" statement
-        lift $ PgSimple.withTransaction conn $
-            PgSimple.executeMany conn (fromString statement) ([] :: [()])
 
-processCalculations :: AppM ()
-processCalculations = do
-    now <- lift App.Util.currentTime
-    calcM <- runBeamTx $ Calc.startCalculation now
-    case calcM of
-        Nothing -> do
-            logInfo "Process" "No calculations left"
-            return ()
-        Just calculation -> do
-            logInfo "Process" $ "Starting calculation "
-                ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation)
-                ++ " (" ++ showCalc calculation ++ ")..."
-            RunCalc.runInsertCalculation calculation
-            processCalculations
-  where
-    showCalc calc =
-        let dbCalc = Calc.calcCalc calc in
-        intercalate "/" $
-            [ show (Db.calculationRun dbCalc)
-            , toS $ Calc.calcNumeraire calc
-            , toS $ Calc.calcCrypto calc
-            , printf "%f" (Db.calculationSlippage dbCalc)
-            ]
-
-createCalculations :: AppM ()
+createCalculations :: Has DbConn r => AppM r ()
 createCalculations =
     go
   where
@@ -106,7 +71,7 @@ createCalculations =
             (Nothing, []) -> return ()
             _ -> go
 
-insertRunRunCurrencies :: AppM (Maybe (Db.Word32, [Text]))
+insertRunRunCurrencies :: Has DbConn r => AppM r (Maybe (Db.Word32, [Text]))
 insertRunRunCurrencies = do
     resM <- runBeamTx Query.insertRunRunCurrencies
     case resM of
@@ -116,8 +81,9 @@ insertRunRunCurrencies = do
     return resM
 
 insertMissingCalculations
-    :: Db.LocalTime
-    -> AppM [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
+    :: Has DbConn r
+    => Db.LocalTime
+    -> AppM r [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
 insertMissingCalculations now = do
     calcParams <- runBeamTx $ Calc.insertMissingCalculations now
     unless (null calcParams) $

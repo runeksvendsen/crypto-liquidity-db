@@ -40,7 +40,7 @@ graphCache = unsafePerformIO $ LRU.newAtomicLRU (Just 10)
 --   * calculationStartTime
 --   * calculationDurationSeconds
 
-runInsertCalculation :: Calc.Calculation -> AppM ()
+runInsertCalculation :: Has DbConn r => Calc.Calculation -> AppM r ()
 runInsertCalculation calc = do
     inputDataM <- lift $ LRU.lookup cacheKey graphCache
     inputData <- maybe

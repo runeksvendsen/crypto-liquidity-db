@@ -2477,4 +2477,5 @@ constraints: any.ALUT ==2.4.0.3,
              any.zlib-lens ==0.1.2.1,
              any.zot ==0.0.3,
              any.zstd ==0.1.1.2,
-             any.ztail ==1.2.0.2
+             any.ztail ==1.2.0.2,
+             any.it-has ==0.2.0.0

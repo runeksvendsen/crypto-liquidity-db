@@ -8,8 +8,10 @@ import Orphans ()
 
 -- crypto-liquidity-db
 import qualified App.Monad as AppLib
+import qualified App.Main.Util
 import qualified App.Pool
 import qualified App.Log
+import App.Monad ( Config(..), CfgConstants(..), CfgParams(..) )
 
 -- crypto-liquidity-db
 import qualified Database as Lib
@@ -40,37 +42,38 @@ import Internal.Prelude (Text)
 import Data.Maybe (fromMaybe)
 
 
+
 main :: IO ()
-main = App.Log.withLogging $ do
-    connStr <- dbConnStr
-    App.Pool.withPoolPg connStr $ \pool -> do
-        let cfg = mkCfg pool
-            port = 8000
-        putStrLn $ "Running on http://localhost:" ++ show port
-        Warp.run port (serve api $ mkServer cfg)
+main =
+    App.Main.Util.withDbPool
+        App.Main.Util.LevelDebug
+        (\pool -> do
+            let cfg = mkCfg pool
+                port = 8000
+            putStrLn $ "Running on http://localhost:" ++ show port
+            Warp.run port (serve api $ mkServer cfg)
+        )
   where
-    api = Proxy :: Proxy API
-
+    api :: Proxy API
+    api = Proxy
     mkCfg pool = AppLib.Config
-        { AppLib.cfgMaxCalculationTime = 600
-        , AppLib.cfgDbConnPool = pool
-          -- not used
-        , AppLib.cfgNumeraires = []
-        , AppLib.cfgSlippages = []
-        , AppLib.cfgDeadMonitorInterval = 0
+        { cfgConstants =
+            CfgConstants
+                { cfgMaxCalculationTime = 1800
+                , cfgParams = CfgParams
+                    { cfgNumeraires = []    -- not used
+                    , cfgSlippages = []     -- not used
+                    }
+                , cfgDeadMonitorInterval = 0    -- not used
+                }
+        , cfgDbConnPool = pool
         }
-
-    dbConnStr = do
-        connStrM <- lookupEnv "DATABASE_URL"
-        let connStr = fromMaybe (error errorMsg) connStrM
-            errorMsg = "Missing postgres connection string in DATABASE_URL environment variable"
-        return connStr
 
 mkServer
     :: AppLib.Config
     -> ServerT API Handler
 mkServer cfg =
-    let timeout = AppLib.cfgMaxCalculationTime cfg in
+    let timeout = AppLib.cfgMaxCalculationTime $ AppLib.cfgConstants cfg in
     hoistServer (Proxy :: Proxy API)
                 (liftIO . AppLib.runAppM cfg . AppLib.runBeamTx)
                 (server timeout)
