@@ -1,7 +1,6 @@
 {-# LANGUAGE GADTs #-}
 module Query.Migrations
-( currentVersion
-, addMigration
+( addMigration
 )
 where
 
