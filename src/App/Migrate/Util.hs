@@ -24,6 +24,7 @@ import Database.Beam.Postgres (Pg, PgCommandSyntax, Postgres)
 import qualified Control.Exception as E
 import Data.List (intercalate)
 
+
 -- |
 runMigrations
     :: forall a r. Has DbConn r
@@ -38,20 +39,13 @@ runMigrations migrateFrom = do
     cfg <- ask
     let runAppM' :: AppM r b -> IO b
         runAppM' = runAppM cfg
-    lift $ bracket
+    lift $ E.bracket
         (runAppM' $ do
             logDebug "MIGRATE" "Attempting to acquire lock..."
             runBeamTx claimLatestMigration
         )
-        (\migrationListM -> do
-            -- let migratedFromVersions = map fst . concat $ concat migrationListM
-            let migratedFromVersions :: [Migration.Int16]
-                migratedFromVersions = map fst $ concatMap concat migrationListM
-            mapM $ \initialFromVersion -> runAppM' $ do
-                let allVersions = initialFromVersion : migratedFromVersions
-                logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
-                runBeamTx $ setNotInProgress allVersions
-        )    -- release resource
+        -- NB: only necessary in case of exception
+        (mapM $ \initialFromVersion -> runAppM' $ runBeamTx $ setNotInProgress [initialFromVersion])
         (mapM (runAppM' . runAllMigrations))
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
@@ -65,7 +59,14 @@ runMigrations migrateFrom = do
             migrationIOM <- migrateFrom conn fromVersion
             case migrationIOM of
                 Nothing -> do
-                    runAppM conn $
+                    runAppM conn $ do
+                        let allVersions = latestFromVersion : map fst accum
+                        -- Set in_progress=false for all used migrations.
+                        -- Makes sure that successful migration does not leave
+                        --  behind any migrations with in_progress=true in case
+                        --  DB crashes before the "release" function runs.
+                        logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
+                        runBeam conn $ setNotInProgress allVersions
                         logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
                     return accum
                 Just migrationIO -> do
