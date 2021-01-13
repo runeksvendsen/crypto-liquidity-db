@@ -55,9 +55,13 @@ getMigration conn fromVersion = do
                 then return Nothing
                 else throwIO ioErr
         Right queries -> do
-            return $ Just $ executeQueries
-                (void . PgSimple.execute_ conn . fromString)
-                queries
+            return $ Just $ do
+                threadDelay 10000000
+                executeQueries
+                    (void . PgSimple.execute_ conn . fromString)
+                    queries
+                threadDelay 10000000
+
   where
     mkFilename currentVersion =
         let identifier :: String
