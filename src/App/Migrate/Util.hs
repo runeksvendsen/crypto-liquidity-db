@@ -8,7 +8,7 @@ module App.Migrate.Util
 where
 
 import App.Monad
-import Internal.Prelude (bracket, runInsertReturningOne)
+import Internal.Prelude (runInsertReturningOne)
 import Database ( liquidityDb, LiquidityDb(migrations) )
 import qualified Schema.Migration as Migration
 import qualified Query.Migrations as Mig
