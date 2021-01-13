@@ -46,11 +46,12 @@ main = do
     [baseUrl] <- getArgs
     manager <- HTTP.newManager HTTP.defaultManagerSettings
     let clientEnv = SC.mkClientEnv manager (getBaseUrl baseUrl)
+    putStrLn $ "Running on http://localhost:" ++ show port
     Warp.run port $ serve api (server clientEnv)
   where
     getBaseUrl baseUrl =
         either (error . ("Failed to parse URL: " ++) . show) id (SC.parseBaseUrl baseUrl)
-    port = 8000
+    port = 8123
     api :: Proxy API
     api = Proxy
 
@@ -79,10 +80,11 @@ testHandler env = do
     calcLstE <- liftIO $ runClientM unfinishedCalculations
     let calcLst = either (error . ("unfinishedCalculations failed: " ++) . show) id calcLstE
     -- Assertions:
-    return $
-        assert (not $ null calcLst) $
-        assert (noUnfinishedCalculations calcLst)
-            "done"
+    let assertions = [not $ null calcLst, noUnfinishedCalculations calcLst]
+        calcsStr = toS $ show calcLst
+    if not $ all (== True) assertions
+        then throwError $ err500 { errBody = "Assertion error:\n" <> toS calcsStr }
+        else return calcsStr
   where
     runClientM = (`SC.runClientM` env)
     noUnfinishedCalculations calcs = all isFinishedCalculation calcs
