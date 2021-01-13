@@ -36,9 +36,9 @@ runMigrations migrateFrom = do
     let runDbTx' :: Pg b -> IO b
         runDbTx' = runAppM cfg . runBeamTx
     lift $ E.bracket
-        (runDbTx' claimLatestMigration)
-        (mapM (runDbTx' . rollback))
-        (mapM (runAppM cfg . runAllMigrations))
+        (runDbTx' claimLatestMigration)                 -- acquire resource
+        (mapM (runDbTx' . setNotInProgress . (:[])))    -- release resource
+        (mapM (runAppM cfg . runAllMigrations))         -- use resource
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
     runAllMigrations latestFromVersion = do
@@ -50,7 +50,10 @@ runMigrations migrateFrom = do
         runAllMigrations' conn accum fromVersion = do
             migrationIOM <- migrateFrom conn fromVersion
             case migrationIOM of
-                Nothing -> return accum
+                Nothing -> do
+                    let fromVersions = latestFromVersion : map fst accum
+                    runBeamIO conn (setNotInProgress fromVersions)
+                    return accum
                 Just migrationIO -> do
                     resA <- migrationIO
                     runBeamIO conn (Mig.addMigration fromVersion)
@@ -65,21 +68,27 @@ runMigrations migrateFrom = do
             Pg.updateReturning (migrations liquidityDb)
                 (\m -> Migration.migrationInProgress m <-. val_ True)
                 (\m ->
-                    Migration.migrationFromVersion m ==. subquery_ selectQ
+                    Migration.migrationFromVersion m ==. subquery_ latestFromVersionQ
                     &&. not_ (Migration.migrationInProgress m)
                 )
                 Migration.migrationFromVersion
 
-    rollback migrationFromVersion =
+    rollback migrationFromVersions = setNotInProgress [migrationFromVersions]
+
+    setNotInProgress migrationFromVersions =
+        let first : rest = migrationFromVersions
+            fromVersionEquals m val = Migration.migrationFromVersion m ==. val_ val
+        in
         runUpdate $
             update (migrations liquidityDb)
                 (\m -> Migration.migrationInProgress m <-. val_ False)
-                (\m ->
-                    Migration.migrationFromVersion m ==. val_ migrationFromVersion
-                    &&. Migration.migrationInProgress m
+                (\m -> foldr
+                    (\fromVersion accum -> accum ||. m `fromVersionEquals` fromVersion)
+                    (m `fromVersionEquals` first)
+                    rest
                 )
 
-    selectQ =
+    latestFromVersionQ =
         limit_ 1 $
         orderBy_ desc_ $
         Pg.lockingFor_ Pg.PgSelectLockingStrengthUpdate Nothing $ do

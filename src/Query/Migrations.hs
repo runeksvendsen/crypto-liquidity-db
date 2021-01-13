@@ -22,4 +22,4 @@ addMigration ::
     -> m ()
 addMigration fromVersion =
     runInsert $ insert (migrations liquidityDb) $
-        insertExpressions [ Migration.Migration (val_ fromVersion) default_ (val_ False) ]
+        insertExpressions [ Migration.Migration (val_ fromVersion) default_ (val_ True) ]
