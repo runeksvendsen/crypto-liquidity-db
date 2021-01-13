@@ -26,6 +26,8 @@ import qualified Control.Exception as E
 -- |
 runMigrations
     :: forall a r. Has DbConn r
+    -- TODO: use a fold instead over [fromVersions]
+    --          --> (Pg.Connection -> Migration.Int16 -> state -> IO (Maybe (IO state)))
     => (Pg.Connection -> Migration.Int16 -> IO (Maybe (IO a))) -- ^ maybe migration for given fromVersion
     -> AppM r (Maybe [(Migration.Int16, a)])
         -- ^ Just Right: 'migrateFrom' executed with given @fromVersion@
@@ -42,7 +44,6 @@ runMigrations migrateFrom = do
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
     runAllMigrations latestFromVersion = do
-        logInfo "MIGRATE" $ "Starting migration from version " ++ show currentVersion
         runDbTx $ \conn -> lift $
             runAllMigrations' conn [] currentVersion
         where
@@ -52,9 +53,13 @@ runMigrations migrateFrom = do
             case migrationIOM of
                 Nothing -> do
                     let fromVersions = latestFromVersion : map fst accum
+                    runAppM conn $
+                        logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
                     runBeamIO conn (setNotInProgress fromVersions)
                     return accum
                 Just migrationIO -> do
+                    runAppM conn $
+                        logInfo "MIGRATE" $ "Starting migration from version " ++ show fromVersion
                     resA <- migrationIO
                     runBeamIO conn (Mig.addMigration fromVersion)
                     runAllMigrations' conn ((fromVersion, resA) : accum) (fromVersion + 1)
