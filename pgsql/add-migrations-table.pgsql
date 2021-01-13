@@ -1,5 +1,5 @@
 CREATE TABLE migrations
-    ( from_version NUMERIC(5) NOT NULL
+    ( from_version SMALLINT NOT NULL
     , time TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
     , in_progress BOOLEAN NOT NULL
     );
