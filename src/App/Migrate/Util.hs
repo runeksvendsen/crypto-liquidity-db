@@ -36,7 +36,7 @@ runMigrations migrateFrom = do
     let runDbTx' :: Pg b -> IO b
         runDbTx' = runAppM cfg . runBeamTx
     lift $ E.bracket
-        (claimLatestHandleResult <$> runDbTx' claimLatest)
+        (runDbTx' claimCurrentVersion)
         (mapM (runDbTx' . rollback))
         (mapM (runAppM cfg . runAllMigrations))
   where
@@ -57,7 +57,7 @@ runMigrations migrateFrom = do
     claimLatestHandleResult [] = Nothing
     claimLatestHandleResult [fromVersion] = Just fromVersion
 
-    claimLatest =
+    claimCurrentVersion = fmap claimLatestHandleResult $
         Pg.runPgUpdateReturningList $
             Pg.updateReturning (migrations liquidityDb)
                 (\m -> Migration.migrationInProgress m <-. val_ True)
@@ -65,7 +65,7 @@ runMigrations migrateFrom = do
                     Migration.migrationFromVersion m ==. subquery_ selectQ
                     &&. not_ (Migration.migrationInProgress m)
                 )
-                Migration.migrationFromVersion
+                ((+ 1) . Migration.migrationFromVersion) -- add 1 to from_version into order to get current_version
 
     rollback migrationFromVersion =
         runUpdate $
