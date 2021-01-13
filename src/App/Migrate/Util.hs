@@ -8,7 +8,7 @@ module App.Migrate.Util
 where
 
 import App.Monad
-import Internal.Prelude (runInsertReturningOne)
+import Internal.Prelude (bracket, runInsertReturningOne)
 import Database ( liquidityDb, LiquidityDb(migrations) )
 import qualified Schema.Migration as Migration
 import qualified Query.Migrations as Mig
@@ -37,9 +37,15 @@ runMigrations migrateFrom = do
     cfg <- ask
     let runDbTx' :: Pg b -> IO b
         runDbTx' = runAppM cfg . runBeamTx
-    lift $ E.bracket
+    lift $ bracket
         (runDbTx' claimLatestMigration)                 -- acquire resource
-        (mapM (runDbTx' . setNotInProgress . (:[])))    -- release resource
+        (\migrationListM -> do
+            -- let migratedFromVersions = map fst . concat $ concat migrationListM
+            let migratedFromVersions :: [Migration.Int16]
+                migratedFromVersions = map fst $ concatMap concat migrationListM
+            mapM $ \initialFromVersion ->
+                runDbTx' $ setNotInProgress (initialFromVersion : migratedFromVersions)
+        )    -- release resource
         (mapM (runAppM cfg . runAllMigrations))         -- use resource
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
@@ -52,10 +58,8 @@ runMigrations migrateFrom = do
             migrationIOM <- migrateFrom conn fromVersion
             case migrationIOM of
                 Nothing -> do
-                    let fromVersions = latestFromVersion : map fst accum
                     runAppM conn $
                         logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
-                    runBeamIO conn (setNotInProgress fromVersions)
                     return accum
                 Just migrationIO -> do
                     runAppM conn $
@@ -77,8 +81,6 @@ runMigrations migrateFrom = do
                     &&. not_ (Migration.migrationInProgress m)
                 )
                 Migration.migrationFromVersion
-
-    rollback migrationFromVersions = setNotInProgress [migrationFromVersions]
 
     setNotInProgress migrationFromVersions =
         let first : rest = migrationFromVersions
