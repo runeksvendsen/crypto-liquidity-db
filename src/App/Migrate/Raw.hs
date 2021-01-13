@@ -55,7 +55,6 @@ getMigration conn fromVersion = do
                 then return Nothing
                 else throwIO ioErr
         Right queries -> do
-            -- threadDelay
             return $ Just $ executeQueries
                 (void . PgSimple.execute_ conn . fromString)
                 queries
