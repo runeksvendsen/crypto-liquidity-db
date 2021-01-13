@@ -38,7 +38,7 @@ autoMigrate =
             Right Nothing -> do
                 let delaySeconds = 5
                 logInfo "MIGRATE" $ printf
-                    "Migration in progress by other service. Retrying in %d seconds ..." delaySeconds
+                    "Migration in progress by other service. Retrying in %d seconds..." delaySeconds
                 lift (threadDelay $ delaySeconds * 1e6)
                 go
             Right (Just lst) ->
@@ -55,6 +55,7 @@ getMigration conn fromVersion = do
                 then return Nothing
                 else throwIO ioErr
         Right queries -> do
+            -- threadDelay
             return $ Just $ executeQueries
                 (void . PgSimple.execute_ conn . fromString)
                 queries
