@@ -105,6 +105,6 @@ runMigrations migrateFrom = do
     latestFromVersionQ =
         limit_ 1 $
         orderBy_ desc_ $
-        Pg.lockingFor_ Pg.PgSelectLockingStrengthUpdate Nothing $ do
+        Pg.lockingFor_ Pg.PgSelectLockingStrengthUpdate (Just Pg.PgSelectLockingOptionsSkipLocked) $ do
             (calcLock, migration) <- Pg.locked_ (migrations liquidityDb)
             pure $ Migration.migrationFromVersion migration `Pg.withLocks_` calcLock
