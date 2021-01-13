@@ -9,7 +9,7 @@ import qualified Query.Migrations as Mig
 import Database
 import Text.Printf (printf)
 import Data.Char (isSpace)
-import Control.Monad (void, forM_)
+import Control.Monad (unless, void, forM_)
 import Control.Exception (SomeException, throwIO, IOException, try)
 import App.Pool (Connection)
 import qualified Database.PostgreSQL.Simple as PgSimple
@@ -17,6 +17,7 @@ import Data.String (IsString(fromString))
 import System.IO.Error (isDoesNotExistError)
 import Control.Concurrent (threadDelay)
 import qualified Control.Exception as E
+import Data.List (intercalate)
 
 
 autoMigrateIO :: DbConn -> IO ()
@@ -42,7 +43,8 @@ autoMigrate =
                 lift (threadDelay $ delaySeconds * 1e6)
                 go
             Right (Just lst) ->
-                logInfo "MIGRATE" $ "Migration success. fromVersions: " ++ show (map fst lst)
+                unless (null lst) $
+                    logInfo "MIGRATE" $ "Migration success. fromVersions: " ++ intercalate ", " (map (show . fst) lst)
 
 getMigration :: Connection -> Util.Int16 -> IO (Maybe (IO ()))
 getMigration conn fromVersion = do
