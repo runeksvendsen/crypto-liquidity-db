@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 23b2519c2daaeb6995d78f96b8d06a194cc917fdbb71496f5113a6f37d0af45c
+-- hash: ae00c8365f7e45961726350a6a5c4e4acf9089ba501efb4e9445a8971d27eebd
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -28,6 +28,8 @@ library
       App.Main.CreateCalc
       App.Main.ProcessCalc
       App.Main.Util
+      App.Main.WebApi
+      App.Main.WebApi.Orphans
       App.Migrate.BeamAutomigrate
       App.Migrate.Raw
       App.Migrate.Util
@@ -68,7 +70,9 @@ library
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
-      ansi-terminal
+      aeson
+    , aeson-casing
+    , ansi-terminal
     , async
     , base >=4.7 && <5
     , beam-automigrate
@@ -89,12 +93,14 @@ library
     , protolude
     , resource-pool
     , retry
+    , servant-server
     , stm
     , text
     , time >=1.9
     , transformers
     , transformers-base
     , vector
+    , warp
   default-language: Haskell2010
 
 executable crypto-liquidity-service-create
@@ -125,27 +131,39 @@ executable crypto-liquidity-service-process
     , protolude
   default-language: Haskell2010
 
-executable crypto-liquidity-web-api
+executable crypto-liquidity-test
   main-is: Main.hs
   other-modules:
-      Orphans
       Paths_crypto_liquidity_db
   hs-source-dirs:
-      app/web-api
+      app/test
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       aeson
     , aeson-casing
     , base >=4.7 && <5
-    , beam-postgres
     , crypto-liquidity-db
-    , crypto-orderbook-db
-    , order-graph
+    , http-client
     , protolude
     , servant
+    , servant-client
     , servant-server
     , warp
+  default-language: Haskell2010
+
+executable crypto-liquidity-web-api
+  main-is: Main.hs
+  other-modules:
+      Paths_crypto_liquidity_db
+  hs-source-dirs:
+      app/web-api
+  default-extensions: FlexibleContexts StrictData
+  ghc-options: -Wall -fno-warn-unused-imports -O2
+  build-depends:
+      base >=4.7 && <5
+    , crypto-liquidity-db
+    , protolude
   default-language: Haskell2010
 
 test-suite crypto-liquidity-db-test

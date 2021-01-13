@@ -56,6 +56,10 @@ library:
   - ansi-terminal
   - pretty-show
   - it-has
+  - servant-server # WebApi
+  - warp # WebApi
+  - aeson # WebApi
+  - aeson-casing # WebApi
 
 executables:
   crypto-liquidity-service-process:
@@ -81,14 +85,29 @@ executables:
     - -O2
     dependencies:
     - crypto-liquidity-db
-    - crypto-orderbook-db
-    - order-graph
+    # - crypto-orderbook-db
+    # - order-graph
+    # - servant
+    # - servant-server
+    # - aeson
+    # - beam-postgres
+    # - warp
+    # - aeson-casing
+
+  crypto-liquidity-test:
+    main:                Main.hs
+    source-dirs:         app/test
+    ghc-options:
+    - -O2
+    dependencies:
+    - crypto-liquidity-db
     - servant
     - servant-server
     - aeson
-    - beam-postgres
     - warp
     - aeson-casing
+    - servant-client
+    - http-client
 
 tests:
   crypto-liquidity-db-test:

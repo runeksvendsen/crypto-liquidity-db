@@ -22,11 +22,5 @@ jobs:
         uses: satackey/action-docker-layer-caching@v0.0.11
         continue-on-error: true
 
-      - name: Build container image
-        uses: docker/build-push-action@v1
-        with:
-          username: ${{github.actor}}
-          password: ${{secrets.GITHUB_TOKEN}}
-          registry: docker.pkg.github.com
-          repository: runeksvendsen/crypto-liquidity-db/liquidity-service
-          tag_with_sha: true
+      - name: docker-compose build
+        run: docker-compose up -d --build

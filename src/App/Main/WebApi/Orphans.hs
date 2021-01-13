@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Orphans where
+{-# LANGUAGE TypeApplications #-}
+module App.Main.WebApi.Orphans where
+
+import Internal.Prelude (foldM, toS)
 
 -- crypto-liquidity-db
 import qualified Schema.Currency as Lib
@@ -15,6 +18,9 @@ import qualified Data.Aeson as Json
 import qualified Data.Aeson.Casing as Casing
 import qualified  Data.Aeson.Casing.Internal as Casing
 import OrderBook.Graph.Types (Currency)
+import Database.Beam.Backend.SQL.Types (SqlSerial(SqlSerial))
+import Text.Read (readMaybe)
+import qualified Data.Text as T
 
 
 -- Drop the first word (until first capital letter) and
@@ -35,11 +41,26 @@ instance Json.ToJSON LibCalc.Calculation where
 instance Json.ToJSON Lib.CurrencyId
 instance Json.ToJSON Run.RunId
 
-instance FromHttpApiData Run.RunId
---     parseUrlPiece = error "TODO"
+instance FromHttpApiData Run.RunId where
+   parseUrlPiece txt =
+        let mkRunId :: Run.Word32 -> Run.RunId
+            mkRunId = Run.RunId . SqlSerial
+            handleError =
+                maybe (Left $ toS $ "failed to parse run ID from " ++ show txt)
+                      (Right . mkRunId)
+        in handleError . readMaybe . toS $ txt
 
 instance FromHttpApiData [Currency] where
-    -- parseUrlPiece = error "TODO"
+    parseUrlPiece txt =
+        let stringList = T.split (== ',') txt
+        in foldM
+            (\accum currency ->
+                maybe (Left $ toS $ "failed to parse currency: " ++ show currency)
+                      (Right . (: accum))
+                      (readMaybe $ toS currency)
+            )
+            []
+            (map T.strip stringList)
 
 instance Json.ToJSON Run.Run
 instance Json.ToJSON Currency
