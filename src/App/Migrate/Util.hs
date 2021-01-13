@@ -38,7 +38,10 @@ runMigrations migrateFrom = do
     let runDbTx' :: Pg b -> IO b
         runDbTx' = runAppM cfg . runBeamTx
     lift $ bracket
-        (runDbTx' claimLatestMigration)                 -- acquire resource
+        (runAppM cfg $ do
+            logDebug "MIGRATE" "Attempting to acquire lock..."
+            runBeamTx claimLatestMigration
+        )                 -- acquire resource
         (\migrationListM -> do
             -- let migratedFromVersions = map fst . concat $ concat migrationListM
             let migratedFromVersions :: [Migration.Int16]
@@ -50,6 +53,7 @@ runMigrations migrateFrom = do
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
     runAllMigrations latestFromVersion = do
+        logDebug "MIGRATE" $ "Acquired lock on fromVersion=" ++ show latestFromVersion
         runDbTx $ \conn -> lift $
             runAllMigrations' conn [] currentVersion
         where
