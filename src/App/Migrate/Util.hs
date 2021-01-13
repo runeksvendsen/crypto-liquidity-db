@@ -22,6 +22,7 @@ import Data.Maybe (fromMaybe)
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning)
 import Database.Beam.Postgres (Pg, PgCommandSyntax, Postgres)
 import qualified Control.Exception as E
+import Data.List (intercalate)
 
 -- |
 runMigrations
@@ -35,21 +36,23 @@ runMigrations
         -- ^ Nothing: another migration is in progress
 runMigrations migrateFrom = do
     cfg <- ask
-    let runDbTx' :: Pg b -> IO b
-        runDbTx' = runAppM cfg . runBeamTx
+    let runAppM' :: AppM r b -> IO b
+        runAppM' = runAppM cfg
     lift $ bracket
-        (runAppM cfg $ do
+        (runAppM' $ do
             logDebug "MIGRATE" "Attempting to acquire lock..."
             runBeamTx claimLatestMigration
-        )                 -- acquire resource
+        )
         (\migrationListM -> do
             -- let migratedFromVersions = map fst . concat $ concat migrationListM
             let migratedFromVersions :: [Migration.Int16]
                 migratedFromVersions = map fst $ concatMap concat migrationListM
-            mapM $ \initialFromVersion ->
-                runDbTx' $ setNotInProgress (initialFromVersion : migratedFromVersions)
+            mapM $ \initialFromVersion -> runAppM' $ do
+                let allVersions = initialFromVersion : migratedFromVersions
+                logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
+                runBeamTx $ setNotInProgress allVersions
         )    -- release resource
-        (mapM (runAppM cfg . runAllMigrations))         -- use resource
+        (mapM (runAppM' . runAllMigrations))
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
     runAllMigrations latestFromVersion = do
