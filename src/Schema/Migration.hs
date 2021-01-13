@@ -9,7 +9,7 @@ module Schema.Migration
 , PrimaryKey(type MigrationId)
   -- * Re-exports
 , LocalTime
-, Word16
+, Int16
 )
 where
 
@@ -19,15 +19,16 @@ import qualified Schema.Currency as Currency
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 import Database.Beam.Backend.SQL.Types      (SqlSerial(unSerial))
-import Data.Word                            (Word16)
+import Data.Int                             (Int16)
 import Data.Time.LocalTime                  (LocalTime)
 
 
 -- |
 data MigrationT f
     = Migration
-    { migrationFromVersion :: C f Word16 -- ^ a migration from version @n@ to version @n+1@
+    { migrationFromVersion :: C f Int16 -- ^ a migration from version @n@ to version @n+1@
     , migrationTime :: C f LocalTime -- ^ the time at which the migration was performed
+    , migrationInProgress :: C f Bool
     } deriving Generic
 
 type Migration = MigrationT Identity
@@ -43,7 +44,7 @@ instance Beam.Beamable MigrationT
 
 instance Beam.Table MigrationT where
     data PrimaryKey MigrationT f = MigrationId
-        (C f Word16)
+        (C f Int16)
             deriving Generic
     primaryKey = MigrationId . migrationFromVersion
 

@@ -13,8 +13,7 @@ import Data.Maybe (fromMaybe)
 
 
 withDbPool :: App.Log.LogLevel -> (App.Pool.Pool App.Pool.Connection -> IO a) -> IO a
-withDbPool logLevel f = App.Log.withStdoutLogging $ do
-    App.Log.setLogTimeFormat "%T.%3q"
+withDbPool logLevel f = App.Log.withLogging $ do
     App.Log.setLogLevel logLevel
     connStrM <- lookupEnv "DATABASE_URL"
     let connStr = fromMaybe (error errorMsg) connStrM

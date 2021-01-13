@@ -28,7 +28,7 @@ import Control.Monad.IO.Class (liftIO, MonadIO)
 withLogging :: IO a -> IO a
 withLogging io = do
     Log.withStdoutLogging $ do
-      Log.setLogTimeFormat "%T.%3q"
+      Log.setLogTimeFormat "%T.%6q"
       io
 
 logDebug :: MonadIO m => T.Text -> String -> m ()

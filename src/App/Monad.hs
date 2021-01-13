@@ -34,13 +34,16 @@ logInfo ctx =
 
 logDebug :: String -> String -> AppM r ()
 logDebug ctx =
-    R.lift . Log.logDebug (toS ctx)
+    R.lift . logDebugIO ctx
+
+logDebugIO :: String -> String -> IO ()
+logDebugIO ctx = Log.logDebug (toS ctx)
 
 logError :: String -> String -> AppM r ()
 logError ctx =
     R.lift . Log.logError (toS ctx)
 
-runAppM :: conf -> R.ReaderT conf m a -> m a
+runAppM :: conf -> AppM conf a -> IO a
 runAppM = flip R.runReaderT
 
 withDbConn :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
@@ -56,6 +59,10 @@ runBeam :: Pg.Connection -> Pg.Pg a -> AppM r a
 runBeam conn pgM = do
     cfg <- R.ask
     R.lift $ Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn pgM
+
+runBeamIO :: Pg.Connection -> Pg.Pg a -> IO a
+runBeamIO conn pgM = do
+    Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
 
 runDbTx :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
 runDbTx action = do
