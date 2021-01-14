@@ -103,5 +103,6 @@ instance ToHttpApiData [App.Main.WebApi.Currency] where
     toUrlPiece [] = "all"
     toUrlPiece lst = toS $ intercalate "," (map show lst)
 
-instance JSON.FromJSON LibCalc.Calculation where
-    parseJSON = undefined
+instance JSON.FromJSON LibCalc.RunId
+instance JSON.FromJSON Lib.CurrencyId
+instance JSON.FromJSON LibCalc.Calculation

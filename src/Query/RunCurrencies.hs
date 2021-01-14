@@ -83,7 +83,7 @@ runWithoutRunCurrencies
         , QGenExpr QValueContext be s Text)
         )
 runWithoutRunCurrencies = nub_ $ do
-    runId <- firstRunWithNoCurrencies undefined
+    runId <- firstRunWithNoCurrencies
     baseQuote <- runBaseQuote runId
     pure (runId, baseQuote)
   where
@@ -98,7 +98,7 @@ runWithoutRunCurrencies = nub_ $ do
         book <- all_ $ books liquidityDb
         guard_ $ Book.bookRun book ==. Run.RunId runId
         pure (Book.bookBase book, Book.bookQuote book)
-    firstRunWithNoCurrencies _ =
+    firstRunWithNoCurrencies =
             limit_ 1 $
             orderBy_ asc_
             runWithNoCurrencies

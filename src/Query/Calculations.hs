@@ -44,7 +44,8 @@ startCalculation now = do
     case calcM of
         Nothing -> return Nothing
         Just calc -> do
-            (numeraire, crypto) <- fromMaybe (error "") <$> runSelectReturningOne (select $ getSymbols calc)
+            let errMsg = "getSymbols returned Nothing for calc: " ++ show calc
+            (numeraire, crypto) <- fromMaybe (error errMsg) <$> runSelectReturningOne (select $ getSymbols calc)
             return $ Just $ Calculation calc numeraire crypto
   where
     getSymbols calc = do
