@@ -91,10 +91,12 @@ mkServer cfg =
 server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
 server timeout =
          Lib.selectQuantities
+    :<|> Lib.selectAllCalculations
     :<|> Lib.selectUnfinishedCalculations timeout
 
 type API
     =    Liquidity
+    :<|> GetAllCalcs
     :<|> GetUnfinishedCalcs
 
 type Liquidity =
@@ -104,6 +106,12 @@ type Liquidity =
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
         :> Get '[JSON] [(Run.Word32, Text, Double, Text, Lib.Word64)]
+
+type GetAllCalcs =
+    Summary "Get unfinished calculations"
+        :> "calc"
+        :> "all"
+        :> Get '[JSON] [LibCalc.Calculation]
 
 type GetUnfinishedCalcs =
     Summary "Get unfinished calculations"

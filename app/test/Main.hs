@@ -77,8 +77,8 @@ server env = do
 
 testHandler :: SC.ClientEnv -> Handler Text
 testHandler env = do
-    calcLstE <- liftIO $ runClientM unfinishedCalculations
-    let calcLst = either (error . ("unfinishedCalculations failed: " ++) . show) id calcLstE
+    calcLstE <- liftIO $ runClientM allCalculations
+    let calcLst = either (error . ("allCalculations failed: " ++) . show) id calcLstE
     -- Assertions:
     let assertions = [not $ null calcLst, noUnfinishedCalculations calcLst]
         calcsStr = toS $ show calcLst
@@ -92,8 +92,8 @@ testHandler env = do
         isJust (LibCalc.calculationStartTime calc)
         && isJust (LibCalc.calculationDurationSeconds calc)
 
-unfinishedCalculations :: SC.ClientM [LibCalc.Calculation]
-_ :<|> unfinishedCalculations =
+allCalculations :: SC.ClientM [LibCalc.Calculation]
+_ :<|> allCalculations :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

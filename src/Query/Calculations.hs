@@ -4,6 +4,7 @@ module Query.Calculations
 , insertMissingCalculations
 , resetUnfinishedCalculations
 , insertCalcParam
+, selectAllCalculations
 , selectUnfinishedCalculations
 , Calculation(..)
 , NominalDiffTime
@@ -131,6 +132,20 @@ unfinishedCalculations timeoutTime = do
     calc' <- all_ (calculations liquidityDb)
     guard_ $ isUnfinishedCalculation timeoutTime calc'
     pure calc'
+
+selectAllCalculations
+    :: ( MonadBeam be m
+       , FromBackendRow be Calc.Int32
+       , FromBackendRow be Calc.Word32
+       , FromBackendRow be Text
+       , FromBackendRow be Double
+       , FromBackendRow be Calc.LocalTime
+       , FromBackendRow be SqlNull
+       , HasQBuilder be
+       )
+    => m [Calc.Calculation]
+selectAllCalculations = do
+    runSelectReturningList $ select $ all_ (calculations liquidityDb)
 
 insertMissingCalculations :: Calc.LocalTime -> Pg.Pg [(RC.RunCurrency, CalcParam.CalcParam)]
 insertMissingCalculations now = do
