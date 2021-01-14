@@ -78,14 +78,15 @@ server env = do
 testHandler :: SC.ClientEnv -> Handler Text
 testHandler env = do
     calcLstE <- liftIO $ runClientM allCalculations
-    let calcLst = either (error . ("allCalculations failed: " ++) . show) id calcLstE
+    calcLst <- either (throw500 . ("allCalculations failed: " ++) . show) return calcLstE
     -- Assertions:
     let assertions = [not $ null calcLst, noUnfinishedCalculations calcLst]
         calcsStr = toS $ show calcLst
     if not $ all (== True) assertions
-        then throwError $ err500 { errBody = "Assertion error:\n" <> toS calcsStr }
-        else return calcsStr
+        then throw500 $ "Assertion error:\n" ++ calcsStr
+        else return (toS calcsStr)
   where
+    throw500 str = throwError $ err500 { errBody = toS str }
     runClientM = (`SC.runClientM` env)
     noUnfinishedCalculations calcs = all isFinishedCalculation calcs
     isFinishedCalculation calc =
