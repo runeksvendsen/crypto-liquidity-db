@@ -38,7 +38,7 @@ data Calculation = Calculation
     }
 
 
-startCalculation :: Calc.LocalTime -> Pg.Pg (Maybe Calculation)
+startCalculation :: Calc.UTCTime -> Pg.Pg (Maybe Calculation)
 startCalculation now = do
     calcM <- startCalculation' now
     case calcM of
@@ -63,10 +63,10 @@ startCalculation'
         , FromBackendRow be Text
         , FromBackendRow be Run.Word32
         , FromBackendRow be Double
-        , FromBackendRow be Calc.LocalTime
+        , FromBackendRow be Calc.UTCTime
         , FromBackendRow be SqlNull
         )
-    => Calc.LocalTime
+    => Calc.UTCTime
     -> m (Maybe Calc.Calculation)
 startCalculation' now = fmap castSingleResult .
     Pg.runPgUpdateReturningList $
@@ -98,7 +98,7 @@ resetUnfinishedCalculations ::
     , FromBackendRow be Calc.Int32
     , FromBackendRow be Text
     , FromBackendRow be Double
-    , FromBackendRow be Calc.LocalTime
+    , FromBackendRow be Calc.UTCTime
     , FromBackendRow be SqlNull
     , MonadIO m
     , (HasSqlValueSyntax
@@ -107,7 +107,7 @@ resetUnfinishedCalculations ::
             (Sql92SelectSelectTableSyntax
                 (Sql92SelectSyntax
                     (BeamSqlBackendSyntax be)))))
-        Calc.LocalTime)
+        Calc.UTCTime)
     ) => NominalDiffTime
       -> m ()
 resetUnfinishedCalculations timeout = do
@@ -119,7 +119,7 @@ resetUnfinishedCalculations timeout = do
 
 calcExpirationTime timeout = do
     now <- liftIO App.Util.currentTime
-    return $ (- timeout) `App.Util.addLocalTime` now
+    return $ (- timeout) `App.Util.addUTCTime` now
 
 isUnfinishedCalculation timeoutTime calc' = do
     isNothing_ (Calc.calculationDurationSeconds calc') &&.
@@ -140,7 +140,7 @@ selectAllCalculations
        , FromBackendRow be Calc.Word32
        , FromBackendRow be Text
        , FromBackendRow be Double
-       , FromBackendRow be Calc.LocalTime
+       , FromBackendRow be Calc.UTCTime
        , FromBackendRow be SqlNull
        , HasQBuilder be
        )
@@ -148,7 +148,7 @@ selectAllCalculations
 selectAllCalculations = do
     runSelectReturningList $ select $ all_ (calculations liquidityDb)
 
-insertMissingCalculations :: Calc.LocalTime -> Pg.Pg [(RC.RunCurrency, CalcParam.CalcParam)]
+insertMissingCalculations :: Calc.UTCTime -> Pg.Pg [(RC.RunCurrency, CalcParam.CalcParam)]
 insertMissingCalculations now = do
     rcCalcParam <- selectMissingCalculations
     runInsert $

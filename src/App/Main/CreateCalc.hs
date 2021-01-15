@@ -82,7 +82,7 @@ insertRunRunCurrencies = do
 
 insertMissingCalculations
     :: Has DbConn r
-    => Db.LocalTime
+    => Db.UTCTime
     -> AppM r [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
 insertMissingCalculations now = do
     calcParams <- runBeamTx $ Calc.insertMissingCalculations now
