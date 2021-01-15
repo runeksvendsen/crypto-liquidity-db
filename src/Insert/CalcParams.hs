@@ -6,6 +6,8 @@ module Insert.CalcParams
 where
 
 import           Internal.Prelude
+import App.Monad (asTx)
+
 import           Data.List                                ( sort )
 import qualified Data.List.NonEmpty                       as NE
 
@@ -27,7 +29,7 @@ import qualified Schema.PathQty                           as PQty
 
 
 -- | Delete existing, and insert the given, calculations parameters
-setCalcParams cpList = do
+setCalcParams cpList = asTx $ do
     runDelete $ delete (calculation_parameters liquidityDb) (const $ val_ True)
     QC.insertMissingCurrencies (uniqueOn id $ map fst cpList)
     runInsert $ insert (calculation_parameters liquidityDb) $

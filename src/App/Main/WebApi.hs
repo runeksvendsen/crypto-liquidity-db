@@ -21,7 +21,7 @@ import qualified App.Monad as AppLib
 import qualified App.Main.Util
 import qualified App.Pool
 import qualified App.Log
-import App.Monad ( Config(..), CfgConstants(..), CfgParams(..) )
+import App.Monad (Config(..), CfgConstants(..), CfgParams(..) )
 
 -- crypto-liquidity-db
 import qualified Database as Lib
@@ -85,7 +85,7 @@ mkServer
 mkServer cfg =
     let timeout = AppLib.cfgMaxCalculationTime $ AppLib.cfgConstants cfg in
     hoistServer (Proxy :: Proxy API)
-                (liftIO . AppLib.runAppM cfg . AppLib.runBeamTx)
+                (liftIO . AppLib.runAppM cfg . AppLib.runDbTx . AppLib.asTx)
                 (server timeout)
 
 server :: Lib.NominalDiffTime -> ServerT API Pg.Pg

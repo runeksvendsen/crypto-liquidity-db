@@ -42,38 +42,36 @@ runMigrations migrateFrom = do
     lift $ E.bracket
         (runAppM' $ do
             logDebug "MIGRATE" "Attempting to acquire lock..."
-            runBeamTx claimLatestMigration
+            runDb claimLatestMigration
         )
         -- NB: only necessary in case of exception
-        (mapM $ \initialFromVersion -> runAppM' $ runBeamTx $ setNotInProgress [initialFromVersion])
+        (mapM $ \initialFromVersion -> runAppM' $ runDbTx $ asTx $ setNotInProgress [initialFromVersion])
         (mapM (runAppM' . runAllMigrations))
   where
     runAllMigrations :: Has DbConn r => Migration.Int16 -> AppM r [(Migration.Int16, a)]
     runAllMigrations latestFromVersion = do
         logDebug "MIGRATE" $ "Acquired lock on fromVersion=" ++ show latestFromVersion
-        runDbTx $ \conn -> lift $
-            runAllMigrations' conn [] currentVersion
+        runDbTxWithConn $ \conn ->
+            asTx $ liftIO $ runAppM conn $ runAllMigrations' conn [] currentVersion
         where
         currentVersion = latestFromVersion + 1
         runAllMigrations' conn accum fromVersion = do
-            migrationIOM <- migrateFrom conn fromVersion
+            migrationIOM <- liftIO $ migrateFrom conn fromVersion
             case migrationIOM of
                 Nothing -> do
-                    runAppM conn $ do
-                        let allVersions = latestFromVersion : map fst accum
-                        -- Set in_progress=false for all used migrations.
-                        -- Makes sure that successful migration does not leave
-                        --  behind any migrations with in_progress=true in case
-                        --  DB crashes before the "release" function runs.
-                        logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
-                        runBeam conn $ setNotInProgress allVersions
-                        logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
+                    let allVersions = latestFromVersion : map fst accum
+                    -- Set in_progress=false for all used migrations.
+                    -- Makes sure that successful migration does not leave
+                    --  behind any migrations with in_progress=true in case
+                    --  DB crashes before the "release" function runs.
+                    logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
+                    runDbConn conn $ setNotInProgress allVersions
+                    logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
                     return accum
                 Just migrationIO -> do
-                    runAppM conn $
-                        logInfo "MIGRATE" $ "Starting migration from version " ++ show fromVersion
-                    resA <- migrationIO
-                    runBeamIO conn (Mig.addMigration fromVersion)
+                    logInfo "MIGRATE" $ "Starting migration from version " ++ show fromVersion
+                    resA <- liftIO migrationIO
+                    runDbConn conn $ Mig.addMigration fromVersion
                     runAllMigrations' conn ((fromVersion, resA) : accum) (fromVersion + 1)
 
     claimLatestHandleResult lst@(_:_:_) = error $ "BUG (runMigration): got many results: " ++ show lst

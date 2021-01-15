@@ -82,5 +82,5 @@ instance Beam.Table CalculationT where
 instance Beam.Beamable (PrimaryKey CalculationT)
 
 getRunId :: Calculation -> Run.RunId
-getRunId calc =
-    calculationRun calc
+getRunId =
+    calculationRun

@@ -1,8 +1,31 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 module App.Monad
-( module App.Monad
+(
+-- * Logging
+  logInfo
+, logDebug
+, logDebugIO
+, logError
+-- * Monad
+, AppM
+, runAppM
+-- , runBeamIO
+, async
+, Config(..)
+, CfgConstants(..)
+, CfgParams(..)
+, DbConn
+, calculationParameters
+, runDbTx
+, runDbTxWithConn
+, runDb
+, runDbConn
+, DbTx
+, asTx
 , R.lift
 , R.ask
 , Has(..)
@@ -29,6 +52,19 @@ import qualified Control.Retry as Re
 import Control.Monad.Catch ( Handler(Handler) )
 
 
+asTx :: Pg.Pg a -> DbTx a
+asTx = DbTx
+
+runDbTxWithConnNoRetry :: Has DbConn r => (Pg.Connection -> DbTx a) -> AppM r a
+runDbTxWithConnNoRetry action = do
+    withDbConn $ \conn ->
+        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn $ do
+            let (DbTx pgM) = action conn
+            runBeamIONoRetry conn pgM
+
+newtype DbTx a = DbTx (Pg.Pg a)
+    deriving (Functor, Applicative, Monad)
+
 type AppM r = R.ReaderT r IO
 
 logInfo :: String -> String -> AppM r ()
@@ -54,17 +90,21 @@ withDbConn f = do
     pool <- R.asks getter
     Pool.withResource pool f
 
-runBeamTx :: Has DbConn r => Pg.Pg a -> AppM r a
-runBeamTx pgM = do
-    runDbTx $ \conn -> runBeam conn pgM
+runDbTx :: Has DbConn r => DbTx a -> AppM r a
+runDbTx dbTxM = runDbTxWithConn (const dbTxM)
 
-runBeam :: Pg.Connection -> Pg.Pg a -> AppM r a
-runBeam conn pgM = do
-    R.lift $ runBeamIO conn pgM
+runDb :: Has DbConn r => Pg.Pg a -> AppM r a
+runDb pgM = do
+    withDbConn $ \conn -> runDbConn conn pgM
 
-runBeamIO :: Pg.Connection -> Pg.Pg a -> IO a
-runBeamIO conn pgM =
-    Re.recovering policy [const pgSqlErrorHandler] (const $ runBeamIONoRetry conn pgM)
+runDbConn :: Pg.Connection -> Pg.Pg a -> AppM r a
+runDbConn conn pgM = do
+    R.liftIO $ runBeamIONoRetry conn pgM
+
+runDbTxWithConn :: Has DbConn r => (Pg.Connection -> DbTx a) -> AppM r a
+runDbTxWithConn action = do
+    cfg <- R.ask
+    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry action)
   where
     pgSqlErrorHandler = Handler $ \ex ->
         let (retry, msg) = shouldRetry ex
@@ -83,13 +123,6 @@ runBeamIONoRetry :: Pg.Connection -> Pg.Pg a -> IO a
 runBeamIONoRetry conn pgM = do
     Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
 
-runDbTx :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
-runDbTx action = do
-    cfg <- R.ask
-    withDbConn $ \conn ->
-        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn
-            (runAppM cfg $ action conn)
-
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
     cfg <- R.ask
@@ -99,7 +132,9 @@ async appM = do
 data Config = Config
     { cfgConstants :: CfgConstants
     , cfgDbConnPool :: Pool.Pool Pool.Connection
-    } deriving (Generic, Has DbConn)
+    } deriving (Generic)
+
+instance Has DbConn Config
 
 data CfgConstants = CfgConstants
     { cfgParams :: CfgParams

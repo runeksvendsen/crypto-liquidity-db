@@ -46,7 +46,7 @@ runServices cfg = do
   where
     -- Set started calculations older than 'cfgMaxCalculationTime' to unstarted
     resetUnfinishedCalculationsPoll = forever $ do
-        runBeamTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime $ cfgConstants cfg)
+        runDbTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime $ cfgConstants cfg)
         lift $ threadDelay (round $ cfgDeadMonitorInterval (cfgConstants cfg) * 1e6)
     createCalculationsPoll = forever $ do
         createCalculations
@@ -55,7 +55,7 @@ runServices cfg = do
 main :: Config -> IO ()
 main cfg = runAppM cfg $ do
     -- Init
-    runBeamTx $ CP.setCalcParams (calculationParameters $ cfgParams (cfgConstants cfg))
+    runDbTx $ CP.setCalcParams (calculationParameters $ cfgParams (cfgConstants cfg))
     -- Run services
     runServices cfg
     logInfo "MAIN" "Done. Exiting..."
@@ -73,7 +73,7 @@ createCalculations =
 
 insertRunRunCurrencies :: Has DbConn r => AppM r (Maybe (Db.Word32, [Text]))
 insertRunRunCurrencies = do
-    resM <- runBeamTx Query.insertRunRunCurrencies
+    resM <- runDbTx Query.insertRunRunCurrencies
     case resM of
         Nothing -> return ()
         Just (runId, currencies) -> logInfo "RunCurrency" $ printf
@@ -85,7 +85,7 @@ insertMissingCalculations
     => Db.UTCTime
     -> AppM r [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
 insertMissingCalculations now = do
-    calcParams <- runBeamTx $ Calc.insertMissingCalculations now
+    calcParams <- runDbTx $ Calc.insertMissingCalculations now
     unless (null calcParams) $
         logInfo "Calculation" $ printf "Inserted %d calculations" (length calcParams)
     return calcParams

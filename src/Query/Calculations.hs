@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE GADTs #-}
 module Query.Calculations
 ( startCalculation
@@ -11,8 +12,9 @@ module Query.Calculations
 )
 where
 
-import Internal.Prelude
+import Internal.Prelude ( Text, NominalDiffTime )
 import App.Orphans ()
+import App.Monad (DbTx, asTx)
 import qualified App.Util
 import Database
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
@@ -28,7 +30,6 @@ import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpdateReturningList), MonadBeamInsertReturning(runInsertReturningList))
 import Data.Maybe (fromMaybe)
-import Internal.Prelude (Text)
 
 
 data Calculation = Calculation
@@ -90,27 +91,8 @@ startCalculation' now = fmap castSingleResult .
                 `Pg.withLocks_` calcLock
 
 -- | Set started calculations older than @timeout@ to unstarted
-resetUnfinishedCalculations ::
-    ( MonadBeam be m
-    , BeamSqlBackend be
-    , HasQBuilder be
-    , FromBackendRow be Run.Word32
-    , FromBackendRow be Calc.Int32
-    , FromBackendRow be Text
-    , FromBackendRow be Double
-    , FromBackendRow be Calc.UTCTime
-    , FromBackendRow be SqlNull
-    , MonadIO m
-    , (HasSqlValueSyntax
-        (Sql92ExpressionValueSyntax
-            (Sql92SelectTableExpressionSyntax
-            (Sql92SelectSelectTableSyntax
-                (Sql92SelectSyntax
-                    (BeamSqlBackendSyntax be)))))
-        Calc.UTCTime)
-    ) => NominalDiffTime
-      -> m ()
-resetUnfinishedCalculations timeout = do
+resetUnfinishedCalculations :: NominalDiffTime -> DbTx ()
+resetUnfinishedCalculations timeout = asTx $ do
     timeoutTime <- calcExpirationTime timeout
     runUpdate $ update
         (calculations liquidityDb)
@@ -148,8 +130,8 @@ selectAllCalculations
 selectAllCalculations = do
     runSelectReturningList $ select $ all_ (calculations liquidityDb)
 
-insertMissingCalculations :: Calc.UTCTime -> Pg.Pg [(RC.RunCurrency, CalcParam.CalcParam)]
-insertMissingCalculations now = do
+insertMissingCalculations :: Calc.UTCTime -> DbTx [(RC.RunCurrency, CalcParam.CalcParam)]
+insertMissingCalculations now = asTx $ do
     rcCalcParam <- selectMissingCalculations
     runInsert $
         insert (calculations liquidityDb) $
@@ -195,8 +177,8 @@ runCurrencyWithNoCalculation = do
         RC.rcCurrency rc /=. CalcParam.cpNumeraire calcParam -- don't calculate the liquidity for the numeraire currency
     pure (rc, calcParam)
 
-insertCalcParam :: Text -> Double -> Pg.Pg ()
-insertCalcParam numeraire slippage = do
+insertCalcParam :: Text -> Double -> DbTx ()
+insertCalcParam numeraire slippage = asTx $ do
     runInsert $
         insert (calculation_parameters liquidityDb) $
             insertExpressions

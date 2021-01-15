@@ -55,10 +55,10 @@ runInsertCalculation calc = do
             return ()
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
-            runBeamTx $ do
+            runDbTx $ do
                 let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
                 Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
-                Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
+                asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
             logInfo "Process" $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
   where
     numeraire = toS $ Calc.calcNumeraire calc
@@ -70,7 +70,7 @@ runInsertCalculation calc = do
     logger :: Monad m => String -> m ()
     logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
     buildGraphAndCache = do
-        books <- runBeamTx $ Books.runBooks runId -- look up order books
+        books <- runDb $ Books.runBooks runId -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
             (fmap snd . ST.stToIO . G.buildBuyGraph logger (toRational slippage)) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache
