@@ -22,10 +22,12 @@ module App.Monad
 , calculationParameters
 , runDbTx
 , runDbTxWithConn
-, runDb
-, runDbConn
+, runDbRaw
+, runDbTxConn
 , DbTx
 , asTx
+, TxConn
+, txConn
 , R.lift
 , R.ask
 , Has(..)
@@ -55,11 +57,19 @@ import Control.Monad.Catch ( Handler(Handler) )
 asTx :: Pg.Pg a -> DbTx a
 asTx = DbTx
 
-runDbTxWithConnNoRetry :: Has DbConn r => (Pg.Connection -> DbTx a) -> AppM r a
+-- | A database connection that is inside a transaction
+newtype TxConn = TxConn Pg.Connection
+    deriving Eq
+
+-- | Use this to run something that requires a 'Pg.Connection' as part of an existing transaction
+txConn :: TxConn -> Pg.Connection
+txConn (TxConn conn) = conn
+
+runDbTxWithConnNoRetry :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
 runDbTxWithConnNoRetry action = do
     withDbConn $ \conn ->
         R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn $ do
-            let (DbTx pgM) = action conn
+            let (DbTx pgM) = action (TxConn conn)
             runBeamIONoRetry conn pgM
 
 newtype DbTx a = DbTx (Pg.Pg a)
@@ -93,15 +103,17 @@ withDbConn f = do
 runDbTx :: Has DbConn r => DbTx a -> AppM r a
 runDbTx dbTxM = runDbTxWithConn (const dbTxM)
 
-runDb :: Has DbConn r => Pg.Pg a -> AppM r a
-runDb pgM = do
-    withDbConn $ \conn -> runDbConn conn pgM
+-- | Run a database query outside of a transaction
+runDbRaw :: Has DbConn r => Pg.Pg a -> AppM r a
+runDbRaw pgM = do
+    withDbConn $ \conn -> runDbTxConn (TxConn conn) pgM
 
-runDbConn :: Pg.Connection -> Pg.Pg a -> AppM r a
-runDbConn conn pgM = do
+-- | Run as part of an already-started transaction
+runDbTxConn :: TxConn -> Pg.Pg a -> AppM r a
+runDbTxConn (TxConn conn) pgM = do
     R.liftIO $ runBeamIONoRetry conn pgM
 
-runDbTxWithConn :: Has DbConn r => (Pg.Connection -> DbTx a) -> AppM r a
+runDbTxWithConn :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
 runDbTxWithConn action = do
     cfg <- R.ask
     R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry action)

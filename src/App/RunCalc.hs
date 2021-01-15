@@ -70,7 +70,7 @@ runInsertCalculation calc = do
     logger :: Monad m => String -> m ()
     logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
     buildGraphAndCache = do
-        books <- runDb $ Books.runBooks runId -- look up order books
+        books <- runDbRaw $ Books.runBooks runId -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
             (fmap snd . ST.stToIO . G.buildBuyGraph logger (toRational slippage)) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache

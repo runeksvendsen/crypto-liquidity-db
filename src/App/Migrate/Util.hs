@@ -42,7 +42,7 @@ runMigrations migrateFrom = do
     lift $ E.bracket
         (runAppM' $ do
             logDebug "MIGRATE" "Attempting to acquire lock..."
-            runDb claimLatestMigration
+            runDbRaw claimLatestMigration
         )
         -- NB: only necessary in case of exception
         (mapM $ \initialFromVersion -> runAppM' $ runDbTx $ asTx $ setNotInProgress [initialFromVersion])
@@ -56,7 +56,7 @@ runMigrations migrateFrom = do
         where
         currentVersion = latestFromVersion + 1
         runAllMigrations' conn accum fromVersion = do
-            migrationIOM <- liftIO $ migrateFrom conn fromVersion
+            migrationIOM <- liftIO $ migrateFrom (txConn conn) fromVersion
             case migrationIOM of
                 Nothing -> do
                     let allVersions = latestFromVersion : map fst accum
@@ -65,13 +65,13 @@ runMigrations migrateFrom = do
                     --  behind any migrations with in_progress=true in case
                     --  DB crashes before the "release" function runs.
                     logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
-                    runDbConn conn $ setNotInProgress allVersions
+                    runDbTxConn conn $ setNotInProgress allVersions
                     logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
                     return accum
                 Just migrationIO -> do
                     logInfo "MIGRATE" $ "Starting migration from version " ++ show fromVersion
                     resA <- liftIO migrationIO
-                    runDbConn conn $ Mig.addMigration fromVersion
+                    runDbTxConn conn $ Mig.addMigration fromVersion
                     runAllMigrations' conn ((fromVersion, resA) : accum) (fromVersion + 1)
 
     claimLatestHandleResult lst@(_:_:_) = error $ "BUG (runMigration): got many results: " ++ show lst
