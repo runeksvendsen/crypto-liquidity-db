@@ -39,13 +39,13 @@ testCase
     -> Spec
 testCase calcs =
         [ ("at least a single calculation", [], calcs, (/=))
-        , ("no unfinished calculations", [], calcs, (==))
+        , ("no unfinished calculations", [], unfinishedCalculations calcs, (==))
         ]
 
 unfinishedCalculations :: [LibCalc.Calculation] -> [LibCalc.Calculation]
-unfinishedCalculations = filter (not . isFinishedCalculation)
-
-isFinishedCalculation :: LibCalc.Calculation -> Bool
-isFinishedCalculation calc =
-    isJust (LibCalc.calculationStartTime calc)
-    && isJust (LibCalc.calculationDurationSeconds calc)
+unfinishedCalculations =
+    filter (not . isFinishedCalculation)
+  where
+    isFinishedCalculation calc =
+        isJust (LibCalc.calculationStartTime calc)
+        && isJust (LibCalc.calculationDurationSeconds calc)
