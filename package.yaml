@@ -49,9 +49,9 @@ library:
   - mtl
   - pqueue
   - lrucache
-  - beam-automigrate
   - resource-pool
   - retry
+  - exceptions
   - logging
   - ansi-terminal
   - pretty-show

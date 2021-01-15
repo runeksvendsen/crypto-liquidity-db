@@ -7,6 +7,7 @@ module Internal.Prelude
 , for
 , runInsertReturningOne
 , uniqueOn
+, IsString(..)
 )
 where
 
@@ -17,6 +18,7 @@ import Protolude.Conv (toS)
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
 import Data.List (groupBy, sortOn)
 import Data.Time.Clock (NominalDiffTime)
+import Data.String (IsString(..))
 
 
 groupOn :: Ord b => (t -> b) -> [t] -> [[t]]

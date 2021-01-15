@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4b02892fe973b43213ee56e2dbef5069e30ac5fe1dc180a3b89204ffe73976dd
+-- hash: a3bfcd58482aaca0756e65896b44b048702f51ca06830f5046492f8bc0704411
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -30,7 +30,6 @@ library
       App.Main.Util
       App.Main.WebApi
       App.Main.WebApi.Orphans
-      App.Migrate.BeamAutomigrate
       App.Migrate.Raw
       App.Migrate.Util
       App.Monad
@@ -75,12 +74,12 @@ library
     , ansi-terminal
     , async
     , base >=4.7 && <5
-    , beam-automigrate
     , beam-core
     , beam-postgres
     , bytestring
     , containers
     , crypto-orderbook-db
+    , exceptions
     , it-has
     , logging
     , lrucache

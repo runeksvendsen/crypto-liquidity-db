@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
 module App.Monad
 ( module App.Monad
 , R.lift
@@ -24,6 +25,8 @@ import qualified Control.Concurrent.Async as Async
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Base (MonadBase)
 import Data.Has ( Has(..) )
+import qualified Control.Retry as Re
+import Control.Monad.Catch ( Handler(Handler) )
 
 
 type AppM r = R.ReaderT r IO
@@ -57,11 +60,27 @@ runBeamTx pgM = do
 
 runBeam :: Pg.Connection -> Pg.Pg a -> AppM r a
 runBeam conn pgM = do
-    cfg <- R.ask
-    R.lift $ Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn pgM
+    R.lift $ runBeamIO conn pgM
 
 runBeamIO :: Pg.Connection -> Pg.Pg a -> IO a
-runBeamIO conn pgM = do
+runBeamIO conn pgM =
+    Re.recovering policy [const pgSqlErrorHandler] (const $ runBeamIONoRetry conn pgM)
+  where
+    pgSqlErrorHandler = Handler $ \ex ->
+        let (retry, msg) = shouldRetry ex
+        in do
+            when retry $ Log.logWarn "DATABASE" $ "Retrying error " ++ msg ++ ", message: " ++ show ex
+            return retry
+    shouldRetry err =
+        let sqlState = Pg.sqlState err
+            shouldRetry' = case sqlState of
+                    "40001" -> True
+                    _ -> False
+        in (shouldRetry', toS sqlState)
+    policy = Re.constantDelay 2000000 <> Re.limitRetries 10
+
+runBeamIONoRetry :: Pg.Connection -> Pg.Pg a -> IO a
+runBeamIONoRetry conn pgM = do
     Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
 
 runDbTx :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
