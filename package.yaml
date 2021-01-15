@@ -100,12 +100,6 @@ executables:
     - aeson-casing
     - servant-client
     - http-client
-    - temporary
-    - HUnit
-    - hspec
-    - hspec-expectations
-    - hspec-expectations-pretty-diff
-    - hspec-contrib
 
 tests:
   crypto-liquidity-db-test:

@@ -76,12 +76,26 @@ packages:
   original:
     hackage: thrist-0.4@sha256:f2b6b1b918aa2899669ebcb1c368d57fbd0d4d65e7e316d9203df813348ed732,1943
 - completed:
+    hackage: beam-migrate-0.5.0.0@sha256:d3f7e333ec9e96122ccec6be0d38a88f766dfc248323be73fd0b3cee245ea421,4923
+    pantry-tree:
+      size: 1721
+      sha256: 0aa2b84eef52bf8a7fc9906c2b2a1bc37d077456f232cdf445fc182ee888c20f
+  original:
+    hackage: beam-migrate-0.5.0.0
+- completed:
     hackage: beam-core-0.9.0.0@sha256:e5b1cb4d5b8a8a166f3373e8718672a3884feb9a5a133404b047b0af76538023,5282
     pantry-tree:
       size: 2704
       sha256: e54dabae556fcac9079587adcce1b2bb107c196688c476dabdd84ca86ad556af
   original:
     hackage: beam-core-0.9.0.0@sha256:e5b1cb4d5b8a8a166f3373e8718672a3884feb9a5a133404b047b0af76538023,5282
+- completed:
+    hackage: beam-postgres-0.5.0.0@sha256:3008f802b25fffaee2edf7f8f840a073ee630049031cda0b4ea7912b6656c813,4333
+    pantry-tree:
+      size: 1692
+      sha256: 650c0241326528b9664756e7822edf61d972f30f21f42d4318c7e885aa86e38a
+  original:
+    hackage: beam-postgres-0.5.0.0@sha256:3008f802b25fffaee2edf7f8f840a073ee630049031cda0b4ea7912b6656c813,4333
 - completed:
     hackage: time-1.9.3@sha256:8f1b5448722a12a952248b356c9eb366e351226543d9086a2da71270522d5f45,5679
     pantry-tree:

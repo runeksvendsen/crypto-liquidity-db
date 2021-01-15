@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE BangPatterns #-}
 module Test
 ( runTest
 , testCase
@@ -6,32 +7,40 @@ module Test
 where
 
 import qualified Schema.Calculation as LibCalc
-
-import System.IO.Temp (withSystemTempFile)
-import Test.Hspec.Contrib.HUnit (fromHUnitTest)
-import Test.HUnit (Test(..))
-import Test.Hspec (Spec, shouldNotBe, shouldBe, describe, it)
 import Data.Maybe (isJust)
 import Data.List (all)
-import Test.Hspec.Runner (isSuccess, defaultConfig, Config(..), runSpec)
 
+
+type Spec =
+    [   ( String   -- description
+        , [LibCalc.Calculation] -- expected
+        , [LibCalc.Calculation] -- actual
+        , [LibCalc.Calculation] -> [LibCalc.Calculation] -> Bool -- comparison func: @f expected actual@
+        )
+    ]
 
 runTest :: Spec -> IO (Bool, String)
-runTest spec =
-    withSystemTempFile "hspec-output" $ \fileName _ -> do
-        summary <- runSpec spec (mkCfg fileName)
-        testOutput <- readFile fileName
-        return (isSuccess summary, testOutput)
+runTest = return .
+    foldl runTest' (True, "")
   where
-    mkCfg fileName = defaultConfig { configOutputFile = Right fileName }
+      runTest' (!successState, !msg) (descr, expected, actual, fun) =
+          let success = fun expected actual
+              failureMsg = unlines
+                  [ "FAILURE: " ++ descr
+                  , "Expected:\n" ++ show expected
+                  , ""
+                  , "Actual:\n" ++ show actual
+                  , ""
+                  ]
+          in (successState && success, if success then msg else msg ++ failureMsg  )
 
-testCase :: [LibCalc.Calculation] -> Spec
+testCase
+    :: [LibCalc.Calculation]
+    -> Spec
 testCase calcs =
-    describe "after processing" $ do
-        it "at least a single calculation" $
-            calcs `shouldNotBe` []
-        it "no unfinished calculations" $
-            unfinishedCalculations calcs `shouldBe` []
+        [ ("at least a single calculation", [], calcs, (/=))
+        , ("no unfinished calculations", [], calcs, (==))
+        ]
 
 unfinishedCalculations :: [LibCalc.Calculation] -> [LibCalc.Calculation]
 unfinishedCalculations = filter (not . isFinishedCalculation)
