@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeApplications #-}
 module App.Main.WebApi.Orphans where
 
 import Internal.Prelude (foldM, toS)
@@ -38,8 +37,22 @@ prefixOptions = Json.defaultOptions
 instance Json.ToJSON LibCalc.Calculation where
     toJSON = Json.genericToJSON prefixOptions
 
+instance Json.ToJSON Run.Run where
+    toJSON = Json.genericToJSON prefixOptions
+
 instance Json.ToJSON Lib.CurrencyId
 instance Json.ToJSON Run.RunId
+instance Json.ToJSON Currency where
+    toJSON = Json.toJSON . (toS :: Currency -> T.Text)
+
+instance Json.FromJSON LibCalc.Calculation where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON Run.Run where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON Lib.CurrencyId
+instance Json.FromJSON Run.RunId
 
 instance FromHttpApiData Run.RunId where
    parseUrlPiece txt =
@@ -61,6 +74,3 @@ instance FromHttpApiData [Currency] where
             )
             []
             (map T.strip stringList)
-
-instance Json.ToJSON Run.Run
-instance Json.ToJSON Currency

@@ -85,14 +85,6 @@ executables:
     - -O2
     dependencies:
     - crypto-liquidity-db
-    # - crypto-orderbook-db
-    # - order-graph
-    # - servant
-    # - servant-server
-    # - aeson
-    # - beam-postgres
-    # - warp
-    # - aeson-casing
 
   crypto-liquidity-test:
     main:                Main.hs
@@ -108,6 +100,12 @@ executables:
     - aeson-casing
     - servant-client
     - http-client
+    - temporary
+    - HUnit
+    - hspec
+    - hspec-expectations
+    - hspec-expectations-pretty-diff
+    - hspec-contrib
 
 tests:
   crypto-liquidity-db-test:

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ae00c8365f7e45961726350a6a5c4e4acf9089ba501efb4e9445a8971d27eebd
+-- hash: 4b02892fe973b43213ee56e2dbef5069e30ac5fe1dc180a3b89204ffe73976dd
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -134,21 +134,28 @@ executable crypto-liquidity-service-process
 executable crypto-liquidity-test
   main-is: Main.hs
   other-modules:
+      Test
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app/test
   default-extensions: FlexibleContexts StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
-      aeson
+      HUnit
+    , aeson
     , aeson-casing
     , base >=4.7 && <5
     , crypto-liquidity-db
+    , hspec
+    , hspec-contrib
+    , hspec-expectations
+    , hspec-expectations-pretty-diff
     , http-client
     , protolude
     , servant
     , servant-client
     , servant-server
+    , temporary
     , warp
   default-language: Haskell2010
 

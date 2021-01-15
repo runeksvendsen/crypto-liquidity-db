@@ -6,6 +6,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import qualified Test
+
 -- crypto-liquidity-db
 import Internal.Prelude
 import qualified App.Main.WebApi
@@ -79,19 +81,14 @@ testHandler :: SC.ClientEnv -> Handler Text
 testHandler env = do
     calcLstE <- liftIO $ runClientM allCalculations
     calcLst <- either (throw500 . ("allCalculations failed: " ++) . show) return calcLstE
-    -- Assertions:
-    let assertions = [not $ null calcLst, noUnfinishedCalculations calcLst]
-        calcsStr = toS $ show calcLst
-    if not $ all (== True) assertions
-        then throw500 $ "Assertion error:\n" ++ calcsStr
-        else return (toS calcsStr)
+    -- Run tests
+    (success, output) <- liftIO $ Test.runTest (Test.testCase calcLst)
+    if not success
+        then throw500 output
+        else return (toS output)
   where
     throw500 str = throwError $ err500 { errBody = toS str }
     runClientM = (`SC.runClientM` env)
-    noUnfinishedCalculations calcs = all isFinishedCalculation calcs
-    isFinishedCalculation calc =
-        isJust (LibCalc.calculationStartTime calc)
-        && isJust (LibCalc.calculationDurationSeconds calc)
 
 allCalculations :: SC.ClientM [LibCalc.Calculation]
 _ :<|> allCalculations :<|> _ =
@@ -103,7 +100,3 @@ _ :<|> allCalculations :<|> _ =
 instance ToHttpApiData [App.Main.WebApi.Currency] where
     toUrlPiece [] = "all"
     toUrlPiece lst = toS $ intercalate "," (map show lst)
-
-instance JSON.FromJSON LibCalc.RunId
-instance JSON.FromJSON Lib.CurrencyId
-instance JSON.FromJSON LibCalc.Calculation
