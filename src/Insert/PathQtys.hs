@@ -5,6 +5,8 @@
 
 module Insert.PathQtys ( insertAllPathQtys ) where
 
+import App.Monad (asTx)
+
 import           Data.List                                ( sort )
 import qualified Data.List.NonEmpty                       as NE
 
@@ -29,7 +31,7 @@ import           Schema.Venue
 import Data.Word (Word16)
 
 
-insertAllPathQtys calcPk pathList =
+insertAllPathQtys calcPk pathList = asTx $
     let groupedPaths = groupOn G.pathDescr pathList
         pathPriceQtyLst =
             map (\lst ->

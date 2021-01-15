@@ -1,12 +1,12 @@
 module App.Util
 ( currentTime
-, addLocalTime
+, addUTCTime
 )
 where
 
 import Data.Time.Clock (getCurrentTime)
-import Data.Time.LocalTime (LocalTime, addLocalTime, utcToLocalTime)
+import Data.Time (UTCTime, addUTCTime)
 
 
-currentTime :: IO LocalTime
-currentTime = utcToLocalTime (read "UTC") <$> getCurrentTime
+currentTime :: IO UTCTime
+currentTime = getCurrentTime

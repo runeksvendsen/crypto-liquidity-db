@@ -49,13 +49,17 @@ library:
   - mtl
   - pqueue
   - lrucache
-  - beam-automigrate
   - resource-pool
   - retry
+  - exceptions
   - logging
   - ansi-terminal
   - pretty-show
   - it-has
+  - servant-server # WebApi
+  - warp # WebApi
+  - aeson # WebApi
+  - aeson-casing # WebApi
 
 executables:
   crypto-liquidity-service-process:
@@ -81,14 +85,21 @@ executables:
     - -O2
     dependencies:
     - crypto-liquidity-db
-    - crypto-orderbook-db
-    - order-graph
+
+  crypto-liquidity-test:
+    main:                Main.hs
+    source-dirs:         app/test
+    ghc-options:
+    - -O2
+    dependencies:
+    - crypto-liquidity-db
     - servant
     - servant-server
     - aeson
-    - beam-postgres
     - warp
     - aeson-casing
+    - servant-client
+    - http-client
 
 tests:
   crypto-liquidity-db-test:

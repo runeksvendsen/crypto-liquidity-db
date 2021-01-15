@@ -53,7 +53,7 @@ main dbc = runAppM dbc $ do
 processCalculations :: Has DbConn r => AppM r ()
 processCalculations = do
     now <- lift App.Util.currentTime
-    calcM <- runBeamTx $ Calc.startCalculation now
+    calcM <- runDbRaw $ Calc.startCalculation now
     case calcM of
         Nothing -> do
             logInfo "Process" "No calculations left"

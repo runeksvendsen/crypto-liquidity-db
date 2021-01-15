@@ -7,6 +7,7 @@ module Query.RunCurrencies
 where
 
 import Internal.Prelude
+import App.Monad (DbTx, asTx)
 import Database
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified CryptoDepth.OrderBook.Db.Schema.Book as Book
@@ -23,23 +24,8 @@ import Schema.Currency (Int32)
 import Data.Maybe (listToMaybe)
 
 
--- TODO: Tx for each run
-insertRunRunCurrencies
-    :: ( MonadBeamInsertReturning be m
-       , HasQBuilder be
-       , FromBackendRow be Int32
-       , FromBackendRow be Text
-       , FromBackendRow be Book.Word32
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Book.Word32
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Int32
-       , HasSqlEqualityCheck be Text
-       , HasSqlEqualityCheck be Book.Word32
-       , FromBackendRow be Book.UTCTime
-       , MonadIO m
-       )
-       => m (Maybe (Run.Word32, [Text]))
-insertRunRunCurrencies = do
+insertRunRunCurrencies :: DbTx (Maybe (Book.Word32, [Text]))
+insertRunRunCurrencies = asTx $ do
     missingCurrenciesM <- selectRunWithoutRunCurrencies
     forM missingCurrenciesM $ \missingCurrencies@(runId, currencys') -> do
         -- currencys
@@ -83,7 +69,7 @@ runWithoutRunCurrencies
         , QGenExpr QValueContext be s Text)
         )
 runWithoutRunCurrencies = nub_ $ do
-    runId <- firstRunWithNoCurrencies undefined
+    runId <- firstRunWithNoCurrencies
     baseQuote <- runBaseQuote runId
     pure (runId, baseQuote)
   where
@@ -98,7 +84,7 @@ runWithoutRunCurrencies = nub_ $ do
         book <- all_ $ books liquidityDb
         guard_ $ Book.bookRun book ==. Run.RunId runId
         pure (Book.bookBase book, Book.bookQuote book)
-    firstRunWithNoCurrencies _ =
+    firstRunWithNoCurrencies =
             limit_ 1 $
             orderBy_ asc_
             runWithNoCurrencies

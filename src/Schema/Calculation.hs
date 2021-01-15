@@ -11,7 +11,7 @@ module Schema.Calculation
 , PrimaryKey(type CalculationId)
 , new
 , Int32
-, LocalTime
+, UTCTime
 , fromCalcId
   -- * Re-exports
 , Run.RunId
@@ -30,7 +30,7 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 import Database.Beam.Backend (SqlSerial(unSerial))
-import Data.Time.LocalTime (LocalTime)
+import Data.Time (UTCTime)
 import Data.Int (Int32)
 
 
@@ -41,8 +41,8 @@ data CalculationT f
     , calculationCurrency :: PrimaryKey Currency.CurrencyT f
     , calculationNumeraire :: PrimaryKey Currency.CurrencyT f
     , calculationSlippage :: C f Double
-    , calculationCreationTime :: C f LocalTime
-    , calculationStartTime :: C (Beam.Nullable f) LocalTime -- null = "not started", non-null = "in progress"
+    , calculationCreationTime :: C f UTCTime
+    , calculationStartTime :: C (Beam.Nullable f) UTCTime -- null = "not started", non-null = "in progress"
     , calculationDurationSeconds :: C (Beam.Nullable f) Double -- non-null = "done"
     } deriving Generic
 
@@ -82,5 +82,5 @@ instance Beam.Table CalculationT where
 instance Beam.Beamable (PrimaryKey CalculationT)
 
 getRunId :: Calculation -> Run.RunId
-getRunId calc =
-    calculationRun calc
+getRunId =
+    calculationRun

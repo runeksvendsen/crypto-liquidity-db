@@ -1,7 +1,33 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
 module App.Monad
-( module App.Monad
+(
+-- * Logging
+  logInfo
+, logDebug
+, logDebugIO
+, logError
+-- * Monad
+, AppM
+, runAppM
+-- , runBeamIO
+, async
+, Config(..)
+, CfgConstants(..)
+, CfgParams(..)
+, DbConn
+, calculationParameters
+, runDbTx
+, runDbTxWithConn
+, runDbRaw
+, runDbTxConn
+, DbTx
+, asTx
+, TxConn
+, txConn
 , R.lift
 , R.ask
 , Has(..)
@@ -24,7 +50,30 @@ import qualified Control.Concurrent.Async as Async
 import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.Base (MonadBase)
 import Data.Has ( Has(..) )
+import qualified Control.Retry as Re
+import Control.Monad.Catch ( Handler(Handler) )
 
+
+asTx :: Pg.Pg a -> DbTx a
+asTx = DbTx
+
+-- | A database connection that is inside a transaction
+newtype TxConn = TxConn Pg.Connection
+    deriving Eq
+
+-- | Use this to run something that requires a 'Pg.Connection' as part of an existing transaction
+txConn :: TxConn -> Pg.Connection
+txConn (TxConn conn) = conn
+
+runDbTxWithConnNoRetry :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConnNoRetry action = do
+    withDbConn $ \conn ->
+        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn $ do
+            let (DbTx pgM) = action (TxConn conn)
+            runBeamIONoRetry conn pgM
+
+newtype DbTx a = DbTx (Pg.Pg a)
+    deriving (Functor, Applicative, Monad)
 
 type AppM r = R.ReaderT r IO
 
@@ -51,25 +100,40 @@ withDbConn f = do
     pool <- R.asks getter
     Pool.withResource pool f
 
-runBeamTx :: Has DbConn r => Pg.Pg a -> AppM r a
-runBeamTx pgM = do
-    runDbTx $ \conn -> runBeam conn pgM
+runDbTx :: Has DbConn r => DbTx a -> AppM r a
+runDbTx dbTxM = runDbTxWithConn (const dbTxM)
 
-runBeam :: Pg.Connection -> Pg.Pg a -> AppM r a
-runBeam conn pgM = do
+-- | Run a database query outside of a transaction
+runDbRaw :: Has DbConn r => Pg.Pg a -> AppM r a
+runDbRaw pgM = do
+    withDbConn $ \conn -> runDbTxConn (TxConn conn) pgM
+
+-- | Run as part of an already-started transaction
+runDbTxConn :: TxConn -> Pg.Pg a -> AppM r a
+runDbTxConn (TxConn conn) pgM = do
+    R.liftIO $ runBeamIONoRetry conn pgM
+
+runDbTxWithConn :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConn action = do
     cfg <- R.ask
-    R.lift $ Pg.runBeamPostgresDebug (runAppM cfg . logDebug "SQL") conn pgM
+    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry action)
+  where
+    pgSqlErrorHandler = Handler $ \ex ->
+        let (retry, msg) = shouldRetry ex
+        in do
+            when retry $ Log.logWarn "DATABASE" $ "Retrying error " ++ msg ++ ", message: " ++ show ex
+            return retry
+    shouldRetry err =
+        let sqlState = Pg.sqlState err
+            shouldRetry' = case sqlState of
+                    "40001" -> True
+                    _ -> False
+        in (shouldRetry', toS sqlState)
+    policy = Re.constantDelay 2000000 <> Re.limitRetries 10
 
-runBeamIO :: Pg.Connection -> Pg.Pg a -> IO a
-runBeamIO conn pgM = do
+runBeamIONoRetry :: Pg.Connection -> Pg.Pg a -> IO a
+runBeamIONoRetry conn pgM = do
     Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
-
-runDbTx :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
-runDbTx action = do
-    cfg <- R.ask
-    withDbConn $ \conn ->
-        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn
-            (runAppM cfg $ action conn)
 
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
@@ -80,7 +144,9 @@ async appM = do
 data Config = Config
     { cfgConstants :: CfgConstants
     , cfgDbConnPool :: Pool.Pool Pool.Connection
-    } deriving (Generic, Has DbConn)
+    } deriving (Generic)
+
+instance Has DbConn Config
 
 data CfgConstants = CfgConstants
     { cfgParams :: CfgParams

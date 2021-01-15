@@ -37,5 +37,3 @@ RUN apt-get update \
 COPY --from=builder /tmp/dist/* /usr/local/bin/
 
 COPY pgsql ./pgsql
-
-ENTRYPOINT [ "crypto-liquidity-db-exe" ]

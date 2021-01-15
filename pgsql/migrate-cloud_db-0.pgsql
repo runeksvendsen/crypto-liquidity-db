@@ -4,7 +4,7 @@ CREATE SEQUENCE paths___id___seq;
 
 CREATE TABLE calculation_parameters (numeraire__symbol VARCHAR NOT NULL, slippage DOUBLE PRECISION NOT NULL);
 
-CREATE TABLE calculations (creation_time TIMESTAMP WITHOUT TIME ZONE NOT NULL, currency__symbol VARCHAR NOT NULL, duration_seconds DOUBLE PRECISION , id INT NOT NULL DEFAULT nextval('calculations___id___seq'::regclass), numeraire__symbol VARCHAR NOT NULL, run__id NUMERIC(10) NOT NULL, slippage DOUBLE PRECISION NOT NULL, start_time TIMESTAMP WITHOUT TIME ZONE );
+CREATE TABLE calculations (creation_time TIMESTAMP WITH TIME ZONE NOT NULL, currency__symbol VARCHAR NOT NULL, duration_seconds DOUBLE PRECISION , id INT NOT NULL DEFAULT nextval('calculations___id___seq'::regclass), numeraire__symbol VARCHAR NOT NULL, run__id NUMERIC(10) NOT NULL, slippage DOUBLE PRECISION NOT NULL, start_time TIMESTAMP WITH TIME ZONE );
 
 CREATE TABLE currencys (symbol VARCHAR NOT NULL);
 

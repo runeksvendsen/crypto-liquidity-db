@@ -13,20 +13,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      # source: https://github.com/satackey/action-docker-layer-caching#docker-compose
-      - name: Pull Docker images
-        run: docker-compose pull
-
-      # source: https://github.com/satackey/action-docker-layer-caching#docker-compose
-      - name: Cache Docker layers
-        uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
-
-      - name: Build container image
-        uses: docker/build-push-action@v1
-        with:
-          username: ${{github.actor}}
-          password: ${{secrets.GITHUB_TOKEN}}
-          registry: docker.pkg.github.com
-          repository: runeksvendsen/crypto-liquidity-db/liquidity-service
-          tag_with_sha: true
+      - name: docker build
+        run: docker build .

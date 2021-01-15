@@ -8,7 +8,7 @@ module Schema.Migration
 , MigrationId
 , PrimaryKey(type MigrationId)
   -- * Re-exports
-, LocalTime
+, UTCTime
 , Int16
 )
 where
@@ -20,14 +20,14 @@ import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 import Database.Beam.Backend.SQL.Types      (SqlSerial(unSerial))
 import Data.Int                             (Int16)
-import Data.Time.LocalTime                  (LocalTime)
+import Data.Time (UTCTime)
 
 
 -- |
 data MigrationT f
     = Migration
     { migrationFromVersion :: C f Int16 -- ^ a migration from version @n@ to version @n+1@
-    , migrationTime :: C f LocalTime -- ^ the time at which the migration was performed
+    , migrationTime :: C f UTCTime -- ^ the time at which the migration was performed
     , migrationInProgress :: C f Bool
     } deriving Generic
 
