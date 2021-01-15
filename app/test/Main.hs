@@ -85,7 +85,7 @@ testHandler env = do
     (success, output) <- liftIO $ Test.runTest (Test.testCase calcLst)
     if not success
         then throw500 output
-        else return (toS output)
+        else return "Success \\o/"
   where
     throw500 str = throwError $ err500 { errBody = toS str }
     runClientM = (`SC.runClientM` env)
