@@ -14,17 +14,16 @@ import Test.Hspec (Spec, shouldNotBe, shouldBe, describe, it)
 import Data.Maybe (isJust)
 import Data.List (all)
 import Test.Hspec.Runner (isSuccess, defaultConfig, Config(..), runSpec)
-import GHC.IO.Handle (hGetContents)
 
 
 runTest :: Spec -> IO (Bool, String)
 runTest spec =
-    withSystemTempFile "hspec-output" $ \_ hdl -> do
-        summary <- runSpec spec (mkCfg hdl)
-        testOutput <- hGetContents hdl
+    withSystemTempFile "hspec-output" $ \fileName _ -> do
+        summary <- runSpec spec (mkCfg fileName)
+        testOutput <- readFile fileName
         return (isSuccess summary, testOutput)
   where
-    mkCfg hdl = defaultConfig { configOutputFile = Left hdl }
+    mkCfg fileName = defaultConfig { configOutputFile = Right fileName }
 
 testCase :: [LibCalc.Calculation] -> Spec
 testCase calcs =
