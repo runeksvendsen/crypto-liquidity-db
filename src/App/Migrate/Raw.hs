@@ -34,8 +34,9 @@ autoMigrate =
         cfg <- ask
         resME <- lift $ E.try $ runAppM cfg (Util.runMigrations getMigration)
         case resME of
-            Left ex ->
+            Left ex -> do
                 logError "MIGRATE" $ "Migration failure. Exception: " ++ show (ex :: SomeException)
+                lift $ throwIO ex
             Right Nothing -> do
                 let delaySeconds = 5
                 logInfo "MIGRATE" $ printf
