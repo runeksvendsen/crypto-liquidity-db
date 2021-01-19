@@ -46,7 +46,7 @@ runServices cfg = do
   where
     -- Set started calculations older than 'cfgMaxCalculationTime' to unstarted
     resetUnfinishedCalculationsPoll = forever $ do
-        runDbTx $ Calc.resetUnfinishedCalculations (cfgMaxCalculationTime $ cfgConstants cfg)
+        runDbTx $ Calc.resetStalledCalculations (cfgMaxCalculationTime $ cfgConstants cfg)
         lift $ threadDelay (round $ cfgDeadMonitorInterval (cfgConstants cfg) * 1e6)
     createCalculationsPoll = forever $ do
         createCalculations

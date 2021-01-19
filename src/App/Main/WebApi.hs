@@ -1,3 +1,5 @@
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
@@ -39,6 +41,9 @@ import qualified OrderBook.Graph.Types.Book as G
 
 -- beam-postgres
 import qualified Database.Beam.Postgres as Pg
+-- wai-cors
+import qualified Network.Wai.Middleware.Cors as Cors
+
 
 import Control.Monad.IO.Class
 import Servant
@@ -61,7 +66,7 @@ main =
             let cfg = mkCfg pool
                 port = 8000
             putStrLn $ "Running on http://localhost:" ++ show port
-            Warp.run port (serve api $ mkServer cfg)
+            Warp.run port (Cors.simpleCors $ serve api $ mkServer cfg)
         )
   where
     api :: Proxy API
@@ -90,22 +95,33 @@ mkServer cfg =
 
 server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
 server timeout =
-         Lib.selectQuantities
+         Lib.selectQuantities []
+    :<|> Lib.selectQuantities
     :<|> Lib.selectAllCalculations
-    :<|> Lib.selectUnfinishedCalculations timeout
+    :<|> Lib.selectStalledCalculations timeout
+    :<|> Lib.selectUnfinishedCalcCount
+
+type CurrencySymbolList =
+    Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
 
 type API
-    =    Liquidity
+    =    Liquidity "all"
+    :<|> Liquidity CurrencySymbolList
     :<|> GetAllCalcs
     :<|> GetUnfinishedCalcs
+    :<|> GetUnfinishedCalcCount
 
-type Liquidity =
+type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
         :> "liquidity"
-        :> Capture' '[Description "Zero or more comma-separated currency symbols (zero = all)"] "currency_symbols" [Currency]
+        :> currencies
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
-        :> Get '[JSON] [(Run.Word32, Text, Double, Text, Lib.Word64)]
+        :> QueryParam "numeraire" Currency
+        :> QueryParam "slippage" Double
+        :> QueryParam "limit" Word
+        :> Get '[JSON] [Lib.LiquidityData]
+
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"
@@ -119,3 +135,10 @@ type GetUnfinishedCalcs =
         :> "unfinished"
         :> "all"
         :> Get '[JSON] [LibCalc.Calculation]
+
+type GetUnfinishedCalcCount =
+    Summary "Get unfinished calculations"
+        :> "calc"
+        :> "unfinished"
+        :> "count"
+        :> Get '[JSON] Lib.Word64

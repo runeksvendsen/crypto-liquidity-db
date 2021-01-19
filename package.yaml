@@ -29,6 +29,9 @@ ghc-options:
 
 library:
   source-dirs: src
+  other-modules:
+  - App.Main.WebApi.Orphans
+  - App.Orphans
   dependencies:
   - crypto-orderbook-db
   - beam-core
@@ -60,6 +63,7 @@ library:
   - warp # WebApi
   - aeson # WebApi
   - aeson-casing # WebApi
+  - wai-cors # WebApi
 
 executables:
   crypto-liquidity-service-process:
