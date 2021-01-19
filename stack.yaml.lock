@@ -39,11 +39,11 @@ packages:
     git: https://github.com/runeksvendsen/order-graph.git
     pantry-tree:
       size: 4022
-      sha256: 99e77aa035ec1252d69b6f0e0548cd950906535d4b7b5ddb11e9cce79eff42de
-    commit: eac429e31c7e78f11f77df51c29720d4d2a01394
+      sha256: 9e4ec613f05d52d7be088fac5a554204e2f4e43a1f233065dc543d90334ba0d5
+    commit: cc84514c19a67cf46e1ec96444aacf8d858942b0
   original:
     git: https://github.com/runeksvendsen/order-graph.git
-    commit: eac429e31c7e78f11f77df51c29720d4d2a01394
+    commit: cc84514c19a67cf46e1ec96444aacf8d858942b0
 - completed:
     name: bellman-ford
     version: 0.1.0.0

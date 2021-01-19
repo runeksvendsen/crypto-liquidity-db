@@ -32,6 +32,7 @@ import qualified Query.Liquidity as Lib
 import qualified Query.Books as Lib
 import qualified Query.Calculations as Lib
 import qualified Schema.Calculation as LibCalc
+import qualified Query.Books
 
 -- crypto-orderbook-db
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
@@ -100,6 +101,7 @@ server timeout =
     :<|> Lib.selectAllCalculations
     :<|> Lib.selectStalledCalculations timeout
     :<|> Lib.selectUnfinishedCalcCount
+    :<|> Query.Books.runBooks
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -110,6 +112,7 @@ type API
     :<|> GetAllCalcs
     :<|> GetUnfinishedCalcs
     :<|> GetUnfinishedCalcCount
+    :<|> GetRunBooks
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
@@ -142,3 +145,10 @@ type GetUnfinishedCalcCount =
         :> "unfinished"
         :> "count"
         :> Get '[JSON] Lib.Word64
+
+type GetRunBooks =
+    Summary "Get run order books"
+        :> "run"
+        :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
+        :> "books"
+        :> Get '[JSON] [G.OrderBook Double]
