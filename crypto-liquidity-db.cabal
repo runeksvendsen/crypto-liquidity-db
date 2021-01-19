@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 50b27a1344e3994e4a66f07a4f78e5012a7e14af6e0f20525a892a6ae2aa146f
+-- hash: 429c240f006b3226d3cbe1c29e0ba19e98f8e4f6e82143e77eb9a00b7d64b7e6
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -29,12 +29,10 @@ library
       App.Main.ProcessCalc
       App.Main.Util
       App.Main.WebApi
-      App.Main.WebApi.Orphans
       App.Migrate.Raw
       App.Migrate.Util
       App.Monad
       App.MPQueue
-      App.Orphans
       App.PgConnect
       App.Pool
       App.RunCalc
@@ -63,7 +61,8 @@ library
       Schema.Venue
       Update.Calculation
   other-modules:
-      Paths_crypto_liquidity_db
+      App.Main.WebApi.Orphans
+      App.Orphans
   hs-source-dirs:
       src
   default-extensions: FlexibleContexts StrictData

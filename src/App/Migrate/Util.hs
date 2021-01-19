@@ -64,7 +64,7 @@ runMigrations migrateFrom = do
                     -- Makes sure that successful migration does not leave
                     --  behind any migrations with in_progress=true in case
                     --  DB crashes before the "release" function runs.
-                    logDebug "MIGRATE" $ "Releasing locks on fromVersions " ++ intercalate ", " (map show allVersions)
+                    logDebug "MIGRATE" $ "Releasing locks on fromVersion(s) " ++ intercalate ", " (map show allVersions)
                     runDbTxConn conn $ setNotInProgress allVersions
                     logInfo "MIGRATE" $ "Database up-to-date: current version " ++ show fromVersion
                     return accum

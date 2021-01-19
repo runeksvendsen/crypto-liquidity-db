@@ -1,12 +1,14 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 module App.Main.WebApi.Orphans where
 
-import Internal.Prelude (foldM, toS)
+import Internal.Prelude
 
 -- crypto-liquidity-db
 import qualified Schema.Currency as Lib
 import qualified Query.Books as Lib
+import qualified Query.Liquidity as Lib
 import qualified Schema.Calculation as LibCalc
 
 -- crypto-orderbook-db
@@ -40,6 +42,11 @@ instance Json.ToJSON LibCalc.Calculation where
 instance Json.ToJSON Run.Run where
     toJSON = Json.genericToJSON prefixOptions
 
+instance Json.ToJSON Lib.LiquidityData where
+    toJSON = Json.genericToJSON prefixOptions
+instance Json.FromJSON Lib.LiquidityData where
+    parseJSON = Json.genericParseJSON prefixOptions
+
 instance Json.ToJSON Lib.CurrencyId
 instance Json.ToJSON Run.RunId
 instance Json.ToJSON Currency where
@@ -63,14 +70,13 @@ instance FromHttpApiData Run.RunId where
                       (Right . mkRunId)
         in handleError . readMaybe . toS $ txt
 
+instance FromHttpApiData Currency where
+    parseUrlPiece txt =
+        if not (T.null txt)
+            then return $ toS txt
+            else Left "failed to parse currency from empty string"
+
 instance FromHttpApiData [Currency] where
     parseUrlPiece txt =
         let stringList = T.split (== ',') txt
-        in foldM
-            (\accum currency ->
-                maybe (Left $ toS $ "failed to parse currency: " ++ show currency)
-                      (Right . (: accum))
-                      (readMaybe $ toS currency)
-            )
-            []
-            (map T.strip stringList)
+        in mapM parseUrlPiece $ filter (not . T.null) $ map T.strip stringList
