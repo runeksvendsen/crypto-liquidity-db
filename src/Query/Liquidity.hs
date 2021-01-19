@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StrictData #-}
@@ -32,6 +34,7 @@ import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpd
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
+import Database.Beam.Query.Internal (QNested)
 
 
 -- |
@@ -50,27 +53,13 @@ getPaths runId numeraireSymbol currencySymbol = do
     (run, calc, pathQty) <- allQuantities (all_ $ runs liquidityDb)
     path <- all_ (paths liquidityDb)
     guard_ $ PathQty.pathqtyPath pathQty `references_` path
-    pathPart <- partsForPath path
     -- input args
     guard_ $
         Run.runId run ==. val_ (fromInteger $ fromIntegral runId)
         &&. Calc.calculationNumeraire calc ==. val_ (Currency.CurrencyId numeraireSymbol)
         &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
-    let lel = Path.pathStart path
-            -- PathPart.pathpartIndex
-            -- PathPart.pathpartVenue
-            -- PathPart.pathpartCurrency
     pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
 
--- allQuantities ::
---     ( HasSqlEqualityCheck be Run.Word32
---     , HasSqlEqualityCheck be Calc.Int32
---     )
---     => Q be LiquidityDb s
---         ( Run.RunT (QExpr be s)
---         , Calc.CalculationT (QExpr be s)
---         , PathQty.PathQtyT (QExpr be s)
---         )
 allQuantities runQ = do
     run <- runQ
     calc <- all_ (calculations liquidityDb)
@@ -107,10 +96,14 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         , ldCurrency = currency
         , ldQty = qty
         }
-    query = case (limitM, numeraireM, slippageM) of
-        (Just limit, Just numeraire, Just slippage) -> quantitiesLimit fromM toM numeraire slippage limit
-        _ -> quantities (all_ $ runs liquidityDb) numeraireM slippageM Nothing
-
+    query = case (limitM, numeraireM, slippageM, currencies) of
+        (Just limit, Just numeraire, Just slippage, []) ->
+            quantitiesLimit fromM toM numeraire slippage limit
+        _ -> do
+            res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) numeraireM slippageM Nothing
+            forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
+                guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
+            pure res
 
 quantitiesLimit fromM toM numeraire slippage limit = do
     res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) (Just numeraire) (Just slippage) Nothing
@@ -127,6 +120,26 @@ quantitiesLimit fromM toM numeraire slippage limit = do
         orderBy_ (desc_ . Run.runTimeStart) $
         all_ (runs liquidityDb)
 
+quantities
+    :: ( HasSqlEqualityCheck be Path.Word32
+       , HasSqlEqualityCheck be Calc.Int32
+       , HasSqlEqualityCheck be Text
+       , HasSqlEqualityCheck be Double
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Word64
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
+       )
+    => Q be LiquidityDb (QNested (QNested (QNested s))) (Run.RunT (QGenExpr QValueContext be (QNested (QNested (QNested s)))))
+    -> Maybe Currency
+    -> Maybe Double
+    -> Maybe Word
+    -> Q be LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext be s)
+        , QGenExpr QValueContext be s Text
+        , QGenExpr QValueContext be s Double
+        , QGenExpr QValueContext be s Text
+        , QGenExpr QValueContext be s PathQty.Word64
+        )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
     orderBy_ (\(run, numeraire, slippage, _, qty) ->
@@ -150,6 +163,6 @@ quantities' runQ numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     pure (run, calc, pathQty)
-  where
-    mkSymbol :: Currency -> Currency.CurrencyId
-    mkSymbol symbol = Currency.CurrencyId (toS symbol)
+
+mkSymbol :: Currency -> Currency.CurrencyId
+mkSymbol symbol = Currency.CurrencyId (toS symbol)

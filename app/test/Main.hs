@@ -91,7 +91,7 @@ testHandler env = do
     runClientM = (`SC.runClientM` env)
 
 allCalculations :: SC.ClientM [LibCalc.Calculation]
-_ :<|> allCalculations :<|> _ =
+_ :<|> _ :<|> allCalculations :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
@@ -100,3 +100,6 @@ _ :<|> allCalculations :<|> _ =
 instance ToHttpApiData [App.Main.WebApi.Currency] where
     toUrlPiece [] = "all"
     toUrlPiece lst = toS $ intercalate "," (map show lst)
+
+instance ToHttpApiData App.Main.WebApi.Currency where
+    toUrlPiece = toS
