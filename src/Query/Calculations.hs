@@ -1,14 +1,17 @@
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# LANGUAGE GADTs #-}
 module Query.Calculations
 ( startCalculation
 , insertMissingCalculations
-, resetUnfinishedCalculations
+, resetStalledCalculations
 , insertCalcParam
 , selectAllCalculations
-, selectUnfinishedCalculations
+, selectStalledCalculations
+, selectUnfinishedCalcCount
 , Calculation(..)
 , NominalDiffTime
+, Word64
 )
 where
 
@@ -30,6 +33,7 @@ import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpdateReturningList), MonadBeamInsertReturning(runInsertReturningList))
 import Data.Maybe (fromMaybe)
+import Data.Word (Word64)
 
 
 data Calculation = Calculation
@@ -91,29 +95,45 @@ startCalculation' now = fmap castSingleResult .
                 `Pg.withLocks_` calcLock
 
 -- | Set started calculations older than @timeout@ to unstarted
-resetUnfinishedCalculations :: NominalDiffTime -> DbTx ()
-resetUnfinishedCalculations timeout = asTx $ do
+resetStalledCalculations :: NominalDiffTime -> DbTx ()
+resetStalledCalculations timeout = asTx $ do
     timeoutTime <- calcExpirationTime timeout
     runUpdate $ update
         (calculations liquidityDb)
         (\calc' -> Calc.calculationStartTime calc' <-. nothing_)
-        (isUnfinishedCalculation timeoutTime)
+        (isStalledCalculation timeoutTime)
 
 calcExpirationTime timeout = do
     now <- liftIO App.Util.currentTime
     return $ (- timeout) `App.Util.addUTCTime` now
 
-isUnfinishedCalculation timeoutTime calc' = do
+isStalledCalculation timeoutTime calc' = do
     isNothing_ (Calc.calculationDurationSeconds calc') &&.
             Calc.calculationStartTime calc' <. just_ (val_ timeoutTime)
 
-selectUnfinishedCalculations timeout = do
+selectStalledCalculations timeout = do
     timeoutTime <- calcExpirationTime timeout
-    runSelectReturningList $ select $ unfinishedCalculations timeoutTime
+    runSelectReturningList $ select $ stalledCalculations timeoutTime
 
-unfinishedCalculations timeoutTime = do
+selectUnfinishedCalcCount
+    :: ( MonadBeam be m
+       , HasQBuilder be
+       , FromBackendRow be Word64
+       , HasSqlEqualityCheck be Double
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) (Maybe Double)
+       )
+       => m Word64
+selectUnfinishedCalcCount =
+    fmap (fromMaybe (error "BUG: selectUnfinishedCalcCount: COUNT returned Nothing")) $ do
+        runSelectReturningOne $ select $
+            aggregate_ (const $ as_ @Word64 countAll_) $ do
+                calc <- all_ (calculations liquidityDb)
+                guard_ $ Calc.calculationDurationSeconds calc ==. val_ Nothing
+                pure calc
+
+stalledCalculations timeoutTime = do
     calc' <- all_ (calculations liquidityDb)
-    guard_ $ isUnfinishedCalculation timeoutTime calc'
+    guard_ $ isStalledCalculation timeoutTime calc'
     pure calc'
 
 selectAllCalculations

@@ -98,8 +98,7 @@ selectQuantities
     -> Pg.Pg [LiquidityData]
 selectQuantities currencies fromM toM numeraireM slippageM limitM =
     fmap (map mkLiquidityData) $
-        runSelectReturningList $ select $
-            quantities (all_ $ runs liquidityDb) currencies fromM toM numeraireM slippageM limitM
+        runSelectReturningList $ select query
   where
     mkLiquidityData (run, numeraire, slippage, currency, qty) = LiquidityData
         { ldRun = run
@@ -108,50 +107,49 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         , ldCurrency = currency
         , ldQty = qty
         }
+    query = case (limitM, numeraireM, slippageM) of
+        (Just limit, Just numeraire, Just slippage) -> quantitiesLimit fromM toM numeraire slippage limit
+        _ -> quantities (all_ $ runs liquidityDb) numeraireM slippageM Nothing
 
-quantities runQ currencies fromM toM numeraireM slippageM limitM =
+
+quantitiesLimit fromM toM numeraire slippage limit = do
+    res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) (Just numeraire) (Just slippage) Nothing
+    guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptosNewestRun)
+    pure res
+  where
+    topXCryptosNewestRun = do
+        (_, _, _, currency, _) <- quantities
+            newestRun (Just numeraire) (Just slippage) (Just limit)
+        pure currency
+
+    newestRun =
+        limit_ 1 $
+        orderBy_ (desc_ . Run.runTimeStart) $
+        all_ (runs liquidityDb)
+
+quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
     orderBy_ (\(run, numeraire, slippage, _, qty) ->
         (asc_ numeraire, asc_ slippage, asc_ $ Run.runId run, desc_ qty)
     ) $
     aggregate_
-        (\(run, calcNumeraire, calcSlippage, calcCurrency, pathQty) ->
+        (\(run, calc, pathQty) ->
             ( group_ run
-            , group_ calcNumeraire
-            , group_ calcSlippage
-            , group_ calcCurrency
-            , fromMaybe_ (val_ 0) $ sum_ pathQty
+            , group_ (getSymbol $ Calc.calculationNumeraire calc)
+            , group_ (Calc.calculationSlippage calc)
+            , group_ $ getSymbol (Calc.calculationCurrency calc)
+            , fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
             )
         )
-        (quantities' runQ currencies fromM toM numeraireM slippageM)
+        (quantities' runQ numeraireM slippageM)
+  where
+    getSymbol (Currency.CurrencyId symbol) = symbol
 
-quantities' runQ currencies fromM toM numeraireM slippageM = do
+quantities' runQ numeraireM slippageM = do
     (run, calc, pathQty) <- allQuantities runQ
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
-    let currencySymbol = Calc.calculationCurrency calc
-    -- if currencies == [] then "all currencies" else "match currencies in list"
-    forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
-        guard_ $ currencySymbol `in_` map (val_ . mkSymbol) (NE.toList currenciesNonEmpty)
-    pure
-        ( run
-        , getSymbol $ Calc.calculationNumeraire calc
-        , Calc.calculationSlippage calc
-        , getSymbol currencySymbol
-        , PathQty.pathqtyQty pathQty
-        )
+    pure (run, calc, pathQty)
   where
     mkSymbol :: Currency -> Currency.CurrencyId
     mkSymbol symbol = Currency.CurrencyId (toS symbol)
-    getSymbol (Currency.CurrencyId symbol) = symbol
-
-topXCryptos numeraire slippage count = do
-    (_, _, _, currency, _) <- quantities
-        newestRun [] Nothing Nothing (Just numeraire) (Just slippage) (Just count)
-    return currency
-
-newestRun :: BeamSqlBackend be => Q be LiquidityDb s (Run.RunT (QGenExpr QValueContext be s))
-newestRun =
-    limit_ 1 $
-    orderBy_ (desc_ . Run.runTimeStart) $
-    all_ (runs liquidityDb)

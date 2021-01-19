@@ -63,6 +63,7 @@ library:
   - warp # WebApi
   - aeson # WebApi
   - aeson-casing # WebApi
+  - wai-cors # WebApi
 
 executables:
   crypto-liquidity-service-process:
