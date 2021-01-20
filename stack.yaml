@@ -9,7 +9,7 @@ extra-deps:
 - git: https://github.com/runeksvendsen/orderbook.git
   commit: b0b7babf47e26538af611210b92adf00b3f79b11
 - git: https://github.com/runeksvendsen/order-graph.git
-  commit: eac429e31c7e78f11f77df51c29720d4d2a01394
+  commit: cc84514c19a67cf46e1ec96444aacf8d858942b0
 - git: https://github.com/runeksvendsen/bellman-ford.git
   commit: a089bfe9d449afbc1907ded5223bba23a5de9e8a
 - git: https://github.com/runeksvendsen/mono-traversable.git

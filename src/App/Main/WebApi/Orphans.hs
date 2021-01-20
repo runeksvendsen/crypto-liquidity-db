@@ -14,7 +14,7 @@ import qualified Schema.Calculation as LibCalc
 -- crypto-orderbook-db
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 
-import Servant ( FromHttpApiData(..) )
+import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import qualified Data.Aeson as Json
 import qualified Data.Aeson.Casing as Casing
 import qualified  Data.Aeson.Casing.Internal as Casing
@@ -80,3 +80,14 @@ instance FromHttpApiData [Currency] where
     parseUrlPiece txt =
         let stringList = T.split (== ',') txt
         in mapM parseUrlPiece $ filter (not . T.null) $ map T.strip stringList
+
+
+instance ToHttpApiData [Currency] where
+    toUrlPiece [] = "all"
+    toUrlPiece lst = T.intercalate "," (map (toS . show) lst)
+
+instance ToHttpApiData Currency where
+    toUrlPiece = toS
+
+instance ToHttpApiData LibCalc.RunId where
+    toUrlPiece (Run.RunId (SqlSerial num)) = toS (show num)

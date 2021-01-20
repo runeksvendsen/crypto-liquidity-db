@@ -96,10 +96,3 @@ _ :<|> _ :<|> allCalculations :<|> _ :<|> _ =
   where
     api :: Proxy App.Main.WebApi.API
     api = Proxy
-
-instance ToHttpApiData [App.Main.WebApi.Currency] where
-    toUrlPiece [] = "all"
-    toUrlPiece lst = toS $ intercalate "," (map show lst)
-
-instance ToHttpApiData App.Main.WebApi.Currency where
-    toUrlPiece = toS
