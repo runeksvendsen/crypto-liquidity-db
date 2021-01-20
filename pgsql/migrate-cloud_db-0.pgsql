@@ -4,24 +4,19 @@ CREATE SEQUENCE paths___id___seq;
 
 CREATE TABLE calculation_parameters (numeraire__symbol VARCHAR NOT NULL, slippage DOUBLE PRECISION NOT NULL);
 
-CREATE TABLE calculations (creation_time TIMESTAMP WITH TIME ZONE NOT NULL, currency__symbol VARCHAR NOT NULL, duration_seconds DOUBLE PRECISION , id INT NOT NULL DEFAULT nextval('calculations___id___seq'::regclass), numeraire__symbol VARCHAR NOT NULL, run__id NUMERIC(10) NOT NULL, slippage DOUBLE PRECISION NOT NULL, start_time TIMESTAMP WITH TIME ZONE );
+CREATE TABLE calculations (creation_time TIMESTAMP WITH TIME ZONE NOT NULL, currency__symbol VARCHAR NOT NULL, duration_seconds DOUBLE PRECISION , id INT NOT NULL DEFAULT nextval('calculations___id___seq'::regclass), numeraire__symbol VARCHAR NOT NULL, run__id INT NOT NULL, slippage DOUBLE PRECISION NOT NULL, start_time TIMESTAMP WITH TIME ZONE );
 
 CREATE TABLE currencys (symbol VARCHAR NOT NULL);
 
-CREATE TABLE path_parts (currency__symbol VARCHAR NOT NULL, index INT NOT NULL, path__id NUMERIC(10) NOT NULL, venue__name VARCHAR NOT NULL);
+CREATE TABLE path_parts (currency__symbol VARCHAR NOT NULL, index INT NOT NULL, path__id INT NOT NULL, venue__name VARCHAR NOT NULL);
 
-CREATE TABLE path_qtys (calc__id INT NOT NULL, path__id NUMERIC(10) NOT NULL, price_high DOUBLE PRECISION NOT NULL, price_low DOUBLE PRECISION NOT NULL, qty NUMERIC(20) NOT NULL);
+CREATE TABLE path_qtys (calc__id INT NOT NULL, path__id INT NOT NULL, price_high DOUBLE PRECISION NOT NULL, price_low DOUBLE PRECISION NOT NULL, qty BIGINT NOT NULL);
 
-CREATE TABLE paths (id NUMERIC(10) NOT NULL DEFAULT nextval('paths___id___seq'::regclass), part_count NUMERIC(5) NOT NULL, start__symbol VARCHAR NOT NULL);
+CREATE TABLE paths (id INT NOT NULL DEFAULT nextval('paths___id___seq'::regclass), part_count SMALLINT NOT NULL, start__symbol VARCHAR NOT NULL);
 
-CREATE TABLE run_currencys (currency__symbol VARCHAR NOT NULL, run__id NUMERIC(10) NOT NULL);
+CREATE TABLE run_currencys (currency__symbol VARCHAR NOT NULL, run__id INT NOT NULL);
 
 CREATE TABLE venues (name VARCHAR NOT NULL);
-
-ALTER TABLE books ALTER COLUMN id TYPE NUMERIC(10);         -- UNSAFE
-ALTER TABLE books ALTER COLUMN run__id TYPE NUMERIC(10);    -- UNSAFE
-ALTER TABLE orders ALTER COLUMN book__id TYPE NUMERIC(10);  -- UNSAFE
-ALTER TABLE runs ALTER COLUMN id TYPE NUMERIC(10);          -- UNSAFE
 
 ALTER TABLE calculation_parameters ADD CONSTRAINT calculation_parameters_pkey PRIMARY KEY (numeraire__symbol, slippage);
 
