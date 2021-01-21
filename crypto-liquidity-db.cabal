@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 514edeecfe554137e7d4cd23ac33243f47a4126076c6000f33f6e68da698e257
+-- hash: cdff209bacc310126e88869425e93f8d49e4725fc642ebb5910da361da3d4378
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
       App.Main.ProcessCalc
       App.Main.Util
       App.Main.WebApi
+      App.Main.WebApi.Options
       App.Migrate.Raw
       App.Migrate.Util
       App.Monad
@@ -84,6 +85,7 @@ library
     , lrucache
     , monad-control
     , mtl
+    , optparse-applicative
     , order-graph
     , postgresql-simple
     , pqueue

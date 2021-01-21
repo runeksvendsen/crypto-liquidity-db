@@ -16,6 +16,7 @@ module App.Main.WebApi
 )
 where
 
+import qualified App.Main.WebApi.Options as Opt
 import App.Main.WebApi.Orphans ()
 
 -- crypto-liquidity-db
@@ -60,12 +61,12 @@ import Data.Maybe (fromMaybe)
 
 
 main :: IO ()
-main =
+main = Opt.withArgs $ \args ->
     App.Main.Util.withDbPool
         App.Main.Util.LevelDebug
         (\pool -> do
             let cfg = mkCfg pool
-                port = 8000
+                port = fromIntegral $ Opt.optServerPort args
             putStrLn $ "Running on http://localhost:" ++ show port
             Warp.run port (Cors.simpleCors $ serve api $ mkServer cfg)
         )
