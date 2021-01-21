@@ -9,7 +9,7 @@ module Schema.Path
 , PrimaryKey(type PathId)
   -- * Re-exports
 , UTCTime
-, Word32
+, Int32
 )
 where
 
@@ -20,13 +20,13 @@ import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
 import Data.Time.Clock                      (UTCTime)
 import Database.Beam.Backend.SQL.Types      (SqlSerial(unSerial))
-import Data.Word                            (Word16, Word32)
+import Data.Int                            (Int16, Int32)
 
 
 data PathT f
     = Path
-    { pathId        :: C f (SqlSerial Word32)
-    , pathPartCount :: C f Word16 -- ^ how many 'PathPart' are associated with this 'Path'?
+    { pathId        :: C f (SqlSerial Int32)
+    , pathPartCount :: C f Int16 -- ^ how many 'PathPart' are associated with this 'Path'?
     , pathStart     :: PrimaryKey Currency.CurrencyT f -- ^ where does the path start?
     } deriving Generic
 
@@ -43,7 +43,7 @@ instance Beam.Beamable PathT
 
 instance Beam.Table PathT where
     data PrimaryKey PathT f = PathId
-        (C f (SqlSerial Word32))
+        (C f (SqlSerial Int32))
             deriving Generic
     primaryKey = PathId . pathId
 

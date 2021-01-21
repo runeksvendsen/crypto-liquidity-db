@@ -28,7 +28,7 @@ import qualified Schema.PathPart                          as PP
 import qualified Schema.PathQty                           as PQty
 import           Schema.Venue
                  ( PrimaryKey(VenueId) )
-import Data.Word (Word16)
+import Data.Int (Int16)
 
 
 insertAllPathQtys calcPk pathList = asTx $

@@ -7,7 +7,7 @@
 module Query.Liquidity
 ( selectQuantities
 , LiquidityData(..)
-, PathQty.Word64
+, PathQty.Int64
 )
 where
 
@@ -39,16 +39,16 @@ import Database.Beam.Query.Internal (QNested)
 
 -- |
 getPaths ::
-    ( HasSqlEqualityCheck be Path.Word32
+    ( HasSqlEqualityCheck be Path.Int32
     , HasSqlEqualityCheck be Calc.Int32
     , HasSqlEqualityCheck be Text
-    , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Path.Word32
+    , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Path.Int32
     , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
     )
-    => Run.Word32   -- ^ run id
+    => Run.Int32   -- ^ run id
     -> Text -- ^ numeraire symbol
     -> Text -- ^ currency symbol
-    -> Q be LiquidityDb s (QGenExpr QValueContext be s Double, QGenExpr QValueContext be s PathQty.Word64)
+    -> Q be LiquidityDb s (QGenExpr QValueContext be s Double, QGenExpr QValueContext be s PathQty.Int64)
 getPaths runId numeraireSymbol currencySymbol = do
     (run, calc, pathQty) <- allQuantities (all_ $ runs liquidityDb)
     path <- all_ (paths liquidityDb)
@@ -73,7 +73,7 @@ data LiquidityData = LiquidityData
     , ldNumeraire :: Text
     , ldSlippage :: Double
     , ldCurrency :: Text
-    , ldQty :: PathQty.Word64
+    , ldQty :: PathQty.Int64
     } deriving (Generic)
 
 -- |
@@ -121,11 +121,11 @@ quantitiesLimit fromM toM numeraire slippage limit = do
         all_ (runs liquidityDb)
 
 quantities
-    :: ( HasSqlEqualityCheck be Path.Word32
+    :: ( HasSqlEqualityCheck be Path.Int32
        , HasSqlEqualityCheck be Calc.Int32
        , HasSqlEqualityCheck be Text
        , HasSqlEqualityCheck be Double
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Word64
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Int64
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
        )
@@ -138,7 +138,7 @@ quantities
         , QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Double
         , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s PathQty.Word64
+        , QGenExpr QValueContext be s PathQty.Int64
         )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)

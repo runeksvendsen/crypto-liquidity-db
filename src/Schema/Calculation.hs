@@ -15,7 +15,6 @@ module Schema.Calculation
 , fromCalcId
   -- * Re-exports
 , Run.RunId
-, Run.Word32
 , getRunId
 )
 where

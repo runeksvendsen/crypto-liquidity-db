@@ -5,7 +5,7 @@ allow-newer: true
 extra-deps:
 - logging-3.0.5@sha256:88096d3124fce9a19af3720f751e1a354d866ed5030d2e5197238d2277cdb2f2,2374
 - git: https://github.com/runeksvendsen/crypto-orderbook-db.git
-  commit: b732752ef4be16ab1d8f015f7d1ea3071786ea6a
+  commit: 83003611168eb058cce4b76a754875dcbd89f078
 - git: https://github.com/runeksvendsen/orderbook.git
   commit: b0b7babf47e26538af611210b92adf00b3f79b11
 - git: https://github.com/runeksvendsen/order-graph.git

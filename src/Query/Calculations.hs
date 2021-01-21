@@ -11,7 +11,7 @@ module Query.Calculations
 , selectUnfinishedCalcCount
 , Calculation(..)
 , NominalDiffTime
-, Word64
+, Int64
 )
 where
 
@@ -33,7 +33,7 @@ import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpdateReturningList), MonadBeamInsertReturning(runInsertReturningList))
 import Data.Maybe (fromMaybe)
-import Data.Word (Word64)
+import Data.Int (Int64)
 
 
 data Calculation = Calculation
@@ -66,7 +66,7 @@ startCalculation'
         , BeamSqlBackendSyntax be ~ Pg.PgCommandSyntax
         , FromBackendRow be Calc.Int32
         , FromBackendRow be Text
-        , FromBackendRow be Run.Word32
+        , FromBackendRow be Run.Int32
         , FromBackendRow be Double
         , FromBackendRow be Calc.UTCTime
         , FromBackendRow be SqlNull
@@ -118,15 +118,15 @@ selectStalledCalculations timeout = do
 selectUnfinishedCalcCount
     :: ( MonadBeam be m
        , HasQBuilder be
-       , FromBackendRow be Word64
+       , FromBackendRow be Int64
        , HasSqlEqualityCheck be Double
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) (Maybe Double)
        )
-       => m Word64
+       => m Int64
 selectUnfinishedCalcCount =
     fmap (fromMaybe (error "BUG: selectUnfinishedCalcCount: COUNT returned Nothing")) $ do
         runSelectReturningOne $ select $
-            aggregate_ (const $ as_ @Word64 countAll_) $ do
+            aggregate_ (const $ as_ @Int64 countAll_) $ do
                 calc <- all_ (calculations liquidityDb)
                 guard_ $ Calc.calculationDurationSeconds calc ==. val_ Nothing
                 pure calc
@@ -139,7 +139,7 @@ stalledCalculations timeoutTime = do
 selectAllCalculations
     :: ( MonadBeam be m
        , FromBackendRow be Calc.Int32
-       , FromBackendRow be Calc.Word32
+       , FromBackendRow be Calc.Int32
        , FromBackendRow be Text
        , FromBackendRow be Double
        , FromBackendRow be Calc.UTCTime
@@ -162,10 +162,10 @@ selectMissingCalculations ::
     ( MonadBeam be m
     , BeamSqlBackend be
     , HasQBuilder be
-    , FromBackendRow be Run.Word32
+    , FromBackendRow be Run.Int32
     , FromBackendRow be Text
     , FromBackendRow be Double
-    , HasSqlEqualityCheck be Run.Word32
+    , HasSqlEqualityCheck be Run.Int32
     , HasSqlEqualityCheck be Text
     , HasSqlEqualityCheck be Double
     )
@@ -175,7 +175,7 @@ selectMissingCalculations =
 
 runCurrencyWithNoCalculation ::
     ( HasQBuilder be
-    , HasSqlEqualityCheck be Run.Word32
+    , HasSqlEqualityCheck be Run.Int32
     , HasSqlEqualityCheck be Text
     , HasSqlEqualityCheck be Double
     )

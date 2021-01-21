@@ -56,7 +56,7 @@ liquidityDb :: Beam.DatabaseSettings be LiquidityDb
 liquidityDb = Beam.defaultDbSettings
 
 partsForPath
-    :: Beam.HasSqlEqualityCheck be Path.Word32
+    :: Beam.HasSqlEqualityCheck be Path.Int32
     => Path.PathT (Beam.QExpr be s)
     -> Beam.Q be LiquidityDb s (PathPart.PathPartT (Beam.QExpr be s))
 partsForPath =

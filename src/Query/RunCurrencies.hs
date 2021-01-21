@@ -24,7 +24,7 @@ import Schema.Currency (Int32)
 import Data.Maybe (listToMaybe)
 
 
-insertRunRunCurrencies :: DbTx (Maybe (Book.Word32, [Text]))
+insertRunRunCurrencies :: DbTx (Maybe (Book.Int32, [Text]))
 insertRunRunCurrencies = asTx $ do
     missingCurrenciesM <- selectRunWithoutRunCurrencies
     forM missingCurrenciesM $ \missingCurrencies@(runId, currencys') -> do
@@ -47,11 +47,11 @@ selectRunWithoutRunCurrencies
     :: ( MonadBeam be m
        , BeamSqlBackend be
        , HasQBuilder be
-       , FromBackendRow be Run.Word32
+       , FromBackendRow be Run.Int32
        , FromBackendRow be Text
-       , HasSqlEqualityCheck be Run.Word32
+       , HasSqlEqualityCheck be Run.Int32
        )
-    => m (Maybe (SqlSerial Run.Word32, [Text]))
+    => m (Maybe (SqlSerial Run.Int32, [Text]))
 selectRunWithoutRunCurrencies = do
     listToMaybe . runCurriencies <$> runSelectReturningList (select runWithoutRunCurrencies)
   where
@@ -61,10 +61,10 @@ selectRunWithoutRunCurrencies = do
 
 runWithoutRunCurrencies
     :: ( HasQBuilder be
-       , HasSqlEqualityCheck be Run.Word32
+       , HasSqlEqualityCheck be Run.Int32
        )
     => Q be LiquidityDb s
-        ( QGenExpr QValueContext be s (SqlSerial Run.Word32)
+        ( QGenExpr QValueContext be s (SqlSerial Run.Int32)
         , (QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Text)
         )

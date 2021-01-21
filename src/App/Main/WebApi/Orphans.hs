@@ -63,7 +63,7 @@ instance Json.FromJSON Run.RunId
 
 instance FromHttpApiData Run.RunId where
    parseUrlPiece txt =
-        let mkRunId :: Run.Word32 -> Run.RunId
+        let mkRunId :: Run.Int32 -> Run.RunId
             mkRunId = Run.RunId . SqlSerial
             handleError =
                 maybe (Left $ toS $ "failed to parse run ID from " ++ show txt)

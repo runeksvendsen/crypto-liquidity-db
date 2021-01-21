@@ -8,7 +8,7 @@ module Schema.PathQty
 , PathQty
 , PathQtyId
 , PrimaryKey(type PathQtyId)
-, Word64
+, Int64
 )
 where
 
@@ -19,14 +19,14 @@ import qualified Schema.Calculation as Calc
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
-import Data.Word (Word64)
+import Data.Int (Int64)
 
 
 data PathQtyT f
     = PathQty
     { pathqtyCalc       :: PrimaryKey Calc.CalculationT f
     , pathqtyPath       :: PrimaryKey Path.PathT f
-    , pathqtyQty        :: C f Word64  -- TODO: precise enough?
+    , pathqtyQty        :: C f Int64  -- TODO: precise enough?
     , pathqtyPriceLow   :: C f Double
     , pathqtyPriceHigh  :: C f Double
     } deriving Generic

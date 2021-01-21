@@ -71,7 +71,7 @@ createCalculations =
             (Nothing, []) -> return ()
             _ -> go
 
-insertRunRunCurrencies :: Has DbConn r => AppM r (Maybe (Db.Word32, [Text]))
+insertRunRunCurrencies :: Has DbConn r => AppM r (Maybe (Db.Int32, [Text]))
 insertRunRunCurrencies = do
     resM <- runDbTx Query.insertRunRunCurrencies
     case resM of

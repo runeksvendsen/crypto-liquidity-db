@@ -8,9 +8,9 @@ module App.Main.WebApi
 , API
 , Lib.NominalDiffTime
 , Run.UTCTime
-, Run.Word32
+, Run.Int32
 , Text
-, Lib.Word64
+, Lib.Int64
 , LibCalc.Calculation
 , Currency
 )
@@ -144,7 +144,7 @@ type GetUnfinishedCalcCount =
         :> "calc"
         :> "unfinished"
         :> "count"
-        :> Get '[JSON] Lib.Word64
+        :> Get '[JSON] Lib.Int64
 
 type GetRunBooks =
     Summary "Get run order books"
