@@ -92,7 +92,7 @@ mkServer
 mkServer cfg =
     let timeout = AppLib.cfgMaxCalculationTime $ AppLib.cfgConstants cfg in
     hoistServer (Proxy :: Proxy API)
-                (liftIO . AppLib.runAppM cfg . AppLib.runDbTx . AppLib.asTx)
+                (liftIO . AppLib.runAppM cfg . AppLib.runDbRaw)
                 (server timeout)
 
 server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
