@@ -39,6 +39,7 @@ library:
   - time >= 1.9
   - text
   - vector
+  - scientific # TMP!!
   # App/exe
   - order-graph
   - stm

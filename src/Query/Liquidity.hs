@@ -10,6 +10,7 @@ module Query.Liquidity
 , PathQty.Int64
 , selectTestAllQuantities
 , TestAllQty
+, Scientific
 )
 where
 
@@ -39,7 +40,8 @@ import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
 import Data.Word (Word64)
-
+import Database.Beam.Postgres.Syntax
+import Data.Scientific (Scientific)
 
 -- |
 getPaths ::
@@ -64,8 +66,6 @@ getPaths runId numeraireSymbol currencySymbol = do
         &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
     pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
 
-type TestAllQty = [(Run.Run, PathQty.Int64)]
-
 testAllQuantities
     :: HasSqlEqualityCheck be Path.Int32
     => Q be LiquidityDb s
@@ -76,14 +76,16 @@ testAllQuantities
 testAllQuantities =
     limit_ 1 $ allQuantities (all_ $ runs liquidityDb)
 
+type TestAllQty = [(Run.Run, Scientific)]
+
 selectTestAllQuantities
-    :: Pg.Pg [(Run.Run, PathQty.Int64)]
+    :: Pg.Pg TestAllQty
 selectTestAllQuantities =
     runSelectReturningList $ select $
         aggregate_
             (\(run, _, pathQty) ->
                 ( group_ run
-                , fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
+                , (`cast_` numeric Nothing) $ fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
                 )
             )
         testAllQuantities
