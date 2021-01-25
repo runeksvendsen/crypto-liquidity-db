@@ -6,6 +6,7 @@ module Database
 ( LiquidityDb(..)
 , liquidityDb
 , partsForPath
+, calcsForRun
 )
 where
 
@@ -62,3 +63,11 @@ partsForPath
 partsForPath =
     Beam.oneToMany_ (path_parts liquidityDb)
                     PathPart.pathpartPath
+
+calcsForRun
+    :: Beam.HasSqlEqualityCheck be Currency.Int32
+    => Run.RunT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (Calculation.CalculationT (Beam.QExpr be s))
+calcsForRun =
+    Beam.oneToMany_ (calculations liquidityDb)
+                    Calculation.calculationRun

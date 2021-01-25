@@ -9,6 +9,7 @@ module Query.Calculations
 , selectAllCalculations
 , selectStalledCalculations
 , selectUnfinishedCalcCount
+, unfinishedCalcCount
 , Calculation(..)
 , NominalDiffTime
 , Int64
@@ -126,10 +127,13 @@ selectUnfinishedCalcCount
 selectUnfinishedCalcCount =
     fmap (fromMaybe (error "BUG: selectUnfinishedCalcCount: COUNT returned Nothing")) $ do
         runSelectReturningOne $ select $
-            aggregate_ (const $ as_ @Int64 countAll_) $ do
-                calc <- all_ (calculations liquidityDb)
-                guard_ $ Calc.calculationDurationSeconds calc ==. val_ Nothing
-                pure calc
+            unfinishedCalcCount (all_ (calculations liquidityDb))
+
+unfinishedCalcCount calcQ =
+    aggregate_ (const $ as_ @Int64 countAll_) $ do
+        calc <- calcQ
+        guard_ $ Calc.calculationDurationSeconds calc ==. val_ Nothing
+        pure calc
 
 stalledCalculations timeoutTime = do
     calc' <- all_ (calculations liquidityDb)

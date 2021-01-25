@@ -112,13 +112,22 @@ quantitiesLimit fromM toM numeraire slippage limit = do
   where
     topXCryptosNewestRun = do
         (_, _, _, currency, _) <- quantities
-            newestRun (Just numeraire) (Just slippage) (Just limit)
+            newestFinishedRun (Just numeraire) (Just slippage) (Just limit)
         pure currency
 
-    newestRun =
+    newestFinishedRun =
         limit_ 1 $
         orderBy_ (desc_ . Run.runTimeStart) $
-        all_ (runs liquidityDb)
+        finishedRuns
+
+    finishedRuns = do
+        run <- all_ (runs liquidityDb)
+        guard_ $ not_ $ exists_ $ filter_
+            (\calc -> Calc.calculationRun calc `references_` run
+                &&. Calc.calculationDurationSeconds calc ==. val_ Nothing
+            )
+            (all_ $ calculations liquidityDb)
+        pure run
 
 quantities
     :: ( HasSqlEqualityCheck be Path.Int32
