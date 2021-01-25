@@ -8,6 +8,8 @@ module Query.Liquidity
 ( selectQuantities
 , LiquidityData(..)
 , PathQty.Int64
+, selectTestAllQuantities
+, TestAllQty
 )
 where
 
@@ -61,6 +63,27 @@ getPaths runId numeraireSymbol currencySymbol = do
         &&. Calc.calculationNumeraire calc ==. val_ (Currency.CurrencyId numeraireSymbol)
         &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
     pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
+
+type TestAllQty =
+    ( Run.Run
+    , Calc.Calculation
+    , PathQty.PathQty
+    )
+
+testAllQuantities
+    :: HasSqlEqualityCheck be Path.Int32
+    => Q be LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext be s)
+        , Calc.CalculationT (QGenExpr QValueContext be s)
+        , PathQty.PathQtyT (QGenExpr QValueContext be s)
+        )
+testAllQuantities =
+    limit_ 1 $ allQuantities (all_ $ runs liquidityDb)
+
+selectTestAllQuantities
+    :: Pg.Pg (Maybe (Run.RunT Identity, Calc.CalculationT Identity, PathQty.PathQtyT Identity))
+selectTestAllQuantities =
+    runSelectReturningOne $ select testAllQuantities
 
 allQuantities runQ = do
     run <- runQ

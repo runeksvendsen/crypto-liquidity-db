@@ -103,6 +103,7 @@ server timeout =
     :<|> Lib.selectStalledCalculations timeout
     :<|> Lib.selectUnfinishedCalcCount
     :<|> Query.Books.runBooks
+    :<|> Lib.selectTestAllQuantities
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -114,6 +115,12 @@ type API
     :<|> GetUnfinishedCalcs
     :<|> GetUnfinishedCalcCount
     :<|> GetRunBooks
+    :<|> TestSingleQty
+
+type TestSingleQty =
+       "test"
+    :> "single_qty"
+    :> Get '[JSON] (Maybe Lib.TestAllQty)
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"

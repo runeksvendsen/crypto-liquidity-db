@@ -6,7 +6,11 @@ module App.Main.WebApi.Orphans where
 import Internal.Prelude
 
 -- crypto-liquidity-db
+import qualified Database as Lib
 import qualified Schema.Currency as Lib
+import qualified Schema.PathQty as Lib
+import qualified Schema.Path as Lib
+import qualified Schema.Calculation as Lib
 import qualified Query.Books as Lib
 import qualified Query.Liquidity as Lib
 import qualified Schema.Calculation as LibCalc
@@ -42,6 +46,18 @@ instance Json.ToJSON LibCalc.Calculation where
 instance Json.ToJSON Run.Run where
     toJSON = Json.genericToJSON prefixOptions
 
+instance Json.ToJSON Lib.Path where
+    toJSON = Json.genericToJSON prefixOptions
+
+instance Json.ToJSON Lib.PathQty where
+    toJSON = Json.genericToJSON prefixOptions
+
+instance Json.ToJSON Lib.PathId where
+    toJSON = Json.genericToJSON prefixOptions
+
+instance Json.ToJSON LibCalc.CalculationId where
+    toJSON = Json.genericToJSON prefixOptions
+
 instance Json.ToJSON Lib.LiquidityData where
     toJSON = Json.genericToJSON prefixOptions
 instance Json.FromJSON Lib.LiquidityData where
@@ -60,6 +76,18 @@ instance Json.FromJSON Run.Run where
 
 instance Json.FromJSON Lib.CurrencyId
 instance Json.FromJSON Run.RunId
+
+instance Json.FromJSON Lib.Path where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON Lib.PathQty where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON Lib.PathId where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON LibCalc.CalculationId where
+    parseJSON = Json.genericParseJSON prefixOptions
 
 instance FromHttpApiData Run.RunId where
    parseUrlPiece txt =
