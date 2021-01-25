@@ -5,11 +5,13 @@ module Test
 , testCaseCalc
 , testCaseLiquidity
 , Spec
+, testCaseBooks
 )
 where
 
 import qualified Schema.Calculation as LibCalc
 import qualified Query.Liquidity as Lib
+import qualified Query.Books as Lib
 import Data.Maybe (isJust)
 import Data.List (all)
 
@@ -36,6 +38,13 @@ runTest = return .
                   , ""
                   ]
           in (successState && success, if success then msg else msg ++ failureMsg  )
+
+testCaseBooks
+    :: [Lib.OrderBook Double]
+    -> Spec Int
+testCaseBooks obs =
+        [ ("non-empty order book list", 0, length obs, (/=))
+        ]
 
 testCaseLiquidity
     :: [Lib.LiquidityData]

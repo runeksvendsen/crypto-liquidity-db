@@ -77,6 +77,7 @@ server :: SC.ClientEnv -> ServerT API Handler
 server env = do
     testHandlerRun Test.testCaseCalc allCalculations env
     testHandlerRun Test.testCaseLiquidity allLiquidity' env
+    testHandlerRun Test.testCaseBooks (runBooks (LibCalc.mkRunId 1)) env
     return "Success \\o/"
   where
     allLiquidity' = allLiquidity Nothing Nothing Nothing Nothing Nothing
@@ -106,7 +107,8 @@ allLiquidity
     -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ =
+runBooks :: LibCalc.RunId -> SC.ClientM [Lib.OrderBook Double]
+allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

@@ -16,6 +16,7 @@ module Schema.Calculation
   -- * Re-exports
 , Run.RunId
 , getRunId
+, mkRunId
 )
 where
 
@@ -28,7 +29,7 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 
 import qualified Database.Beam              as Beam
 import           Database.Beam              (C, Identity, PrimaryKey)
-import Database.Beam.Backend (SqlSerial(unSerial))
+import Database.Beam.Backend (SqlSerial(unSerial, SqlSerial))
 import Data.Time (UTCTime)
 import Data.Int (Int32)
 
@@ -83,3 +84,7 @@ instance Beam.Beamable (PrimaryKey CalculationT)
 getRunId :: Calculation -> Run.RunId
 getRunId =
     calculationRun
+
+mkRunId :: Int32 -> Run.RunId
+mkRunId =
+    Run.RunId . SqlSerial
