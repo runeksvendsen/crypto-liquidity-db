@@ -26,7 +26,7 @@ import qualified Schema.PathQty as PathQty
 import qualified Schema.CalculationParameter as CalcParam
 
 import Database.Beam
-import Database.Beam.Backend (BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
+import Database.Beam.Backend (IsSql2008BigIntDataTypeSyntax, BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
 import Database.Beam.Backend.SQL.SQL92
 import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
@@ -142,6 +142,7 @@ quantities
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Int64
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
+       , IsSql2008BigIntDataTypeSyntax (Sql92ExpressionCastTargetSyntax (Sql92UpdateExpressionSyntax (Sql92UpdateSyntax (BeamSqlBackendSyntax be))))
        )
     => Q be LiquidityDb (QNested (QNested (QNested s))) (Run.RunT (QGenExpr QValueContext be (QNested (QNested (QNested s)))))
     -> Maybe Currency
@@ -165,7 +166,19 @@ quantities runQ numeraireM slippageM limitM =
             , group_ (getSymbol $ Calc.calculationNumeraire calc)
             , group_ (Calc.calculationSlippage calc)
             , group_ $ getSymbol (Calc.calculationCurrency calc)
-            , fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
+              -- NB: postgres converts the type of this column to "numeric".
+              -- We need to cast this in order to avoid the following runtime error,
+              --  which happens when beam tries to parse an Int64 from a "numeric".
+              --
+              -- BeamRowReadError {
+              --    brreColumn = Just 6,
+              --    brreError = ColumnTypeMismatch {
+              --       ctmHaskellType = "Integer",
+              --       ctmSQLType = "numeric",
+              --       ctmMessage = "types incompatible"
+              --    }
+              -- }
+            , fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty) `cast_` bigint
             )
         )
         (quantities' runQ numeraireM slippageM)
