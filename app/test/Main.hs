@@ -75,23 +75,38 @@ mkServer env =
 
 server :: SC.ClientEnv -> ServerT API Handler
 server env = do
-    testHandler env
+    testHandlerRun Test.testCaseCalc allCalculations env
+    testHandlerRun Test.testCaseLiquidity allLiquidity' env
+    return "Success \\o/"
+  where
+    allLiquidity' = allLiquidity Nothing Nothing Nothing Nothing Nothing
 
-testHandler :: SC.ClientEnv -> Handler Text
-testHandler env = do
-    calcLstE <- liftIO $ runClientM allCalculations
+testHandlerRun
+    :: Show a
+    => (t -> Test.Spec a)
+    -> SC.ClientM t
+    -> SC.ClientEnv
+    -> Handler ()
+testHandlerRun testCase allCalculations' env = do
+    calcLstE <- liftIO $ runClientM allCalculations'
     calcLst <- either (throw500 . ("allCalculations failed: " ++) . show) return calcLstE
     -- Run tests
-    (success, output) <- liftIO $ Test.runTest (Test.testCase calcLst)
-    if not success
-        then throw500 output
-        else return "Success \\o/"
+    (success, output) <- liftIO $ Test.runTest (testCase calcLst)
+    unless success $
+        throw500 output
   where
     throw500 str = throwError $ err500 { errBody = toS str }
     runClientM = (`SC.runClientM` env)
 
 allCalculations :: SC.ClientM [LibCalc.Calculation]
-_ :<|> _ :<|> allCalculations :<|> _ :<|> _ =
+allLiquidity
+    :: Maybe LibCalc.UTCTime
+    -> Maybe LibCalc.UTCTime
+    -> Maybe App.Main.WebApi.Currency
+    -> Maybe Double
+    -> Maybe Word
+    -> SC.ClientM [Lib.LiquidityData]
+allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

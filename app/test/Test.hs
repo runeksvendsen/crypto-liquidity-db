@@ -2,24 +2,27 @@
 {-# LANGUAGE BangPatterns #-}
 module Test
 ( runTest
-, testCase
+, testCaseCalc
+, testCaseLiquidity
+, Spec
 )
 where
 
 import qualified Schema.Calculation as LibCalc
+import qualified Query.Liquidity as Lib
 import Data.Maybe (isJust)
 import Data.List (all)
 
 
-type Spec =
+type Spec a =
     [   ( String   -- description
-        , [LibCalc.Calculation] -- expected
-        , [LibCalc.Calculation] -- actual
-        , [LibCalc.Calculation] -> [LibCalc.Calculation] -> Bool -- comparison func: @f expected actual@
+        , a -- expected
+        , a -- actual
+        , a -> a -> Bool -- comparison func: @f expected actual@
         )
     ]
 
-runTest :: Spec -> IO (Bool, String)
+runTest :: Show a => Spec a -> IO (Bool, String)
 runTest = return .
     foldl runTest' (True, "")
   where
@@ -34,10 +37,17 @@ runTest = return .
                   ]
           in (successState && success, if success then msg else msg ++ failureMsg  )
 
-testCase
+testCaseLiquidity
+    :: [Lib.LiquidityData]
+    -> Spec [Lib.LiquidityData]
+testCaseLiquidity ld =
+        [ ("non-empty liquidity data", [], ld, (/=))
+        ]
+
+testCaseCalc
     :: [LibCalc.Calculation]
-    -> Spec
-testCase calcs =
+    -> Spec [LibCalc.Calculation]
+testCaseCalc calcs =
         [ ("at least a single calculation", [], calcs, (/=))
         , ("no unfinished calculations", [], unfinishedCalculations calcs, (==))
         ]

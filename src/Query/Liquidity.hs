@@ -74,7 +74,7 @@ data LiquidityData = LiquidityData
     , ldSlippage :: Double
     , ldCurrency :: Text
     , ldQty :: PathQty.Int64
-    } deriving (Generic)
+    } deriving (Eq, Show, Generic)
 
 -- |
 selectQuantities
