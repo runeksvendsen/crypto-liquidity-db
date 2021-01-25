@@ -120,7 +120,7 @@ type API
 type TestSingleQty =
        "test"
     :> "single_qty"
-    :> Get '[JSON] (Maybe Lib.TestAllQty)
+    :> Get '[JSON] Lib.TestAllQty
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"

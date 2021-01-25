@@ -64,11 +64,7 @@ getPaths runId numeraireSymbol currencySymbol = do
         &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
     pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
 
-type TestAllQty =
-    ( Run.Run
-    , Calc.Calculation
-    , PathQty.PathQty
-    )
+type TestAllQty = [(Run.Run, PathQty.Int64)]
 
 testAllQuantities
     :: HasSqlEqualityCheck be Path.Int32
@@ -81,9 +77,16 @@ testAllQuantities =
     limit_ 1 $ allQuantities (all_ $ runs liquidityDb)
 
 selectTestAllQuantities
-    :: Pg.Pg (Maybe (Run.RunT Identity, Calc.CalculationT Identity, PathQty.PathQtyT Identity))
+    :: Pg.Pg [(Run.Run, PathQty.Int64)]
 selectTestAllQuantities =
-    runSelectReturningOne $ select testAllQuantities
+    runSelectReturningList $ select $
+        aggregate_
+            (\(run, _, pathQty) ->
+                ( group_ run
+                , fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
+                )
+            )
+        testAllQuantities
 
 allQuantities runQ = do
     run <- runQ
