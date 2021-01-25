@@ -103,7 +103,7 @@ data LiquidityData = LiquidityData
     , ldNumeraire :: Text
     , ldSlippage :: Double
     , ldCurrency :: Text
-    , ldQty :: Word64
+    , ldQty :: Scientific
     } deriving (Eq, Show, Generic)
 
 -- |
@@ -183,7 +183,7 @@ quantities
         , QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Double
         , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s Word64
+        , QGenExpr QValueContext be s Scientific
         )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
@@ -196,7 +196,7 @@ quantities runQ numeraireM slippageM limitM =
             , group_ (getSymbol $ Calc.calculationNumeraire calc)
             , group_ (Calc.calculationSlippage calc)
             , group_ $ getSymbol (Calc.calculationCurrency calc)
-            , (`cast_` bigint) $ fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
+            , fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty) `cast_` numeric Nothing
             )
         )
         (quantities' runQ numeraireM slippageM)
