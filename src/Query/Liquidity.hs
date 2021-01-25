@@ -122,6 +122,11 @@ quantitiesLimit fromM toM numeraire slippage limit = do
 
     finishedRuns = do
         run <- all_ (runs liquidityDb)
+        -- at least one calculation exists for run
+        guard_ $ exists_ $ filter_
+            (\calc -> Calc.calculationRun calc `references_` run)
+            (all_ $ calculations liquidityDb)
+        -- no unfinished calculation exists for run
         guard_ $ not_ $ exists_ $ filter_
             (\calc -> Calc.calculationRun calc `references_` run
                 &&. Calc.calculationDurationSeconds calc ==. val_ Nothing
