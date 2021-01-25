@@ -26,7 +26,8 @@ import qualified Schema.PathQty as PathQty
 import qualified Schema.CalculationParameter as CalcParam
 
 import Database.Beam
-import Database.Beam.Backend (BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
+import Database.Beam.Backend (IsSql2008BigIntDataTypeSyntax, BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
+import Database.Beam.Query.DataTypes
 import Database.Beam.Backend.SQL.SQL92
 import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
@@ -35,6 +36,7 @@ import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
+import Data.Word (Word64)
 
 
 -- |
@@ -73,7 +75,7 @@ data LiquidityData = LiquidityData
     , ldNumeraire :: Text
     , ldSlippage :: Double
     , ldCurrency :: Text
-    , ldQty :: PathQty.Int64
+    , ldQty :: Word64
     } deriving (Eq, Show, Generic)
 
 -- |
@@ -142,6 +144,7 @@ quantities
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Int64
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
+       , IsSql2008BigIntDataTypeSyntax (Sql92ExpressionCastTargetSyntax (Sql92UpdateExpressionSyntax (Sql92UpdateSyntax (BeamSqlBackendSyntax be))))
        )
     => Q be LiquidityDb (QNested (QNested (QNested s))) (Run.RunT (QGenExpr QValueContext be (QNested (QNested (QNested s)))))
     -> Maybe Currency
@@ -152,7 +155,7 @@ quantities
         , QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Double
         , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s PathQty.Int64
+        , QGenExpr QValueContext be s Word64
         )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
@@ -165,7 +168,7 @@ quantities runQ numeraireM slippageM limitM =
             , group_ (getSymbol $ Calc.calculationNumeraire calc)
             , group_ (Calc.calculationSlippage calc)
             , group_ $ getSymbol (Calc.calculationCurrency calc)
-            , fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
+            , (`cast_` bigint) $ fromMaybe_ (val_ 0) $ sum_ (PathQty.pathqtyQty pathQty)
             )
         )
         (quantities' runQ numeraireM slippageM)
