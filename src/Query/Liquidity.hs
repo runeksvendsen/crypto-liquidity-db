@@ -3,6 +3,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Query.Liquidity
 ( selectQuantities
@@ -42,6 +43,7 @@ getPaths ::
     ( HasSqlEqualityCheck be Path.Int32
     , HasSqlEqualityCheck be Calc.Int32
     , HasSqlEqualityCheck be Text
+    , HasSqlInTable be
     , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Path.Int32
     , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
     )
@@ -50,7 +52,7 @@ getPaths ::
     -> Text -- ^ currency symbol
     -> Q be LiquidityDb s (QGenExpr QValueContext be s Double, QGenExpr QValueContext be s PathQty.Int64)
 getPaths runId numeraireSymbol currencySymbol = do
-    (run, calc, pathQty) <- allQuantities (all_ $ runs liquidityDb)
+    (run, calc, pathQty) <- cryptoQuantities (all_ $ runs liquidityDb)
     path <- all_ (paths liquidityDb)
     guard_ $ PathQty.pathqtyPath pathQty `references_` path
     -- input args
@@ -59,6 +61,35 @@ getPaths runId numeraireSymbol currencySymbol = do
         &&. Calc.calculationNumeraire calc ==. val_ (Currency.CurrencyId numeraireSymbol)
         &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
     pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
+
+-- | Same as 'allQuantities' but ignoring national currencies
+cryptoQuantities runQ = do
+    res@(_, calc, _) <- allQuantities runQ
+    guard_ $ not_ $
+        Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
+    pure res
+  where
+    numeraires =
+        [ "USD"
+        , "EUR"
+        , "GBP"
+        , "JPY"
+        , "AUD"
+        , "CAD"
+        , "CHF"
+        , "CNY"
+        , "HKD"
+        , "NZD"
+        , "SEK"
+        , "KRW"
+        , "SGD"
+        , "NOK"
+        , "MXN"
+        , "INR"
+        , "RUB"
+        , "ZAR"
+        , "TRY"
+        ]
 
 allQuantities runQ = do
     run <- runQ
@@ -139,6 +170,7 @@ quantities
        , HasSqlEqualityCheck be Calc.Int32
        , HasSqlEqualityCheck be Text
        , HasSqlEqualityCheck be Double
+       , HasSqlInTable be
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Int64
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
        , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
@@ -186,7 +218,7 @@ quantities runQ numeraireM slippageM limitM =
     getSymbol (Currency.CurrencyId symbol) = symbol
 
 quantities' runQ numeraireM slippageM = do
-    (run, calc, pathQty) <- allQuantities runQ
+    (run, calc, pathQty) <- cryptoQuantities runQ
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     pure (run, calc, pathQty)
