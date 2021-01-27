@@ -89,9 +89,6 @@ runMigrations migrateFrom = do
                 Migration.migrationFromVersion
 
     setNotInProgress migrationFromVersions =
-        let first : rest = migrationFromVersions
-            fromVersionEquals m val = Migration.migrationFromVersion m ==. val_ val
-        in
         runUpdate $
             update (migrations liquidityDb)
                 (\m -> Migration.migrationInProgress m <-. val_ False)
