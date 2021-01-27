@@ -45,7 +45,7 @@ insertAllPathQtys calcPk pathList = asTx $
                             (sort pathPrices)
 
 insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
-    pathPk <- pathLookupOrInsert pathDescr
+    pathPk <- pathInsert pathDescr
     runInsert $ pathQtyInsert pathPk
   where
     pathQtyInsert pathPk = insert (path_qtys liquidityDb) $
@@ -59,21 +59,14 @@ insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
                                     }
                      ]
 
-pathLookupOrInsert pathDescr = do
-    pathTM <- runSelectReturningOne $ select $ pathLookup pathDescr
-    case pathTM of
-        Just pathPk -> do
-            liftIO $ putStrLn $ "Found existing path " ++ toS (G.showPath pathDescr)
-            return pathPk
-        Nothing -> do
-            pathT <- runInsertReturningOne pathInsert
-            runInsert $ pathPartInsert (pk pathT)
-            liftIO $ putStrLn $ "Inserting new path " ++ toS (G.showPath pathDescr)
-            return (pk pathT)
+pathInsert pathDescr = do
+    pathT <- runInsertReturningOne pathInsert'
+    runInsert $ pathPartInsert (pk pathT)
+    return (pk pathT)
   where
     pathEdges = G.pMoves pathDescr
 
-    pathInsert = insert (paths liquidityDb) $
+    pathInsert' = insert (paths liquidityDb) $
         insertExpressions [ Path.Path default_
                                       (val_ . fromIntegral $ length pathEdges)
                                       (Currency.CurrencyId (val_ . toS $
@@ -89,23 +82,3 @@ pathLookupOrInsert pathDescr = do
                     , PP.pathpartVenue    = VenueId (toS venue)
                     , PP.pathpartCurrency = Currency.CurrencyId (toS currency)
                     }
-
-pathLookup pathDescr = fmap fst $
-    filter_ (\(_, count) -> count ==. val_ moveCount ) $
-    aggregate_ (\path -> (group_ (pk path), countAll_)) $ do
-        path <- all_ (paths liquidityDb)
-        pathPart <- partsForPath path
-        guard_ $
-            Path.pathStart path ==. val_ (Currency.CurrencyId $ toS $ G.pStart pathDescr) &&.
-            Path.pathPartCount path ==. val_ moveCount &&.
-            foldr (\move state -> state ||. pathPart `equals` move) (val_ False) (zip [0..] moveList)
-        pure path
-  where
-    moveCount = fromIntegral $ length moveList
-    currencyIdSymbol (Currency.CurrencyId symbol) = symbol
-    venueIdSymbol (Venue.VenueId venue) = venue
-    moveList = NE.toList $ G.pMoves pathDescr
-    equals pathPart (idx, (venue', currency')) =
-        PP.pathpartIndex pathPart ==. val_ idx
-        &&. venueIdSymbol (PP.pathpartVenue pathPart) ==. val_ (toS venue')
-        &&. currencyIdSymbol (PP.pathpartCurrency pathPart) ==. val_ (toS currency')
