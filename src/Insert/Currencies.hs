@@ -25,10 +25,7 @@ lookupExistingCurrencies [] = do
     currency <- all_ $ currencys liquidityDb
     guard_ (val_ False)
     pure currency
-lookupExistingCurrencies (first : rest) = do
+lookupExistingCurrencies currencyLst = do
     currency <- all_ $ currencys liquidityDb
-    guard_ $ foldr
-        (\inCurr state -> state ||. Currency.currencySymbol currency ==. val_ inCurr)
-        (Currency.currencySymbol currency ==. val_ first)
-        rest
+    guard_ $ Currency.currencySymbol currency `in_` map val_ currencyLst
     pure currency

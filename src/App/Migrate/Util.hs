@@ -95,11 +95,7 @@ runMigrations migrateFrom = do
         runUpdate $
             update (migrations liquidityDb)
                 (\m -> Migration.migrationInProgress m <-. val_ False)
-                (\m -> foldr
-                    (\fromVersion accum -> accum ||. m `fromVersionEquals` fromVersion)
-                    (m `fromVersionEquals` first)
-                    rest
-                )
+                (\m -> Migration.migrationFromVersion m `in_` map val_ migrationFromVersions)
 
     latestFromVersionQ =
         limit_ 1 $

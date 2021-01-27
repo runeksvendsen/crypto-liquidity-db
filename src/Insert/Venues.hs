@@ -28,10 +28,7 @@ lookupExistingVenues [] = do
     venue <- all_ $ venues liquidityDb
     guard_ (val_ False)
     pure venue
-lookupExistingVenues (first : rest) = do
+lookupExistingVenues venueLst = do
     venue <- all_ $ venues liquidityDb
-    guard_ $ foldr
-        (\inCurr state -> state ||. Venue.venueName venue ==. val_ inCurr)
-        (Venue.venueName venue ==. val_ first)
-        rest
+    guard_ $ Venue.venueName venue `in_` map val_ venueLst
     pure venue
