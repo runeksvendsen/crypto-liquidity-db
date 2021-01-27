@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cdff209bacc310126e88869425e93f8d49e4725fc642ebb5910da361da3d4378
+-- hash: 78421363ff12a2fabf353369fb8f74a065819768ecdf9574f47f332c7a28b331
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -93,6 +93,7 @@ library
     , protolude
     , resource-pool
     , retry
+    , scientific
     , servant-server
     , stm
     , text

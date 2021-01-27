@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 {-# LANGUAGE GADTs #-}
@@ -36,6 +37,7 @@ import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
+import Data.Scientific (Scientific)
 
 
 -- |
@@ -104,7 +106,7 @@ data LiquidityData = LiquidityData
     , ldNumeraire :: Text
     , ldSlippage :: Double
     , ldCurrency :: Text
-    , ldQty :: PathQty.Int64
+    , ldQty :: Scientific
     } deriving (Eq, Show, Generic)
 
 -- |
@@ -185,7 +187,7 @@ quantities
         , QGenExpr QValueContext be s Text
         , QGenExpr QValueContext be s Double
         , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s PathQty.Int64
+        , QGenExpr QValueContext be s Scientific
         )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
@@ -210,12 +212,24 @@ quantities runQ numeraireM slippageM limitM =
               --       ctmMessage = "types incompatible"
               --    }
               -- }
-            , fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty) `cast_` bigint
+
+            , let lel = \pathQty' -> as_ @Scientific $ fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty') -- :: QExpr be s Scientific -> QGenExpr QAggregateContext be s Scientific
+                  ha = pathQty
+              in lel ha
             )
         )
         (quantities' runQ numeraireM slippageM)
   where
     getSymbol (Currency.CurrencyId symbol) = symbol
+
+sumPathQty
+    :: ( BeamSqlBackend be
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Scientific
+       )
+       => PathQty.PathQtyT f
+       -> QGenExpr QAggregateContext be s Scientific
+sumPathQty pathQty =
+    as_ @Scientific $ fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty)
 
 quantities' runQ numeraireM slippageM = do
     (run, calc, pathQty) <- cryptoQuantities runQ
