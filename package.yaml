@@ -65,6 +65,7 @@ library:
   - aeson-casing # WebApi
   - wai-cors # WebApi
   - optparse-applicative # WebApi
+  - wai-extra # WebApi
 
 executables:
   crypto-liquidity-service-process:

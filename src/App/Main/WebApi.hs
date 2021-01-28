@@ -45,6 +45,8 @@ import qualified OrderBook.Graph.Types.Book as G
 import qualified Database.Beam.Postgres as Pg
 -- wai-cors
 import qualified Network.Wai.Middleware.Cors as Cors
+-- wai-extra
+import qualified Network.Wai.Middleware.RequestLogger as RL
 
 
 import Control.Monad.IO.Class
@@ -68,11 +70,12 @@ main = Opt.withArgs $ \args ->
             let cfg = mkCfg pool
                 port = fromIntegral $ Opt.optServerPort args
             putStrLn $ "Running on http://localhost:" ++ show port
-            Warp.run port (Cors.simpleCors $ serve api $ mkServer cfg)
+            Warp.run port (middleware $ serve api $ mkServer cfg)
         )
   where
     api :: Proxy API
     api = Proxy
+    middleware = RL.logStdoutDev . Cors.simpleCors
     mkCfg pool = AppLib.Config
         { cfgConstants =
             CfgConstants

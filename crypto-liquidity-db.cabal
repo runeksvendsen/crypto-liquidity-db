@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: cdff209bacc310126e88869425e93f8d49e4725fc642ebb5910da361da3d4378
+-- hash: 22ca023c10f74c9e2b21df88ec6b04d0d3afd496c07d2b2e8b2b69c37e6f0c9e
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -101,6 +101,7 @@ library
     , transformers-base
     , vector
     , wai-cors
+    , wai-extra
     , warp
   default-language: Haskell2010
 
