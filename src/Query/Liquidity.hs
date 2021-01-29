@@ -241,7 +241,7 @@ selectTestPathsSingle currency numeraireM slippageM = fmap convert $
     runSelectReturningList $ select $
         testPathsSingle (all_ $ runs liquidityDb) numeraireM slippageM currency
   where
-    convert = map (fmap (map (fmap (map (fmap $ prettyPathParts undefined) . fromPathList)) . fromCalcList)) . fromRunList
+    convert = map (fmap (map (fmap (map (fmap $ prettyPathParts (toS currency)) . fromPathList)) . fromCalcList)) . fromRunList
 
     fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
                 -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]
@@ -271,15 +271,6 @@ prettyPathParts start ppLst =
             ]
         getVenue (Venue.VenueId venueTxt) = venueTxt
     in start <> T.intercalate " " (map venueArrowTo $ sortOn PathPart.pathpartIndex ppLst)
-
--- testPP =
---   where mkPP (idx, (venue, currency)) =
---     PathPart.PathPart
---         { PathPart.pathpartPath      = undefined
---         , PathPart.pathpartIndex     = undefined
---         , PathPart.pathpartVenue     = undefined
---         , PathPart.pathpartCurrency  = undefined
---         }
 
 newtype UsingId a = UsingId { getUsingId :: a }
 
