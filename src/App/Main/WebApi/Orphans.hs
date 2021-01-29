@@ -9,6 +9,8 @@ import Internal.Prelude
 import qualified Schema.Currency as Lib
 import qualified Query.Books as Lib
 import qualified Query.Liquidity as Lib
+import qualified Schema.Path as Lib
+import qualified Schema.PathQty as Lib
 import qualified Schema.Calculation as LibCalc
 
 -- crypto-orderbook-db
@@ -46,6 +48,21 @@ instance Json.ToJSON Lib.LiquidityData where
     toJSON = Json.genericToJSON prefixOptions
 instance Json.FromJSON Lib.LiquidityData where
     parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.ToJSON Lib.PathQty where
+    toJSON = Json.genericToJSON prefixOptions
+instance Json.FromJSON Lib.PathQty where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.ToJSON Lib.Path where
+    toJSON = Json.genericToJSON prefixOptions
+instance Json.FromJSON Lib.Path where
+    parseJSON = Json.genericParseJSON prefixOptions
+
+instance Json.FromJSON LibCalc.CalculationId
+instance Json.ToJSON LibCalc.CalculationId
+instance Json.FromJSON Lib.PathId
+instance Json.ToJSON Lib.PathId
 
 instance Json.ToJSON Lib.CurrencyId
 instance Json.ToJSON Run.RunId

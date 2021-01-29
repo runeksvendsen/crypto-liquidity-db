@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 
 {-# LANGUAGE GADTs #-}
@@ -9,6 +10,8 @@ module Query.Liquidity
 ( selectQuantities
 , LiquidityData(..)
 , PathQty.Int64
+, selectTestPathsSingle
+, TestPathsSingleRes
 )
 where
 
@@ -19,6 +22,7 @@ import qualified App.Util
 import Database
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 import qualified Schema.Currency as Currency
+import qualified Schema.Venue as Venue
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calc
 import qualified Schema.Path as Path
@@ -33,34 +37,18 @@ import qualified Database.Beam.Postgres.Full as Pg
 import qualified Database.Beam.Postgres as Pg
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamUpdateReturning(runUpdateReturningList), MonadBeamInsertReturning(runInsertReturningList))
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text as T
 import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
+import Data.Bifunctor (Bifunctor(first))
 
 
--- |
-getPaths ::
-    ( HasSqlEqualityCheck be Path.Int32
-    , HasSqlEqualityCheck be Calc.Int32
-    , HasSqlEqualityCheck be Text
-    , HasSqlInTable be
-    , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Path.Int32
-    , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
-    )
-    => Run.Int32   -- ^ run id
-    -> Text -- ^ numeraire symbol
-    -> Text -- ^ currency symbol
-    -> Q be LiquidityDb s (QGenExpr QValueContext be s Double, QGenExpr QValueContext be s PathQty.Int64)
-getPaths runId numeraireSymbol currencySymbol = do
-    (run, calc, pathQty) <- cryptoQuantities (all_ $ runs liquidityDb)
-    path <- all_ (paths liquidityDb)
-    guard_ $ PathQty.pathqtyPath pathQty `references_` path
-    -- input args
-    guard_ $
-        Run.runId run ==. val_ (fromInteger $ fromIntegral runId)
-        &&. Calc.calculationNumeraire calc ==. val_ (Currency.CurrencyId numeraireSymbol)
-        &&. Calc.calculationCurrency calc ==. val_ (Currency.CurrencyId currencySymbol)
-    pure (Calc.calculationSlippage calc, PathQty.pathqtyQty pathQty)
+allQuantities runQ = do
+    run <- runQ
+    calc <- calcsForRun run
+    pathQty <- qtysForCalc calc
+    pure (run, calc, pathQty)
 
 -- | Same as 'allQuantities' but ignoring national currencies
 cryptoQuantities runQ = do
@@ -90,14 +78,6 @@ cryptoQuantities runQ = do
         , "ZAR"
         , "TRY"
         ]
-
-allQuantities runQ = do
-    run <- runQ
-    calc <- all_ (calculations liquidityDb)
-    guard_ $ Calc.calculationRun calc `references_` run
-    pathQty <- all_ (path_qtys liquidityDb)
-    guard_ $ PathQty.pathqtyCalc pathQty `references_` calc
-    pure (run, calc, pathQty)
 
 data LiquidityData = LiquidityData
     { ldRun :: Run.Run
@@ -210,8 +190,8 @@ quantities runQ numeraireM slippageM limitM =
             )
         )
         (quantities' runQ numeraireM slippageM)
-  where
-    getSymbol (Currency.CurrencyId symbol) = symbol
+
+getSymbol (Currency.CurrencyId symbol) = symbol
 
 quantities' runQ numeraireM slippageM = do
     (run, calc, pathQty) <- cryptoQuantities runQ
@@ -219,5 +199,120 @@ quantities' runQ numeraireM slippageM = do
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     pure (run, calc, pathQty)
 
+-- runCalcs runQ numeraireM slippageM = do
+--     run <- runQ
+--     let calcsQuery = do
+--             calc <- calcsForRun run
+--             forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
+--             forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
+--             pure (Calc.calculationId calc, Calc.calculationCurrency calc)
+--     pure (run, Pg.arrayOf_ calcsQuery)
+
+-- test123 runQ numeraireM slippageM =
+--     runSelectReturningList $ select $
+--         runCalcs runQ numeraireM slippageM
+
+-- data CalcTest f = CalcTest
+--     { blahInt32 :: C f Path.Int32
+--     , blahSlippage :: C f Double
+--     }
+
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
+
+testPathsSingle runQ numeraireM slippageM currency = do
+    (run, calc, pathQty) <- quantities' runQ numeraireM slippageM
+    path <- all_ $ paths liquidityDb
+    guard_ $ pk path ==. PathQty.pathqtyPath pathQty
+    path_part <- partsForPath path
+    -- TMP
+    guard_ $ Calc.calculationCurrency calc ==. Currency.CurrencyId (val_ $ toS currency)
+    -- TMP
+    return (run, (calc, ((pathQty, path), path_part)))
+
+type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [((PathQty.PathQty, Path.Path), Text)])])]
+
+selectTestPathsSingle
+    :: Currency
+    -> Maybe Currency
+    -> Maybe Double
+    -> Pg.Pg TestPathsSingleRes
+selectTestPathsSingle currency numeraireM slippageM = fmap convert $
+    runSelectReturningList $ select $
+        testPathsSingle (all_ $ runs liquidityDb) numeraireM slippageM currency
+  where
+    convert = map (fmap (map (fmap (map (fmap $ prettyPathParts undefined) . fromPathList)) . fromCalcList)) . fromRunList
+
+    fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
+                -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]
+    fromRunList = groupNestByFst
+
+    fromCalcList :: [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))]
+                 -> [(Calc.Calculation, [((PathQty.PathQty, Path.Path), PathPart.PathPart)])]
+    fromCalcList = groupNestByFst
+
+    fromPathList :: [((PathQty.PathQty, Path.Path), PathPart.PathPart)]
+                 -> [((PathQty.PathQty, Path.Path), [PathPart.PathPart])]
+    fromPathList = groupNestByFst
+
+    groupNestByFst :: Ord (UsingId b1) => [(b1, b2)] -> [(b1, [b2])]
+    groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
+
+prettyPathParts
+    :: Text -- start currency
+    -> [PathPart.PathPart]
+    -> Text -- path description
+prettyPathParts start ppLst =
+    let venueArrowTo pp = T.concat --     --bitfinex--> BTC
+            [ "--"
+            , getVenue (PathPart.pathpartVenue pp)
+            , "--> "
+            , getSymbol (PathPart.pathpartCurrency pp)
+            ]
+        getVenue (Venue.VenueId venueTxt) = venueTxt
+    in start <> T.intercalate " " (map venueArrowTo $ sortOn PathPart.pathpartIndex ppLst)
+
+-- testPP =
+--   where mkPP (idx, (venue, currency)) =
+--     PathPart.PathPart
+--         { PathPart.pathpartPath      = undefined
+--         , PathPart.pathpartIndex     = undefined
+--         , PathPart.pathpartVenue     = undefined
+--         , PathPart.pathpartCurrency  = undefined
+--         }
+
+newtype UsingId a = UsingId { getUsingId :: a }
+
+instance Eq (UsingId Calc.Calculation) where
+    UsingId a1 == UsingId a2 =
+        Calc.calculationId a1 == Calc.calculationId a2
+
+instance Ord (UsingId Calc.Calculation) where
+    UsingId a1 `compare` UsingId a2 =
+        Calc.calculationId a1 `compare` Calc.calculationId a2
+
+instance Eq (UsingId Run.Run) where
+    UsingId a1 == UsingId a2 =
+        Run.runId a1 == Run.runId a2
+
+instance Ord (UsingId Run.Run) where
+    UsingId a1 `compare` UsingId a2 =
+        Run.runId a1 `compare` Run.runId a2
+
+instance Eq (UsingId (PathQty.PathQty, Path.Path)) where
+    UsingId (_, a1) == UsingId (_, a2) =
+        Path.pathId a1 == Path.pathId a2
+
+instance Ord (UsingId (PathQty.PathQty, Path.Path)) where
+    UsingId (_, a1) `compare` UsingId (_, a2) =
+        Path.pathId a1 `compare` Path.pathId a2
+
+groupNest
+    :: Ord key
+    => (a -> key)
+    -> (a -> b)
+    -> [a]
+    -> [(key, [b])]
+groupNest groupF nestF lst' =
+    map (\lst -> (groupF $ head lst, map nestF lst)) $
+        groupOn groupF lst'

@@ -108,7 +108,7 @@ allLiquidity
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
 runBooks :: LibCalc.RunId -> SC.ClientM [Lib.OrderBook Double]
-allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks =
+allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

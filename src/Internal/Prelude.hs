@@ -16,7 +16,7 @@ import Data.Text as Export (Text)
 import Control.Monad as Export
 import Protolude.Conv (toS)
 import Database.Beam.Backend.SQL.BeamExtensions (MonadBeamInsertReturning(runInsertReturningList))
-import Data.List (groupBy, sortOn)
+import Data.List as Export (groupBy, sortOn)
 import Data.Time.Clock (NominalDiffTime)
 import Data.String (IsString(..))
 

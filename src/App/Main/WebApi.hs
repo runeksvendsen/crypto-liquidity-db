@@ -106,6 +106,7 @@ server timeout =
     :<|> Lib.selectStalledCalculations timeout
     :<|> Lib.selectUnfinishedCalcCount
     :<|> Query.Books.runBooks
+    :<|> Lib.selectTestPathsSingle
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -117,6 +118,7 @@ type API
     :<|> GetUnfinishedCalcs
     :<|> GetUnfinishedCalcCount
     :<|> GetRunBooks
+    :<|> TestPathsSingle
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
@@ -128,7 +130,6 @@ type Liquidity (currencies :: k) =
         :> QueryParam "slippage" Double
         :> QueryParam "limit" Word
         :> Get '[JSON] [Lib.LiquidityData]
-
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"
@@ -156,3 +157,12 @@ type GetRunBooks =
         :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
         :> "books"
         :> Get '[JSON] [G.OrderBook Double]
+
+type TestPathsSingle =
+    Summary "TODO"
+        :> "liquidity"
+        :> "test_paths"
+        :> Capture' '[Description "A currency symbol"] "currency_symbol" Currency
+        :> QueryParam "numeraire" Currency
+        :> QueryParam "slippage" Double
+        :> Get '[JSON] Lib.TestPathsSingleRes
