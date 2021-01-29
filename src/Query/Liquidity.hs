@@ -230,7 +230,7 @@ testPathsSingle runQ numeraireM slippageM currency = do
     -- TMP
     return (run, (calc, ((pathQty, path), path_part)))
 
-type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [((PathQty.PathQty, Path.Path), Text)])])]
+type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Text)])])]
 
 selectTestPathsSingle
     :: Currency
@@ -243,7 +243,7 @@ selectTestPathsSingle currency numeraireM slippageM = fmap convert $
   where
     convert = map (fmap (map (fmap (map mkPrettyPathParts . fromPathList)) . fromCalcList)) . fromRunList
 
-    mkPrettyPathParts (resFst@(_, path), ppList) = (resFst, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
+    mkPrettyPathParts ((pathQty, path), ppList) = (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
 
     fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
                 -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]
