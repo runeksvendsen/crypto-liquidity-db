@@ -272,7 +272,7 @@ prettyPathParts start ppLst =
             , getSymbol (PathPart.pathpartCurrency pp)
             ]
         getVenue (Venue.VenueId venueTxt) = venueTxt
-    in start <> T.intercalate " " (start : map venueArrowTo (sortOn PathPart.pathpartIndex ppLst))
+    in T.intercalate " " (start : map venueArrowTo (sortOn PathPart.pathpartIndex ppLst))
 
 newtype UsingId a = UsingId { getUsingId :: a }
 
