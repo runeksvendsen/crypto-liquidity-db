@@ -1,0 +1,1 @@
+CREATE INDEX unstarted_calculations ON calculations (run__id, id) WHERE start_time IS NULL;
