@@ -59,7 +59,13 @@ runInsertCalculation calc = do
                 let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
                 Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
                 asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
-            logInfo "Process" $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
+            logInfo "Process" $
+                printf "Inserted quantities for crypto %s (%s) @ %f. Buy qty: %d, sell qty: %d"
+                       (toS crypto :: String)
+                       (toS numeraire :: String)
+                       slippage
+                       (round $ sum $ map G.pQty buyPaths :: Calc.Int64)
+                       (round $ sum $ map G.pQty sellPaths :: Calc.Int64)
   where
     numeraire = toS $ Calc.calcNumeraire calc
     crypto = toS $ Calc.calcCrypto calc
