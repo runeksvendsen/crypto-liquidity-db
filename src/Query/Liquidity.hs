@@ -236,14 +236,25 @@ selectTestPathsSingle
     :: Currency
     -> Maybe Currency
     -> Maybe Double
+    -> Maybe Run.RunId
     -> Pg.Pg TestPathsSingleRes
-selectTestPathsSingle currency numeraireM slippageM = fmap convert $
+selectTestPathsSingle currency numeraireM slippageM runM = fmap convert $
     runSelectReturningList $ select $
-        testPathsSingle (all_ $ runs liquidityDb) numeraireM slippageM currency
+        orderBy_ getPathQty $
+        testPathsSingle runQ numeraireM slippageM currency
   where
+    runQ = do
+        run <- all_ (runs liquidityDb)
+        forM_ runM $ \runId ->
+            guard_ $ val_ runId `references_` run
+        pure run
+
+    getPathQty (run, (calc, ((pathQty, path), path_part))) = desc_ $ PathQty.pathqtyQty pathQty
+
     convert = map (fmap (map (fmap (map mkPrettyPathParts . fromPathList)) . fromCalcList)) . fromRunList
 
-    mkPrettyPathParts ((pathQty, path), ppList) = (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
+    mkPrettyPathParts ((pathQty, path), ppList) =
+        (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
 
     fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
                 -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]

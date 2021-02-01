@@ -165,4 +165,5 @@ type TestPathsSingle =
         :> Capture' '[Description "A currency symbol"] "currency_symbol" Currency
         :> QueryParam "numeraire" Currency
         :> QueryParam "slippage" Double
+        :> QueryParam "run_id" Run.RunId
         :> Get '[JSON] Lib.TestPathsSingleRes
