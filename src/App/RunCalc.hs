@@ -35,6 +35,9 @@ import Data.List (intercalate)
 graphCache :: LRU.AtomicLRU (Db.RunId, Double) G.IBuyGraph
 graphCache = unsafePerformIO $ LRU.newAtomicLRU (Just 10)
 
+{-# NOINLINE bookCache #-}
+bookCache :: LRU.AtomicLRU Db.RunId [Books.OrderBook Double]
+bookCache = unsafePerformIO $ LRU.newAtomicLRU (Just 5)
 
 -- TODO: update:
 --   * calculationStartTime
@@ -75,8 +78,15 @@ runInsertCalculation calc = do
     cacheKey = (runId, slippage)
     logger :: Monad m => String -> m ()
     logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
+    fetchRunBook = do
+        runBooksM <- lift $ LRU.lookup runId bookCache
+        let fetchUpdateCache = do
+                books <- runDbRaw $ Books.runBooks runId
+                lift $ LRU.insert runId books bookCache
+                return books
+        maybe fetchUpdateCache return runBooksM
     buildGraphAndCache = do
-        books <- runDbRaw $ Books.runBooks runId -- look up order books
+        books <- fetchRunBook -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
             (fmap snd . ST.stToIO . G.buildBuyGraph logger (toRational slippage)) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache
