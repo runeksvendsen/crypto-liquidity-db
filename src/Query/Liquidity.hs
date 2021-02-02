@@ -53,9 +53,11 @@ allQuantities runQ = do
 -- | Same as 'allQuantities' but ignoring national currencies
 cryptoQuantities runQ = do
     res@(_, calc, _) <- allQuantities runQ
-    guard_ $ not_ $
-        Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
+    guard_ $ isCrypto calc
     pure res
+
+isCrypto calc = do
+    not_ $ Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
   where
     numeraires =
         [ "USD"
@@ -118,28 +120,24 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
 
 quantitiesLimit fromM toM numeraire slippage limit = do
     res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) (Just numeraire) (Just slippage) Nothing
-    guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptosNewestRun)
+    guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
-    topXCryptosNewestRun = do
-        (_, _, _, currency, _) <- quantities
-            newestFinishedRun (Just numeraire) (Just slippage) (Just limit)
-        pure currency
+    topXCryptos = topCurrencies (Just limit)
 
-    newestFinishedRun =
-        limit_ 1 $
-        orderBy_ (desc_ . Run.runTimeStart) $
-        finishedRuns
-
-    finishedRuns = do
-        run <- all_ (runs liquidityDb)
-        -- at least one calculation exists for run
-        guard_ $ exists_ (calcsForRun run)
-        -- no unfinished calculation exists for run
-        guard_ $ not_ $ exists_ $ filter_
-            (\calc -> Calc.calculationDurationSeconds calc ==. val_ Nothing)
-            (calcsForRun run)
-        pure run
+    topCurrencies limitM = fmap fst $ do
+        limitQ limitM $
+            orderBy_ (desc_ . snd) $
+                aggregate_
+                    (\(currency, qty) ->
+                        ( group_ currency
+                        , fromMaybe_ (val_ 0) (sum_ qty) `cast_` bigint
+                        )
+                    ) $ do
+                        calc <- all_ (calculations liquidityDb)
+                        guard_ $ isCrypto calc
+                        pathQty <- qtysForCalc calc
+                        pure (getSymbol $ Calc.calculationCurrency calc, PathQty.pathqtyQty pathQty)
 
 quantities
     :: ( HasSqlEqualityCheck be Path.Int32
@@ -320,3 +318,6 @@ groupNest
 groupNest groupF nestF lst' =
     map (\lst -> (groupF $ head lst, map nestF lst)) $
         groupOn groupF lst'
+
+limitQ limitM =
+    maybe (offset_ 0) (limit_ . fromIntegral) limitM
