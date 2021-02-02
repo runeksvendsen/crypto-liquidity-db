@@ -134,32 +134,19 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         pure (getSymbol $ Calc.calculationCurrency calc, PathQty.pathqtyQty pathQty)
 
 quantities
-    :: ( HasSqlEqualityCheck be Path.Int32
-       , HasSqlEqualityCheck be Calc.Int32
-       , HasSqlEqualityCheck be Text
-       , HasSqlEqualityCheck be Double
-       , HasSqlInTable be
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathQty.Int64
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
-       , IsSql2008BigIntDataTypeSyntax (Sql92ExpressionCastTargetSyntax (Sql92UpdateExpressionSyntax (Sql92UpdateSyntax (BeamSqlBackendSyntax be))))
-       )
-    => Q be LiquidityDb (QNested (QNested (QNested s))) (Run.RunT (QGenExpr QValueContext be (QNested (QNested (QNested s)))))
+    :: Q Pg.Postgres LiquidityDb (QNested (QNested s)) (Run.RunT (QExpr Pg.Postgres (QNested (QNested s))))
     -> Maybe Currency
     -> Maybe Double
     -> Maybe Word
-    -> Q be LiquidityDb s
-        ( Run.RunT (QGenExpr QValueContext be s)
-        , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s Double
-        , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s PathQty.Int64
+    -> Q Pg.Postgres LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
+        , QGenExpr QValueContext Pg.Postgres s Text
+        , QGenExpr QValueContext Pg.Postgres s Double
+        , QGenExpr QValueContext Pg.Postgres s Text
+        , QGenExpr QValueContext Pg.Postgres s PathQty.Int64
         )
 quantities runQ numeraireM slippageM limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
-    orderBy_ (\(run, numeraire, slippage, _, qty) ->
-        (asc_ numeraire, asc_ slippage, asc_ $ Run.runId run, desc_ qty)
-    ) $
     aggregate_
         (\(run, calc, pathQty) ->
             ( group_ run
