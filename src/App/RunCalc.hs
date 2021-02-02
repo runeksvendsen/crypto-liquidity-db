@@ -84,7 +84,8 @@ runInsertCalculation calc = do
                 books <- runDbRaw $ Books.runBooks runId
                 lift $ LRU.insert runId books bookCache
                 return books
-        maybe fetchUpdateCache return runBooksM
+            logCacheHit = logInfo "Process/Cache/Books" ("Cache hit for " ++ show runId)
+        maybe fetchUpdateCache (\books -> logCacheHit >> return books) runBooksM
     buildGraphAndCache = do
         books <- fetchRunBook -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
