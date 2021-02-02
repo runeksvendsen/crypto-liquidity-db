@@ -50,12 +50,6 @@ allQuantities runQ = do
     pathQty <- qtysForCalc calc
     pure (run, calc, pathQty)
 
--- | Same as 'allQuantities' but ignoring national currencies
-cryptoQuantities runQ = do
-    res@(_, calc, _) <- allQuantities runQ
-    guard_ $ isCrypto calc
-    pure res
-
 isCrypto calc = do
     not_ $ Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
   where
@@ -192,28 +186,10 @@ quantities runQ numeraireM slippageM limitM =
 getSymbol (Currency.CurrencyId symbol) = symbol
 
 quantities' runQ numeraireM slippageM = do
-    (run, calc, pathQty) <- cryptoQuantities runQ
+    (run, calc, pathQty) <- allQuantities runQ
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     pure (run, calc, pathQty)
-
--- runCalcs runQ numeraireM slippageM = do
---     run <- runQ
---     let calcsQuery = do
---             calc <- calcsForRun run
---             forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
---             forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
---             pure (Calc.calculationId calc, Calc.calculationCurrency calc)
---     pure (run, Pg.arrayOf_ calcsQuery)
-
--- test123 runQ numeraireM slippageM =
---     runSelectReturningList $ select $
---         runCalcs runQ numeraireM slippageM
-
--- data CalcTest f = CalcTest
---     { blahInt32 :: C f Path.Int32
---     , blahSlippage :: C f Double
---     }
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
