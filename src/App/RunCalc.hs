@@ -85,7 +85,8 @@ runInsertCalculation calc = do
                 lift $ LRU.insert runId books bookCache
                 return books
             logCacheHit = logInfo "Process/Cache/Books" ("Cache hit for " ++ show runId)
-        maybe fetchUpdateCache (\books -> logCacheHit >> return books) runBooksM
+            logCacheMiss = logDebug "Process/Cache/Books" ("Miss for " ++ show runId)
+        maybe (logCacheMiss >> fetchUpdateCache) (\books -> logCacheHit >> return books) runBooksM
     buildGraphAndCache = do
         books <- fetchRunBook -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
