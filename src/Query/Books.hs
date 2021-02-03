@@ -32,7 +32,7 @@ convertBook Books.OB{..} =
         (toS obBase)
         (toS obQuote)
   where
-    convertOrder (qty, price) = G.mkOrder qty price
+    convertOrder (price, qty) = G.mkOrder qty price
 
 -- subquery _ = aggregate_
 --     (\(bookId, order) ->
