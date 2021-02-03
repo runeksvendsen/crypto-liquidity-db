@@ -43,23 +43,18 @@ data Calculation = Calculation
     , calcCrypto :: Text
     }
 
-
 startCalculation :: Calc.UTCTime -> Pg.Pg (Maybe Calculation)
 startCalculation now = do
     calcM <- startCalculation' now
     case calcM of
         Nothing -> return Nothing
-        Just calc -> do
-            let errMsg = "getSymbols returned Nothing for calc: " ++ show calc
-            (numeraire, crypto) <- fromMaybe (error errMsg) <$> runSelectReturningOne (select $ getSymbols calc)
-            return $ Just $ Calculation calc numeraire crypto
+        Just calc ->
+            return $ Just $
+                Calculation calc
+                            (getSymbol $ Calc.calculationNumeraire calc)
+                            (getSymbol $ Calc.calculationCurrency calc)
   where
-    getSymbols calc = do
-        numeraire <- all_ (currencys liquidityDb)
-        crypto <- all_ (currencys liquidityDb)
-        guard_ $ val_ (Calc.calculationNumeraire calc) ==. pk numeraire
-        guard_ $ val_ (Calc.calculationCurrency calc) ==. pk crypto
-        return (Currency.currencySymbol numeraire, Currency.currencySymbol crypto)
+    getSymbol (Currency.CurrencyId txt) = txt
 
 
 startCalculation'
