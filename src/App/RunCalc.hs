@@ -77,7 +77,7 @@ runInsertCalculation calc = do
     dbCalc = Calc.calcCalc calc
     cacheKey = (runId, slippage)
     logger :: Monad m => String -> m ()
-    logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
+    logger = return . unsafePerformIO . App.Log.logDebug (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
     fetchRunBook = do
         runBooksM <- lift $ LRU.lookup runId bookCache
         let fetchUpdateCache = do
