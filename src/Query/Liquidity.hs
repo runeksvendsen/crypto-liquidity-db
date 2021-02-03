@@ -107,13 +107,19 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         (Just limit, Just numeraire, Just slippage, []) ->
             quantitiesLimit fromM toM numeraire slippage limit
         _ -> do
-            res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) numeraireM slippageM Nothing
+            res@(_, _, _, currency, _) <- quantities (runsWithinTime fromM toM) numeraireM slippageM Nothing
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
 
+runsWithinTime fromM toM = do
+    run <- all_ $ runs liquidityDb
+    forM_ fromM $ \fromTime -> guard_ $ Run.runTimeStart run >=. val_ fromTime
+    forM_ toM $ \endTime -> guard_ $ Run.runTimeEnd run <=. val_ endTime
+    pure run
+
 quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, _, _, currency, _) <- quantities (all_ $ runs liquidityDb) (Just numeraire) (Just slippage) Nothing
+    res@(_, _, _, currency, _) <- quantities (runsWithinTime fromM toM) (Just numeraire) (Just slippage) Nothing
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -128,7 +134,8 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         , fromMaybe_ (val_ 0) (sum_ qty) `cast_` bigint
                         )
                     ) $ do
-                        calc <- all_ (calculations liquidityDb)
+                        run <- runsWithinTime fromM toM
+                        calc <- calcsForRun run
                         guard_ $ isCrypto calc
                         pathQty <- qtysForCalc calc
                         pure (getSymbol $ Calc.calculationCurrency calc, PathQty.pathqtyQty pathQty)
