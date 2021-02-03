@@ -31,6 +31,8 @@ module App.Monad
 , R.lift
 , R.ask
 , Has(..)
+  -- * Testing
+, withDbConn
 )
 where
 

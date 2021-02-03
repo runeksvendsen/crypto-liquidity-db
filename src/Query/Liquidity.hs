@@ -30,6 +30,10 @@ import qualified Schema.PathPart as PathPart
 import qualified Schema.PathQty as PathQty
 import qualified Schema.CalculationParameter as CalcParam
 
+-- order-graph
+import qualified OrderBook.Graph as G
+import qualified OrderBook.Graph.Types.Path as G
+
 import Database.Beam
 import Database.Beam.Backend (IsSql2008BigIntDataTypeSyntax, BeamSqlBackendSyntax, SqlNull, BeamSqlBackend)
 import Database.Beam.Backend.SQL.SQL92
@@ -42,6 +46,8 @@ import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
 import Data.Bifunctor (Bifunctor(first))
+import Data.List (partition)
+import qualified Data.List.NonEmpty                       as NE
 
 
 allQuantities runQ = do
@@ -193,13 +199,65 @@ testPathsSingle runQ numeraireM slippageM currency = do
 
 type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Text)])])]
 
+mkPrettyPathParts :: ((PathQty.PathQty, Path.Path), [PathPart.PathPart]) -> (PathQty.PathQty, Text)
+mkPrettyPathParts ((pathQty, path), ppList) =
+    (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
+
+mkPaths
+    :: (Calc.Calculation, [((PathQty.PathQty, Path.Path), [PathPart.PathPart])])
+    -> ([G.SellPath], [G.BuyPath])
+mkPaths (calc, input) = do
+    return undefined
+  where
+    (sellPaths, buyPaths) =
+        let startCurrency ((_, path), _) = Path.pathStart path
+        in partition ((== numeraire) . startCurrency) sortedInput
+    getPathEnd path [] = error $ "empty PathPart list. PathId: " ++ show (Path.pathId path)
+    getPathEnd _ pathPartLst = last pathPartLst
+
+    sortedInput = map (fmap (sortOn PathPart.pathpartIndex)) input
+    Currency.CurrencyId currency = Calc.calculationCurrency calc
+    numeraire = Calc.calculationNumeraire calc
+    lel = G.toLiquidityInfo
+    -- mkPath :: ((PathQty.PathQty, Path.Path), [PathPart.PathPart]) -> G.Path
+    -- mkPath ((pathQty, path), pathPartList) =
+    --     let pathDescr = G.PathDescr pStart (pMoves :: !(NE.NonEmpty (T.Text, Currency)))
+    --     in G.Path'
+    --         { _pPrice = undefined
+    --         -- ^ Unit: quantity of /start currency/ per unit of /destination currency/
+    --         -- (e.g. /USD per BTC/ for path @USD --venue--> BTC@)
+    --         , _pQty   = undefined
+    --         -- ^ Unit: "destination currency"
+    --         -- (e.g. /BTC/ for path @USD --venue--> BTC@)
+    --         , _pPath = pathDescr
+    --         -- ^ Actual path
+    --         }
+
+-- data PathDescr = PathDescr
+--     { _pStart :: !Currency
+--     -- ^ Start currency
+--     , _pMoves :: !(NonEmpty (T.Text, Currency))
+--     -- ^ Each pair denotes a move /to/ the given currency /via/ the given venue.
+--      -- Last currency is destination currency.
+--     }
+
 selectTestPathsSingle
     :: Currency
     -> Maybe Currency
     -> Maybe Double
-    -> Maybe Run.RunId
+    -> Maybe Calc.RunId
     -> Pg.Pg TestPathsSingleRes
-selectTestPathsSingle currency numeraireM slippageM runM = fmap convert $
+selectTestPathsSingle currency numeraireM slippageM runM =
+    map (fmap (map (fmap (map mkPrettyPathParts)))) <$>
+        selectTestPathsSingle' currency numeraireM slippageM runM
+
+selectTestPathsSingle'
+    :: Currency
+    -> Maybe Currency
+    -> Maybe Double
+    -> Maybe Run.RunId
+    -> Pg.Pg [(Run.Run, [(Calc.Calculation, [((PathQty.PathQty, Path.Path), [PathPart.PathPart])])])]
+selectTestPathsSingle' currency numeraireM slippageM runM = fmap convert $
     runSelectReturningList $ select $
         orderBy_ getPathQty $
         testPathsSingle runQ numeraireM slippageM currency
@@ -212,10 +270,7 @@ selectTestPathsSingle currency numeraireM slippageM runM = fmap convert $
 
     getPathQty (run, (calc, ((pathQty, path), path_part))) = desc_ $ PathQty.pathqtyQty pathQty
 
-    convert = map (fmap (map (fmap (map mkPrettyPathParts . fromPathList)) . fromCalcList)) . fromRunList
-
-    mkPrettyPathParts ((pathQty, path), ppList) =
-        (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
+    convert = map (fmap (map (fmap fromPathList) . fromCalcList)) . fromRunList
 
     fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
                 -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]

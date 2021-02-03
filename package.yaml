@@ -117,3 +117,6 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - crypto-liquidity-db
+    - crypto-orderbook-db
+    - time
+    - beam-core

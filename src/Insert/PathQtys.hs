@@ -5,7 +5,9 @@
 
 module Insert.PathQtys ( insertAllPathQtys ) where
 
-import App.Monad (asTx)
+
+import App.Monad (asTx, DbTx)
+import qualified OrderBook.Graph as G
 
 import           Data.List                                ( sort )
 import qualified Data.List.NonEmpty                       as NE
@@ -31,14 +33,21 @@ import           Schema.Venue
 import Data.Int (Int16)
 
 
-insertAllPathQtys calcPk pathList = asTx $
-    let groupedPaths = groupOn G.pathDescr pathList
-        pathPriceQtyLst =
+insertAllPathQtys
+    :: Calc.CalculationId
+    -> ([G.SellPath], [G.BuyPath])
+    -> DbTx ()
+insertAllPathQtys calcPk (sellPaths, buyPaths) = asTx $
+    let sellPaths' = pathPriceQtyLst G.pQty (map G.pathPath sellPaths)
+        -- The unit for 'pQty' is "destination currency", which is the cryptocurrency for buy paths.
+        -- Convert this unit to numeraire ("source currency"), e.g. USD.
+        buyPaths' = pathPriceQtyLst (\path -> G.pQty path * G.pPrice path) (map G.pathPath buyPaths)
+        pathPriceQtyLst getQuantity paths' =
             map (\lst ->
-                 (G.pathDescr $ head lst, (map G.pQty lst, map (realToFrac . G.pPrice) lst)))
-                groupedPaths
+                 (G.pathDescr $ head lst, (map getQuantity lst, map (realToFrac . G.pPrice) lst)))
+                (groupOn G.pathDescr paths')
     in
-        forM_ pathPriceQtyLst $ \(pathDescr, (pathQtyLst, pathPrices)) ->
+        forM_ (sellPaths' ++ buyPaths') $ \(pathDescr, (pathQtyLst, pathPrices)) ->
         insertSinglePathQty calcPk
                             pathDescr
                             (round $ sum pathQtyLst)

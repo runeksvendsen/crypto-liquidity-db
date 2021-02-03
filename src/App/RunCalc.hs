@@ -43,7 +43,7 @@ bookCache = unsafePerformIO $ LRU.newAtomicLRU (Just 5)
 --   * calculationStartTime
 --   * calculationDurationSeconds
 
-runInsertCalculation :: Has DbConn r => Calc.Calculation -> AppM r ()
+runInsertCalculation :: Has DbConn r => Calc.Calculation -> AppM r ([G.SellPath], [G.BuyPath])
 runInsertCalculation calc = do
     inputDataM <- lift $ LRU.lookup cacheKey graphCache
     inputData <- maybe
@@ -55,12 +55,11 @@ runInsertCalculation calc = do
     case resE of
         Left err -> do
             logError "Process" $ "matchOrders: " ++ show @SomeException err
-            return ()
+            return ([],[])
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
             runDbTx $ do
-                let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
-                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
+                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) (sellPaths, buyPaths)
                 asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
             logInfo "Process" $
                 printf "Inserted quantities for crypto %s (%s) @ %f. Buy qty: %d, sell qty: %d"
@@ -69,6 +68,7 @@ runInsertCalculation calc = do
                        slippage
                        (round $ sum $ map G.pQty buyPaths :: Calc.Int64)
                        (round $ sum $ map G.pQty sellPaths :: Calc.Int64)
+            return (sellPaths, buyPaths)
   where
     numeraire = toS $ Calc.calcNumeraire calc
     crypto = toS $ Calc.calcCrypto calc

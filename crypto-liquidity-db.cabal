@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 22ca023c10f74c9e2b21df88ec6b04d0d3afd496c07d2b2e8b2b69c37e6f0c9e
+-- hash: c258abff002808c1914fa52ddaf8d53b2aa60071037807e162de6bce72194bd3
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -180,6 +180,9 @@ test-suite crypto-liquidity-db-test
   ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , beam-core
     , crypto-liquidity-db
+    , crypto-orderbook-db
     , protolude
+    , time
   default-language: Haskell2010

@@ -62,7 +62,7 @@ processCalculations = do
             logInfo "Process" $ "Starting calculation "
                 ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation)
                 ++ " (" ++ showCalc calculation ++ ")..."
-            RunCalc.runInsertCalculation calculation
+            _ <- RunCalc.runInsertCalculation calculation
             processCalculations
   where
     showCalc calc =
