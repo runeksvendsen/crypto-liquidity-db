@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 22ca023c10f74c9e2b21df88ec6b04d0d3afd496c07d2b2e8b2b69c37e6f0c9e
+-- hash: 80eeef119cec3eb0c666aa534174593c8a169a03548e110d75f9b765ede52590
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -56,7 +56,6 @@ library
       Schema.Currency
       Schema.Migration
       Schema.Path
-      Schema.PathPart
       Schema.PathQty
       Schema.RunCurrency
       Schema.Venue

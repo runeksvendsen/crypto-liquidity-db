@@ -26,7 +26,6 @@ import qualified Schema.Venue as Venue
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calc
 import qualified Schema.Path as Path
-import qualified Schema.PathPart as PathPart
 import qualified Schema.PathQty as PathQty
 import qualified Schema.CalculationParameter as CalcParam
 
@@ -42,6 +41,7 @@ import Data.Maybe (fromMaybe)
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
 import Data.Bifunctor (Bifunctor(first))
+import qualified Data.Vector as Vec
 
 
 allQuantities runQ = do
@@ -192,11 +192,10 @@ testPathsSingle runQ numeraireM slippageM currency = do
     (run, calc, pathQty) <- quantities' runQ numeraireM slippageM
     path <- all_ $ paths liquidityDb
     guard_ $ pk path ==. PathQty.pathqtyPath pathQty
-    path_part <- partsForPath path
     -- TMP
     guard_ $ Calc.calculationCurrency calc ==. Currency.CurrencyId (val_ $ toS currency)
     -- TMP
-    return (run, (calc, ((pathQty, path), path_part)))
+    return (run, (calc, (pathQty, path)))
 
 type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Text)])])]
 
@@ -217,41 +216,36 @@ selectTestPathsSingle currency numeraireM slippageM runM = fmap convert $
             guard_ $ val_ runId `references_` run
         pure run
 
-    getPathQty (run, (calc, ((pathQty, path), path_part))) = desc_ $ PathQty.pathqtyQty pathQty
+    getPathQty (run, (calc, (pathQty, path))) = desc_ $ PathQty.pathqtyQty pathQty
 
-    convert = map (fmap (map (fmap (map mkPrettyPathParts . fromPathList)) . fromCalcList)) . fromRunList
+    convert = map (fmap (map (fmap (map mkPrettyPathParts)) . fromCalcList)) . fromRunList
 
-    mkPrettyPathParts ((pathQty, path), ppList) =
-        (pathQty, prettyPathParts (getSymbol $ Path.pathStart path) ppList)
+    mkPrettyPathParts (pathQty, path) =
+        (pathQty, prettyPathParts path)
 
-    fromRunList :: [(Run.Run, (Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))  )]
-                -> [(Run.Run, [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))] )]
+    fromRunList :: [(Run.Run, (Calc.Calculation, (PathQty.PathQty, Path.Path))  )]
+                -> [(Run.Run, [(Calc.Calculation, (PathQty.PathQty, Path.Path))] )]
     fromRunList = groupNestByFst
 
-    fromCalcList :: [(Calc.Calculation, ((PathQty.PathQty, Path.Path), PathPart.PathPart))]
-                 -> [(Calc.Calculation, [((PathQty.PathQty, Path.Path), PathPart.PathPart)])]
+    fromCalcList :: [(Calc.Calculation, (PathQty.PathQty, Path.Path))]
+                 -> [(Calc.Calculation, [(PathQty.PathQty, Path.Path)])]
     fromCalcList = groupNestByFst
-
-    fromPathList :: [((PathQty.PathQty, Path.Path), PathPart.PathPart)]
-                 -> [((PathQty.PathQty, Path.Path), [PathPart.PathPart])]
-    fromPathList = groupNestByFst
 
     groupNestByFst :: Ord (UsingId b1) => [(b1, b2)] -> [(b1, [b2])]
     groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
 
 prettyPathParts
-    :: Text -- start currency
-    -> [PathPart.PathPart]
+    :: Path.Path
     -> Text -- path description
-prettyPathParts start ppLst =
-    let venueArrowTo pp = T.concat --     --bitfinex--> BTC
+prettyPathParts path =
+    let ppLst = zip (Vec.toList $ Path.pathVenues path) (Vec.toList $ Path.pathCurrencys path)
+        venueArrowTo (venue, currency) = T.concat --     --bitfinex--> BTC
             [ "--"
-            , getVenue (PathPart.pathpartVenue pp)
+            , venue
             , "--> "
-            , getSymbol (PathPart.pathpartCurrency pp)
+            , currency
             ]
-        getVenue (Venue.VenueId venueTxt) = venueTxt
-    in T.intercalate " " (start : map venueArrowTo (sortOn PathPart.pathpartIndex ppLst))
+    in T.intercalate " " (getSymbol (Path.pathStart path) : map venueArrowTo ppLst)
 
 newtype UsingId a = UsingId { getUsingId :: a }
 
