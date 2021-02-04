@@ -59,8 +59,7 @@ runInsertCalculation calc = do
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
             runDbTx $ do
-                let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
-                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
+                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) buyPaths sellPaths
                 asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
             logInfo "Process" $
                 printf "Inserted quantities for crypto %s (%s) @ %f. Buy qty: %d, sell qty: %d"

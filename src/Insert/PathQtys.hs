@@ -31,14 +31,14 @@ import Data.Int (Int16)
 import qualified Data.Vector as Vec
 
 
-insertAllPathQtys calcPk pathList = asTx $
-    let groupedPaths = groupOn G.pathDescr pathList
-        pathPriceQtyLst =
+insertAllPathQtys calcPk buyPaths sellPaths = asTx $
+    let mkPathPriceQtyLst pathList =
             map (\lst ->
                  (G.pathDescr $ head lst, (map G.pQty lst, map (realToFrac . G.pPrice) lst)))
-                groupedPaths
+                (groupOn G.pathDescr pathList)
+        allPaths = mkPathPriceQtyLst buyPaths ++ mkPathPriceQtyLst sellPaths
     in
-        forM_ pathPriceQtyLst $ \(pathDescr, (pathQtyLst, pathPrices)) ->
+        forM_ allPaths $ \(pathDescr, (pathQtyLst, pathPrices)) ->
         insertSinglePathQty calcPk
                             pathDescr
                             (round $ sum pathQtyLst)
