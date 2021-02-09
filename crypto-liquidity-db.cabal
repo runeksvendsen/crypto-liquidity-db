@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 80eeef119cec3eb0c666aa534174593c8a169a03548e110d75f9b765ede52590
+-- hash: aa3e833def47c6ef86cccac1d2bc5d150a28cad860754b7a73b21e762d9230bc
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -172,13 +172,24 @@ test-suite crypto-liquidity-db-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Process.Spec
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test
   default-extensions: FlexibleContexts StrictData
-  ghc-options: -Wall -fno-warn-unused-imports -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
-      base >=4.7 && <5
+      HUnit
+    , base >=4.7 && <5
+    , beam-core
+    , containers
     , crypto-liquidity-db
+    , crypto-orderbook-db
+    , hspec
+    , hspec-expectations-pretty-diff
+    , multimap
+    , order-graph
+    , orderbook
     , protolude
+    , time
   default-language: Haskell2010

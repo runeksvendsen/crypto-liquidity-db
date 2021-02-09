@@ -10,7 +10,10 @@ module Query.Calculations
 , selectStalledCalculations
 , selectUnfinishedCalcCount
 , unfinishedCalcCount
-, Calculation(..)
+, Calc.CalculationT(..)
+, Calc.Calculation
+, calcNumeraire
+, calcCrypto
 , NominalDiffTime
 , Int64
 )
@@ -37,27 +40,13 @@ import Data.Maybe (fromMaybe)
 import Data.Int (Int64)
 
 
-data Calculation = Calculation
-    { calcCalc :: Calc.Calculation
-    , calcNumeraire :: Text
-    , calcCrypto :: Text
-    }
+calcNumeraire :: Calc.Calculation -> Text
+calcNumeraire = Currency.getSymbol . Calc.calculationNumeraire
 
-startCalculation :: Calc.UTCTime -> Pg.Pg (Maybe Calculation)
-startCalculation now = do
-    calcM <- startCalculation' now
-    case calcM of
-        Nothing -> return Nothing
-        Just calc ->
-            return $ Just $
-                Calculation calc
-                            (getSymbol $ Calc.calculationNumeraire calc)
-                            (getSymbol $ Calc.calculationCurrency calc)
-  where
-    getSymbol (Currency.CurrencyId txt) = txt
+calcCrypto :: Calc.Calculation -> Text
+calcCrypto = Currency.getSymbol . Calc.calculationCurrency
 
-
-startCalculation'
+startCalculation
     :: ( MonadBeam be m
         , BeamSqlBackendSyntax be ~ Pg.PgCommandSyntax
         , FromBackendRow be Calc.Int32
@@ -69,7 +58,7 @@ startCalculation'
         )
     => Calc.UTCTime
     -> m (Maybe Calc.Calculation)
-startCalculation' now = fmap castSingleResult .
+startCalculation now = fmap castSingleResult .
     Pg.runPgUpdateReturningList $
     Pg.updateReturning (calculations liquidityDb)
         (\c -> Calc.calculationStartTime c <-. just_ (val_ now))
@@ -149,13 +138,12 @@ selectAllCalculations
 selectAllCalculations = do
     runSelectReturningList $ select $ all_ (calculations liquidityDb)
 
-insertMissingCalculations :: Calc.UTCTime -> DbTx [(RC.RunCurrency, CalcParam.CalcParam)]
+-- insertMissingCalculations :: Calc.UTCTime -> DbTx [(RC.RunCurrency, CalcParam.CalcParam)]
 insertMissingCalculations now = asTx $ do
     rcCalcParam <- selectMissingCalculations
-    runInsert $
+    runInsertReturningList $
         insert (calculations liquidityDb) $
         insertExpressions $ map (uncurry $ Calc.new now) rcCalcParam
-    return rcCalcParam
 
 selectMissingCalculations ::
     ( MonadBeam be m

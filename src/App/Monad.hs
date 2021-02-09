@@ -13,7 +13,6 @@ module App.Monad
 -- * Monad
 , AppM
 , runAppM
--- , runBeamIO
 , async
 , Config(..)
 , CfgConstants(..)
@@ -24,6 +23,7 @@ module App.Monad
 , runDbTxWithConn
 , runDbRaw
 , runDbTxConn
+, withDbConn
 , DbTx
 , asTx
 , TxConn

@@ -59,8 +59,8 @@ runInsertCalculation calc = do
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
             runDbTx $ do
-                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) buyPaths sellPaths
-                asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
+                Insert.PathQtys.insertAllPathQtys (Beam.pk calc) buyPaths sellPaths
+                asTx $ Update.Calculation.updateDuration (Beam.pk calc) (realToFrac durationSecs)
             logInfo "Process" $
                 printf "Inserted quantities for crypto %s (%s) @ %f. Buy qty: %d, sell qty: %d"
                        (toS crypto :: String)
@@ -71,12 +71,11 @@ runInsertCalculation calc = do
   where
     numeraire = toS $ Calc.calcNumeraire calc
     crypto = toS $ Calc.calcCrypto calc
-    slippage = Db.calculationSlippage dbCalc
-    runId = Db.getRunId dbCalc
-    dbCalc = Calc.calcCalc calc
+    slippage = Db.calculationSlippage calc
+    runId = Db.getRunId calc
     cacheKey = (runId, slippage)
     logger :: Monad m => String -> m ()
-    logger = return . unsafePerformIO . App.Log.logDebug (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
+    logger = return . unsafePerformIO . App.Log.logDebug (toS $ show (Db.fromCalcId (Beam.pk calc)) ++ "/Process")
     fetchRunBook = do
         runBooksM <- lift $ LRU.lookup runId bookCache
         let fetchUpdateCache = do

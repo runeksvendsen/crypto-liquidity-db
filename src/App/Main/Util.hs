@@ -3,6 +3,8 @@
 module App.Main.Util
 ( withDbPool
 , App.Log.LogLevel(..)
+, App.Pool.Pool
+, App.Pool.Connection
 ) where
 
 import qualified App.Pool

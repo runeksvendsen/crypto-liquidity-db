@@ -24,7 +24,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/runeksvendsen/order-graph.git
-    tag: 4b47c753060e589732368f155d59881354b1f1fa
+    tag: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
 
 source-repository-package
     type: git

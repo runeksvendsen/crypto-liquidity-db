@@ -7,6 +7,7 @@ module Database
 , liquidityDb
 , calcsForRun
 , qtysForCalc
+, pathForPathQty
 )
 where
 
@@ -69,3 +70,12 @@ qtysForCalc
 qtysForCalc =
     Beam.oneToMany_ (path_qtys liquidityDb)
                     PathQty.pathqtyCalc
+
+
+pathForPathQty
+    :: Beam.HasSqlEqualityCheck be Currency.Int32
+    => Path.PathT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (PathQty.PathQtyT (Beam.QExpr be s))
+pathForPathQty =
+    Beam.oneToOne_ (path_qtys liquidityDb)
+                    PathQty.pathqtyPath

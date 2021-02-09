@@ -12,6 +12,7 @@ module Query.Liquidity
 , PathQty.Int64
 , selectTestPathsSingle
 , TestPathsSingleRes
+, prettyPathParts
 )
 where
 
