@@ -20,6 +20,8 @@ module App.Monad
 , DbConn
 , calculationParameters
 , runDbTx
+, runDbTx_
+, PgSimple.IsolationLevel(..)
 , runDbTxWithConn
 , runDbRaw
 , runDbTxConn
@@ -65,10 +67,10 @@ newtype TxConn = TxConn Pg.Connection
 txConn :: TxConn -> Pg.Connection
 txConn (TxConn conn) = conn
 
-runDbTxWithConnNoRetry :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
-runDbTxWithConnNoRetry action = do
+runDbTxWithConnNoRetry :: Has DbConn r => PgSimple.IsolationLevel -> (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConnNoRetry level action = do
     withDbConn $ \conn ->
-        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn $ do
+        R.lift $ PgSimple.withTransactionLevel level conn $ do
             let (DbTx pgM) = action (TxConn conn)
             runBeamIONoRetry conn pgM
 
@@ -103,6 +105,9 @@ withDbConn f = do
 runDbTx :: Has DbConn r => DbTx a -> AppM r a
 runDbTx dbTxM = runDbTxWithConn (const dbTxM)
 
+runDbTx_ :: Has DbConn r => PgSimple.IsolationLevel -> DbTx a -> AppM r a
+runDbTx_ level dbTxM = runDbTxWithConn_ level (const dbTxM)
+
 -- | Run a database query outside of a transaction
 runDbRaw :: Has DbConn r => Pg.Pg a -> AppM r a
 runDbRaw pgM = do
@@ -114,9 +119,12 @@ runDbTxConn (TxConn conn) pgM = do
     R.liftIO $ runBeamIONoRetry conn pgM
 
 runDbTxWithConn :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
-runDbTxWithConn action = do
+runDbTxWithConn = runDbTxWithConn_ PgSimple.Serializable
+
+runDbTxWithConn_ :: Has DbConn r => PgSimple.IsolationLevel -> (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConn_ level action = do
     cfg <- R.ask
-    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry action)
+    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry level action)
   where
     pgSqlErrorHandler = Handler $ \ex ->
         let (retry, msg) = shouldRetry ex

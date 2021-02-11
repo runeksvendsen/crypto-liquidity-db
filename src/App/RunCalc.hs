@@ -58,7 +58,7 @@ runInsertCalculation calc = do
             return ()
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
-            runDbTx $ do
+            runDbTx_ ReadCommitted $ do
                 Insert.PathQtys.insertAllPathQtys (Beam.pk calc) buyPaths sellPaths
                 asTx $ Update.Calculation.updateDuration (Beam.pk calc) (realToFrac durationSecs)
             logInfo "Process" $
