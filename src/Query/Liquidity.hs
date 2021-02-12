@@ -135,7 +135,8 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
                         )
                     ) $ do
-                        run <- runsWithinTime fromM toM
+                        -- get at most 100 runs within given time period
+                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ runsWithinTime fromM toM
                         calc <- calcsForRun run
                         guard_ $ isCrypto calc
                         pathQty <- qtysForCalc calc
