@@ -132,7 +132,7 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                 aggregate_
                     (\(currency, qty) ->
                         ( group_ currency
-                        , fromMaybe_ (val_ 0) (sum_ qty) `cast_` bigint
+                        , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
                         )
                     ) $ do
                         run <- runsWithinTime fromM toM
