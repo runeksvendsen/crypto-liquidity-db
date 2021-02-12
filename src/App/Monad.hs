@@ -33,6 +33,8 @@ module App.Monad
 , R.lift
 , R.ask
 , Has(..)
+ -- * Debugging
+, dbTraceStatements
 )
 where
 
@@ -54,6 +56,7 @@ import Control.Monad.Base (MonadBase)
 import Data.Has ( Has(..) )
 import qualified Control.Retry as Re
 import Control.Monad.Catch ( Handler(Handler) )
+import qualified Data.ByteString.Char8 as BC
 
 
 asTx :: Pg.Pg a -> DbTx a
@@ -142,6 +145,10 @@ runDbTxWithConn_ level action = do
 runBeamIONoRetry :: Pg.Connection -> Pg.Pg a -> IO a
 runBeamIONoRetry conn pgM = do
     Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
+
+dbTraceStatements :: Has DbConn r => Pg.PgDebugStmt statement => statement -> AppM r BC.ByteString
+dbTraceStatements statement =
+    withDbConn $ \conn -> R.liftIO $ Pg.pgTraceStmtIO' conn statement
 
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
