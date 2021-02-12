@@ -35,6 +35,7 @@ module App.Monad
 , Has(..)
  -- * Debugging
 , dbTraceStatements
+, dbTraceStatementsIO
 )
 where
 
@@ -149,6 +150,15 @@ runBeamIONoRetry conn pgM = do
 dbTraceStatements :: Has DbConn r => Pg.PgDebugStmt statement => statement -> AppM r BC.ByteString
 dbTraceStatements statement =
     withDbConn $ \conn -> R.liftIO $ Pg.pgTraceStmtIO' conn statement
+
+-- |
+dbTraceStatementsIO
+    :: Pg.PgDebugStmt statement
+    => String -- ^ DB connection string
+    -> statement
+    -> IO BC.ByteString
+dbTraceStatementsIO connStr statement =
+    Pool.withPoolPg connStr $ \pool -> runAppM pool (dbTraceStatements statement)
 
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
