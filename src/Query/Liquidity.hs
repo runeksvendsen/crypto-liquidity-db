@@ -108,19 +108,21 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         (Just limit, Just numeraire, Just slippage, []) ->
             quantitiesLimit fromM toM numeraire slippage limit
         _ -> do
-            res@(_, _, _, currency, _) <- quantities (runsWithinTime fromM toM) numeraireM slippageM Nothing
+            res@(_, _, _, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM Nothing
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
 
-runsWithinTime fromM toM = do
-    run <- all_ $ runs liquidityDb
+runsWithinTime numeraireM slippageM fromM toM = do
+    run <- case (numeraireM, slippageM) of
+            (Just numeraire, Just slippage) -> nonEmptyRuns numeraire slippage
+            _ -> all_ (runs liquidityDb)
     forM_ fromM $ \fromTime -> guard_ $ Run.runTimeStart run >=. val_ fromTime
     forM_ toM $ \endTime -> guard_ $ Run.runTimeEnd run <=. val_ endTime
     pure run
 
 quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, _, _, currency, _) <- quantities (runsWithinTime fromM toM) (Just numeraire) (Just slippage) Nothing
+    res@(_, _, _, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage) Nothing
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -136,11 +138,26 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         )
                     ) $ do
                         -- get at most 100 runs within given time period
-                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ runsWithinTime fromM toM
+                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $
+                            runsWithinTime (Just numeraire) (Just slippage) fromM toM
                         calc <- calcsForRun run
                         guard_ $ isCrypto calc
                         pathQty <- qtysForCalc calc
                         pure (getSymbol $ Calc.calculationCurrency calc, PathQty.pathqtyQty pathQty)
+
+-- | Runs with at least a single PathQty
+nonEmptyRuns :: Currency -> Double -> Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
+nonEmptyRuns numeraire slippage = do
+    run <- all_ (runs liquidityDb)
+    guard_ $ exists_ $ do
+        calc <- all_ $ calculations liquidityDb
+        pathQty <- qtysForCalc calc
+        guard_ $
+            Calc.calculationRun calc ==. pk run
+            &&. Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
+            &&. Calc.calculationSlippage calc ==. val_ slippage
+        pure (calc, pathQty)
+    pure run
 
 quantities
     :: Q Pg.Postgres LiquidityDb (QNested (QNested s)) (Run.RunT (QExpr Pg.Postgres (QNested (QNested s))))
