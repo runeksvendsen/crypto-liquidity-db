@@ -78,8 +78,6 @@ isCrypto calc = do
 
 data LiquidityData = LiquidityData
     { ldRun :: Run.Run
-    , ldNumeraire :: Text
-    , ldSlippage :: Double
     , ldCurrency :: Text
     , ldQty :: PathQty.Int64
     } deriving (Eq, Show, Generic)
@@ -97,10 +95,8 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
     fmap (map mkLiquidityData) $
         runSelectReturningList $ select query
   where
-    mkLiquidityData (run, numeraire, slippage, currency, qty) = LiquidityData
+    mkLiquidityData (run, currency, qty) = LiquidityData
         { ldRun = run
-        , ldNumeraire = numeraire
-        , ldSlippage = slippage
         , ldCurrency = currency
         , ldQty = qty
         }
@@ -108,7 +104,7 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         (Just limit, Just numeraire, Just slippage, []) ->
             quantitiesLimit fromM toM numeraire slippage limit
         _ -> do
-            res@(_, _, _, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM Nothing
+            res@(_, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM Nothing
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
@@ -122,7 +118,7 @@ runsWithinTime numeraireM slippageM fromM toM = do
     pure run
 
 quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, _, _, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage) Nothing
+    res@(_, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage) Nothing
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -167,8 +163,6 @@ quantities
     -> Q Pg.Postgres LiquidityDb s
         ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
         , QGenExpr QValueContext Pg.Postgres s Text
-        , QGenExpr QValueContext Pg.Postgres s Double
-        , QGenExpr QValueContext Pg.Postgres s Text
         , QGenExpr QValueContext Pg.Postgres s PathQty.Int64
         )
 quantities runQ numeraireM slippageM limitM =
@@ -176,8 +170,6 @@ quantities runQ numeraireM slippageM limitM =
     aggregate_
         (\(run, calc, pathQty) ->
             ( group_ run
-            , group_ (getSymbol $ Calc.calculationNumeraire calc)
-            , group_ (Calc.calculationSlippage calc)
             , group_ $ getSymbol (Calc.calculationCurrency calc)
               -- NB: postgres converts the type of this column to "numeric".
               -- We need to cast this in order to avoid the following runtime error,
