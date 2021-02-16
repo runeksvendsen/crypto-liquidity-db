@@ -78,6 +78,7 @@ isCrypto calc = do
 
 data LiquidityData = LiquidityData
     { ldRun :: Run.Run
+    , ldRunId :: Run.RunId
     , ldCurrency :: Text
     , ldQty :: PathQty.Int64
     } deriving (Eq, Show, Generic)
@@ -97,6 +98,7 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
   where
     mkLiquidityData (run, currency, qty) = LiquidityData
         { ldRun = run
+        , ldRunId = pk run
         , ldCurrency = currency
         , ldQty = qty
         }
