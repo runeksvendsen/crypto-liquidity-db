@@ -27,7 +27,7 @@ COPY src ./src
 COPY test ./test
 COPY app ./app
 
-RUN stack build --test --copy-bins --local-bin-path /tmp/dist/
+RUN stack build --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
 
 # RUNTIME
 FROM ubuntu:16.04 as runtime
