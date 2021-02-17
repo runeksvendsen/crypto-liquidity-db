@@ -148,13 +148,12 @@ nonEmptyRuns :: Currency -> Double -> Q Pg.Postgres LiquidityDb s (Run.RunT (QEx
 nonEmptyRuns numeraire slippage = do
     run <- all_ (runs liquidityDb)
     guard_ $ exists_ $ do
-        calc <- all_ $ calculations liquidityDb
-        pathQty <- qtysForCalc calc
+        calc <- calcsForRun run
         guard_ $
-            Calc.calculationRun calc ==. pk run
-            &&. Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
+            Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
             &&. Calc.calculationSlippage calc ==. val_ slippage
-        pure (calc, pathQty)
+        pathQty <- qtysForCalc calc
+        pure $ PathQty.pathqtyQty pathQty
     pure run
 
 quantities
