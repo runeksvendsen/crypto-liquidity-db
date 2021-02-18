@@ -45,12 +45,6 @@ import Data.Bifunctor (Bifunctor(first))
 import qualified Data.Vector as Vec
 
 
-allQuantities runQ = do
-    run <- runQ
-    calc <- calcsForRun run
-    pathQty <- qtysForCalc calc
-    pure (run, calc, pathQty)
-
 isCrypto calc = do
     not_ $ Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
   where
@@ -184,30 +178,44 @@ quantities runQ numeraireM slippageM limitM =
               --       ctmMessage = "types incompatible"
               --    }
               -- }
-            , fromMaybe_ (val_ 0) (sum_ $ PathQty.pathqtyQty pathQty) `cast_` bigint
+            , fromMaybe_ (val_ 0) (sum_ pathQty) `cast_` bigint
             )
-        )
-        (quantities' runQ numeraireM slippageM)
+        ) $
+        do
+            res@(_, calc, _) <- allQuantities
+            whereNumeraireSlippage calc numeraireM slippageM
+            pure res
+  where
+    allQuantities = do
+        run <- runQ
+        calc <- calcsForRun run
+        pathQty <- qtysForCalc calc
+        pure (run, calc, PathQty.pathqtyQty pathQty)
 
 getSymbol (Currency.CurrencyId symbol) = symbol
 
-quantities' runQ numeraireM slippageM = do
-    (run, calc, pathQty) <- allQuantities runQ
+whereNumeraireSlippage calc numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
-    pure (run, calc, pathQty)
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
 
 testPathsSingle runQ numeraireM slippageM currency = do
-    (run, calc, pathQty) <- quantities' runQ numeraireM slippageM
+    (run, calc, pathQty) <- allQuantitiesPaths runQ
+    whereNumeraireSlippage calc numeraireM slippageM
     path <- all_ $ paths liquidityDb
     guard_ $ pk path ==. PathQty.pathqtyPath pathQty
     -- TMP
     guard_ $ Calc.calculationCurrency calc ==. Currency.CurrencyId (val_ $ toS currency)
     -- TMP
     return (run, (calc, (pathQty, path)))
+  where
+    allQuantitiesPaths runQ' = do
+        run <- runQ'
+        calc <- calcsForRun run
+        pathQty <- qtysForCalc calc
+        pure (run, calc, pathQty)
 
 type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Text)])])]
 
