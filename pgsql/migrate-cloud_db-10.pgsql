@@ -1,0 +1,1 @@
+CREATE INDEX run_end_times ON runs (time_end, id);
