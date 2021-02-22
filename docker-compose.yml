@@ -18,7 +18,6 @@ services:
          - "5432"
 
    liquidity-service-test:
-      restart: never
       build: .
       entrypoint: crypto-liquidity-test
       links:
