@@ -22,7 +22,9 @@ COPY package.yaml ./package.yaml
 
 RUN stack install --dependencies-only
 
-ADD * /
+COPY app ./app
+COPY src ./src
+COPY test ./test
 
 RUN stack build --copy-bins --local-bin-path /tmp/dist/
 
