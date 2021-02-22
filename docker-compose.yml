@@ -19,7 +19,7 @@ services:
 
    liquidity-service-test:
       build: .
-      entrypoint: crypto-liquidity-test
+      entrypoint: crypto-liquidity-db-test
       links:
          - liquidity-database
       depends_on:
