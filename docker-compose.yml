@@ -9,8 +9,8 @@ services:
          - POSTGRES_DB=liquidity
       restart: always
       volumes:
-         - ./crypto-liquidity-db/pgsql/cloud_db.pgsql:/docker-entrypoint-initdb.d/1-schema.sql
-         - ./crypto-liquidity-db/pgsql/add-migrations-table.pgsql:/docker-entrypoint-initdb.d/2-schema.sql
+         - ./pgsql/cloud_db.pgsql:/docker-entrypoint-initdb.d/1-schema.sql
+         - ./pgsql/add-migrations-table.pgsql:/docker-entrypoint-initdb.d/2-schema.sql
          - liquidity-db-data:/var/lib/postgresql/data/
       networks:
          - liquidity-backend-network
