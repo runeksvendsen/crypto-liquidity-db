@@ -22,7 +22,7 @@ COPY package.yaml ./package.yaml
 
 RUN stack install --dependencies-only
 
-COPY crypto-liquidity-db ./crypto-liquidity-db
+ADD * /
 
 RUN stack build --copy-bins --local-bin-path /tmp/dist/
 
