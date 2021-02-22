@@ -27,6 +27,10 @@ ghc-options:
   - -Wall
   - -fno-warn-unused-imports
 
+extra-source-files:
+- test/data/double/test19.json
+- test/data/regression/double-test19.txt
+
 library:
   source-dirs: src
   other-modules:
