@@ -13,5 +13,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: docker build
-        run: docker build .
+      - name: docker-compose build
+        run: docker-compose build
+
+      - name: docker-compose test
+        run: docker-compose up --exit-code-from liquidity-service-test
+
+        # It's nice to see logs. Especially if the tests fail.
+      - name: docker-compose logs
+        if: ${{ always() }}
+        run: docker-compose logs
