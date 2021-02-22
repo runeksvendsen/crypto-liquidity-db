@@ -37,4 +37,5 @@ RUN apt-get update \
 # copy all executables
 COPY --from=builder .stack-work/dist/x86_64-linux/Cabal-2.4.0.1/build/crypto-liquidity-db-test/crypto-liquidity-db-test /usr/local/bin/
 
+COPY test/data/ ./test/data/
 COPY pgsql ./pgsql
