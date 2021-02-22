@@ -3,7 +3,6 @@ version: "3.4"
 services:
    liquidity-database:
       image: postgres:9.6
-      container_name: database
       environment:
          - POSTGRES_PASSWORD=test
          - POSTGRES_USER=test
@@ -22,7 +21,6 @@ services:
       restart: never
       build: .
       entrypoint: crypto-liquidity-test
-      container_name: liquidity-service-test
       links:
          - liquidity-database
       depends_on:
