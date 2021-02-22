@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: aa3e833def47c6ef86cccac1d2bc5d150a28cad860754b7a73b21e762d9230bc
+-- hash: 978077aec79f2c0be8ed0bd70a4b44514f23a8c6426b136fac32b4670a7e68ae
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -17,6 +17,9 @@ copyright:      CC0
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
+extra-source-files:
+    test/data/double/test19.json
+    test/data/regression/double-test19.txt
 
 source-repository head
   type: git

@@ -63,7 +63,7 @@ tests :: App.Main.Util.Pool App.Main.Util.Connection -> Test
 tests conn = TestLabel "regression" $ TestList
     [ TestLabel "test/data/double/test19.json BTC USD 0.5" $ TestList
         [ TestLabel "FULL: test/data/double/test19.json BTC USD 0.5" $ TestCase $ do
-                bookList <- readBooksFile "/Users/rune/code/order-graph/test/data/double/test19.json"
+                bookList <- readBooksFile "test/data/double/test19.json"
                 let numeraire = fromString "USD"
                 testResult <- App.Monad.runAppM conn $ runCalcTest numeraire (fromString "BTC") bookList
                 regressOut <- readRegressionData
@@ -80,7 +80,7 @@ convertRegressionData (dataA, dataB) =
 
 readRegressionData :: IO ([(Double, String)], [(Double, String)])
 readRegressionData =
-    read <$> readFile "/Users/rune/code/order-graph/test/data/regression/double-test19.txt"
+    read <$> readFile "test/data/regression/double-test19.txt"
 
 toHumanReadableLine
     :: (Schema.PathQty, Schema.Path)
