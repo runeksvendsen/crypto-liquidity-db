@@ -8,7 +8,17 @@ import           Test.HUnit
 import qualified Test.Hspec.Runner                  as Run
 import           Test.Hspec                         (parallel)
 
+import System.Environment (lookupEnv)
+import Data.Maybe (fromMaybe)
+
 
 main :: IO ()
 main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
-    void $ runTestTT $ TestList [Process.Spec.tests pool]
+    baseUrl <- readBaseUrl >>= Process.Spec.mkClientEnv
+    void $ runTestTT $ TestList [Process.Spec.tests pool baseUrl]
+
+readBaseUrl :: IO String
+readBaseUrl = do
+    connStrM <- lookupEnv "SERVER_ADDRESS"
+    let errorMsg = "Missing postgres connection string in DATABASE_URL environment variable"
+    pure $ fromMaybe (error errorMsg) connStrM

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 978077aec79f2c0be8ed0bd70a4b44514f23a8c6426b136fac32b4670a7e68ae
+-- hash: 753e3250d4ca2a78752ec202434cddff0306ed5e94eb3bbb355153632f14b647
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -176,6 +176,7 @@ test-suite crypto-liquidity-db-test
   main-is: Spec.hs
   other-modules:
       Process.Spec
+      Process.WebApiRead
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test
@@ -190,9 +191,12 @@ test-suite crypto-liquidity-db-test
     , crypto-orderbook-db
     , hspec
     , hspec-expectations-pretty-diff
+    , http-client
     , multimap
     , order-graph
     , orderbook
     , protolude
+    , servant
+    , servant-client
     , time
   default-language: Haskell2010

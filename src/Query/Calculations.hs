@@ -50,6 +50,7 @@ startCalculation
     :: ( MonadBeam be m
         , BeamSqlBackendSyntax be ~ Pg.PgCommandSyntax
         , FromBackendRow be Calc.Int32
+        , FromBackendRow be Calc.Int64
         , FromBackendRow be Text
         , FromBackendRow be Run.Int32
         , FromBackendRow be Double
@@ -127,7 +128,7 @@ stalledCalculations timeoutTime = do
 selectAllCalculations
     :: ( MonadBeam be m
        , FromBackendRow be Calc.Int32
-       , FromBackendRow be Calc.Int32
+       , FromBackendRow be Calc.Int64
        , FromBackendRow be Text
        , FromBackendRow be Double
        , FromBackendRow be Calc.UTCTime

@@ -22,6 +22,10 @@ COPY package.yaml ./package.yaml
 
 RUN stack install --dependencies-only
 
+COPY test/data/double/test19.json ./test/data/double/test19.json
+COPY test/data/regression/double-test19.txt ./test/data/regression/double-test19.txt
+RUN stack build --dependencies-only --test --no-run-tests
+
 COPY app ./app
 COPY src ./src
 COPY test ./test
@@ -36,6 +40,7 @@ RUN apt-get update \
 
 # copy all executables
 COPY --from=builder .stack-work/dist/x86_64-linux/Cabal-2.4.0.1/build/crypto-liquidity-db-test/crypto-liquidity-db-test /usr/local/bin/
+COPY --from=builder /tmp/dist/crypto-liquidity-web-api /usr/local/bin/
 
 COPY test/data/ ./test/data/
 COPY pgsql ./pgsql
