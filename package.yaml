@@ -127,3 +127,6 @@ tests:
     - hspec-expectations-pretty-diff
     - multimap
     - containers
+    - servant-client
+    - http-client
+    - servant

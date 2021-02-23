@@ -118,7 +118,7 @@ type API
     :<|> GetUnfinishedCalcs
     :<|> GetUnfinishedCalcCount
     :<|> GetRunBooks
-    :<|> TestPathsSingle
+    :<|> PathSingle
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
@@ -158,12 +158,12 @@ type GetRunBooks =
         :> "books"
         :> Get '[JSON] [G.OrderBook Double]
 
-type TestPathsSingle =
-    Summary "TODO"
-        :> "liquidity"
-        :> "test_paths"
-        :> Capture' '[Description "A currency symbol"] "currency_symbol" Currency
-        :> QueryParam "numeraire" Currency
-        :> QueryParam "slippage" Double
-        :> QueryParam "run_id" Run.RunId
-        :> Get '[JSON] Lib.TestPathsSingleRes
+type PathSingle =
+    Summary "Get paths for single run currency"
+        :> "run"
+        :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
+        :> "paths"
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
+        :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
+        :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)

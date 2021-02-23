@@ -43,6 +43,7 @@ import OrderBook.Graph.Types (Currency)
 import Database.Beam.Query.Internal (QNested)
 import Data.Bifunctor (Bifunctor(first))
 import qualified Data.Vector as Vec
+import Protolude (headMay)
 
 
 isCrypto calc = do
@@ -201,14 +202,12 @@ whereNumeraireSlippage calc numeraireM slippageM = do
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
 
-testPathsSingle runQ numeraireM slippageM currency = do
+testPathsSingle runQ numeraire slippage currency = do
     (run, calc, pathQty) <- allQuantitiesPaths runQ
-    whereNumeraireSlippage calc numeraireM slippageM
+    whereNumeraireSlippage calc (Just numeraire) (Just slippage)
     path <- all_ $ paths liquidityDb
     guard_ $ pk path ==. PathQty.pathqtyPath pathQty
-    -- TMP
     guard_ $ Calc.calculationCurrency calc ==. Currency.CurrencyId (val_ $ toS currency)
-    -- TMP
     return (run, (calc, (pathQty, path)))
   where
     allQuantitiesPaths runQ' = do
@@ -217,31 +216,27 @@ testPathsSingle runQ numeraireM slippageM currency = do
         pathQty <- qtysForCalc calc
         pure (run, calc, pathQty)
 
-type TestPathsSingleRes = [(Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Text)])])]
+type TestPathsSingleRes = (Run.Run, [(Calc.Calculation, [(PathQty.PathQty, Path.Path)])])
 
 selectTestPathsSingle
-    :: Currency
-    -> Maybe Currency
-    -> Maybe Double
-    -> Maybe Run.RunId
-    -> Pg.Pg TestPathsSingleRes
-selectTestPathsSingle currency numeraireM slippageM runM = fmap convert $
+    :: Run.RunId
+    -> Currency
+    -> Double
+    -> Currency
+    -> Pg.Pg (Maybe TestPathsSingleRes)
+selectTestPathsSingle runId numeraire slippage currency = fmap (headMay . convert) $
     runSelectReturningList $ select $
         orderBy_ getPathQty $
-        testPathsSingle runQ numeraireM slippageM currency
+        testPathsSingle runQ numeraire slippage currency
   where
     runQ = do
         run <- all_ (runs liquidityDb)
-        forM_ runM $ \runId ->
-            guard_ $ val_ runId `references_` run
+        guard_ $ val_ runId `references_` run
         pure run
 
     getPathQty (run, (calc, (pathQty, path))) = desc_ $ PathQty.pathqtyQty pathQty
 
-    convert = map (fmap (map (fmap (map mkPrettyPathParts)) . fromCalcList)) . fromRunList
-
-    mkPrettyPathParts (pathQty, path) =
-        (pathQty, prettyPathParts path)
+    convert = map (fmap fromCalcList) . fromRunList
 
     fromRunList :: [(Run.Run, (Calc.Calculation, (PathQty.PathQty, Path.Path))  )]
                 -> [(Run.Run, [(Calc.Calculation, (PathQty.PathQty, Path.Path))] )]

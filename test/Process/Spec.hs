@@ -4,9 +4,11 @@
 
 module Process.Spec
 ( tests
+, Process.WebApiRead.mkClientEnv
 ) where
 
 -- crypto-liquidity-db
+import qualified Process.WebApiRead
 import Internal.Prelude
 import App.Monad (lift)
 import qualified App.RunCalc
@@ -59,13 +61,18 @@ import Data.Maybe (fromMaybe)
 import Data.Bifunctor (Bifunctor(first))
 
 
-tests :: App.Main.Util.Pool App.Main.Util.Connection -> Test
-tests conn = TestLabel "regression" $ TestList
+tests
+    :: App.Main.Util.Pool App.Main.Util.Connection
+    -> Process.WebApiRead.ClientEnv
+    -> Test
+tests conn env = TestLabel "regression" $ TestList
     [ TestLabel "test/data/double/test19.json BTC USD 0.5" $ TestList
         [ TestLabel "FULL: test/data/double/test19.json BTC USD 0.5" $ TestCase $ do
                 bookList <- readBooksFile "test/data/double/test19.json"
                 let numeraire = fromString "USD"
-                testResult <- App.Monad.runAppM conn $ runCalcTest numeraire (fromString "BTC") bookList
+                    request = Process.WebApiRead.PathSingleReq (Run.RunId 1) numeraire 0.5 (fromString "BTC")
+                App.Monad.runAppM conn $ runCalcTest (toS numeraire) (fromString "BTC") bookList
+                testResult <- either (error . show) id <$> Process.WebApiRead.runRequest env request
                 regressOut <- readRegressionData
                 fromDbResult numeraire testResult `shouldBe` convertRegressionData regressOut
         ]
@@ -92,14 +99,15 @@ toSetMap :: [(Query.Int64, String)] -> Map Query.Int64 (Set String)
 toSetMap = MM.toMapOfSets . MM.fromList
 
 fromDbResult
-    :: Text -> [(Schema.PathQty, Schema.Path)]
+    :: G.Currency
+    -> [(Schema.PathQty, Schema.Path)]
     -> (Map Query.Int64 (Set String), Map Query.Int64 (Set String))
 fromDbResult numeraire pathQtyPathLst =
     let (buyPaths, sellPaths) = partition ((== numeraireC) . Schema.pathStart . snd) pathQtyPathLst
         mkResult = toSetMap . map toHumanReadableLine
     in (mkResult sellPaths, mkResult buyPaths)
   where
-    numeraireC = Schema.CurrencyId numeraire
+    numeraireC = Schema.CurrencyId (toS numeraire)
 
 readBooksFile :: FilePath -> IO [Insert.SomeOrderBook]
 readBooksFile filePath = do
@@ -123,7 +131,7 @@ runCalcTest
     => Text -- ^ numeraire
     -> Text -- ^ "test currency"
     -> [Insert.SomeOrderBook] -- ^ must contain at least a single order book for "test currency"
-    -> App.Monad.AppM conf [(Schema.PathQty, Schema.Path)]
+    -> App.Monad.AppM conf ()
 runCalcTest numeraire currency bookList = do
     dummyTime <- lift Clock.getCurrentTime
     _ <- App.Monad.withDbConn $ \conn -> lift $ storeBooks dummyTime conn bookList
@@ -133,17 +141,6 @@ runCalcTest numeraire currency bookList = do
     let calc = fromMaybe (error $ "Missing currency: " ++ toS currency) $
             lookup currency $ map (\calc' -> (Schema.getSymbol $ Schema.calculationCurrency calc', calc')) calcLst
     App.RunCalc.runInsertCalculation calc
-    App.Monad.runDbRaw $
-        Beam.runSelectReturningList $
-        Beam.select $ calcResultQuery (Schema.calculationId calc)
- where
-    calcResultQuery calcId = do
-        calc <- Beam.all_ (Db.calculations Db.liquidityDb)
-        Beam.guard_ $ Schema.calculationId calc Beam.==. Beam.val_ calcId
-        pathQty <- Db.qtysForCalc calc
-        path' <- Beam.all_ (Db.paths Db.liquidityDb)
-        Beam.guard_ $ Schema.pathqtyPath pathQty `Beam.references_` path'
-        pure (pathQty, path')
 
 storeBooks :: Clock.UTCTime -> App.Main.Util.Connection -> [Insert.SomeOrderBook] -> IO Run.RunId
 storeBooks dummyTime conn bookList = do
