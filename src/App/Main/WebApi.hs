@@ -112,16 +112,18 @@ type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
 
 type API
-    =    Liquidity "all"
-    :<|> Liquidity CurrencySymbolList
-    :<|> GetAllCalcs
-    :<|> GetUnfinishedCalcs
-    :<|> GetUnfinishedCalcCount
-    :<|> GetRunBooks
-    :<|> PathSingle
+    =    BasePath (Liquidity "all")
+    :<|> BasePath (Liquidity CurrencySymbolList)
+    :<|> BasePath GetAllCalcs
+    :<|> BasePath GetUnfinishedCalcs
+    :<|> BasePath GetUnfinishedCalcCount
+    :<|> BasePath GetRunBooks
+    :<|> BasePath PathSingle
+
+type BasePath a = "api" :> "v1" :> a
 
 type Liquidity (currencies :: k) =
-    Summary "Get liquidity for one or more currencies"
+    "lel" :> Summary "Get liquidity for one or more currencies"
         :> "liquidity"
         :> currencies
         :> QueryParam "from" Run.UTCTime

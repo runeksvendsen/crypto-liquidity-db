@@ -39,7 +39,7 @@ services:
       depends_on:
          - liquidity-database
       environment:
-         - SERVER_ADDRESS=http://liquidity-web-api:8000
+         - SERVER_ADDRESS=http://liquidity-web-api:8000/api/v1
          - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
       networks:
          - liquidity-backend-network
