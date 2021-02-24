@@ -25,5 +25,5 @@ main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
 readBaseUrl :: IO String
 readBaseUrl = do
     connStrM <- lookupEnv "SERVER_ADDRESS"
-    let errorMsg = "Missing postgres connection string in DATABASE_URL environment variable"
+    let errorMsg = "Missing web-api server address in SERVER_ADDRESS environment variable"
     pure $ fromMaybe (error errorMsg) connStrM
