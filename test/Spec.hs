@@ -15,7 +15,8 @@ import Data.Maybe (fromMaybe)
 main :: IO ()
 main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
     baseUrl <- readBaseUrl >>= Process.Spec.mkClientEnv
-    void $ runTestTT $ TestList [Process.Spec.tests pool baseUrl]
+    done <- Process.Spec.setup pool
+    void $ runTestTT $ Process.Spec.tests baseUrl done
 
 readBaseUrl :: IO String
 readBaseUrl = do

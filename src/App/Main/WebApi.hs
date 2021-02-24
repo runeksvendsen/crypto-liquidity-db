@@ -123,7 +123,7 @@ type API
 type BasePath a = "api" :> "v1" :> a
 
 type Liquidity (currencies :: k) =
-    "lel" :> Summary "Get liquidity for one or more currencies"
+    Summary "Get liquidity for one or more currencies"
         :> "liquidity"
         :> currencies
         :> QueryParam "from" Run.UTCTime
