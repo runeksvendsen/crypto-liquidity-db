@@ -79,7 +79,7 @@ tests env _ = TestLabel "regression" $ TestList
         , TestLabel "quantity sum" $ TestCase $ do
                 let request = Process.WebApiRead.LiquidityReq numeraire slippage currency
                 [testResult] <- throwError <$> Process.WebApiRead.runLiquidityReq env request
-                Query.Liquidity.ldQty testResult `shouldBe` 74956642
+                Query.Liquidity.ldQty testResult `shouldBe` 74956643
         ]
     ]
   where
