@@ -38,7 +38,7 @@ services:
          - liquidity-database
       depends_on:
          - liquidity-database
-      environment: # TODO: remove DATABASE_URL
+      environment:
          - SERVER_ADDRESS=http://liquidity-web-api:8000
          - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable
       networks:
