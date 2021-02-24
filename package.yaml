@@ -124,6 +124,7 @@ tests:
     - order-graph
     - HUnit
     - hspec
+    - hspec-contrib
     - hspec-expectations-pretty-diff
     - multimap
     - containers
