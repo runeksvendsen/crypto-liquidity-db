@@ -1,10 +1,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 
 module Process.Spec
 ( tests
 , Process.WebApiRead.mkClientEnv
+, setup
+, SetupDone
 ) where
 
 -- crypto-liquidity-db
@@ -59,24 +62,58 @@ import GHC.TypeLits
 import Data.Data (Proxy(Proxy))
 import Data.Maybe (fromMaybe)
 import Data.Bifunctor (Bifunctor(first))
+import Text.Printf (printf)
 
 
 tests
-    :: App.Main.Util.Pool App.Main.Util.Connection
-    -> Process.WebApiRead.ClientEnv
+    :: Process.WebApiRead.ClientEnv
+    -> SetupDone
     -> Test
-tests conn env = TestLabel "regression" $ TestList
-    [ TestLabel "test/data/double/test19.json BTC USD 0.5" $ TestList
-        [ TestLabel "FULL: test/data/double/test19.json BTC USD 0.5" $ TestCase $ do
-                bookList <- readBooksFile "test/data/double/test19.json"
-                let numeraire = fromString "USD"
-                    request = Process.WebApiRead.PathSingleReq (Run.RunId 1) numeraire 0.5 (fromString "BTC")
-                App.Monad.runAppM conn $ runCalcTest (toS numeraire) (fromString "BTC") bookList
-                testResult <- either (error . show) id <$> Process.WebApiRead.runRequest env request
+tests env _ = TestLabel "regression" $ TestList
+    [ TestLabel testLabel $ TestList
+        [ TestLabel "path quantity" $ TestCase $ do
+                let request = Process.WebApiRead.PathSingleReq (Run.RunId 1) numeraire slippage currency
+                testResult <- throwError <$> Process.WebApiRead.runPathSingleReq env request
                 regressOut <- readRegressionData
                 fromDbResult numeraire testResult `shouldBe` convertRegressionData regressOut
+        , TestLabel "quantity sum" $ TestCase $ do
+                let request = Process.WebApiRead.LiquidityReq numeraire slippage currency
+                [testResult] <- throwError <$> Process.WebApiRead.runLiquidityReq env request
+                Query.Liquidity.ldQty testResult `shouldBe` 74956643
         ]
     ]
+  where
+    throwError = either (error . show) id
+    testLabel = printf "%s %s %s %f" testDataFilePath (toS currency :: String) (toS numeraire :: String) slippage
+
+testDataFilePath :: FilePath
+testDataFilePath = "test/data/double/test19.json"
+
+numeraire :: G.Currency
+numeraire = fromString "USD"
+
+slippage :: Double
+slippage = 0.5
+
+currency :: G.Currency
+currency = fromString "BTC"
+
+setup :: App.Main.Util.Pool App.Main.Util.Connection -> IO SetupDone
+setup = setup_ testDataFilePath numeraire currency
+
+-- | A value of this type guarantees that 'setup' has been run
+data SetupDone = SetupDone
+
+setup_
+    :: FilePath
+    -> G.Currency
+    -> G.Currency
+    -> App.Main.Util.Pool App.Main.Util.Connection
+    -> IO SetupDone
+setup_ filename numeraire' currency' conn = do
+    books <- readBooksFile filename
+    App.Monad.runAppM conn $ runCalcTest numeraire' currency' books
+    pure SetupDone
 
 convertRegressionData
     :: ([(Double, String)], [(Double, String)])
@@ -102,12 +139,12 @@ fromDbResult
     :: G.Currency
     -> [(Schema.PathQty, Schema.Path)]
     -> (Map Query.Int64 (Set String), Map Query.Int64 (Set String))
-fromDbResult numeraire pathQtyPathLst =
+fromDbResult numeraire' pathQtyPathLst =
     let (buyPaths, sellPaths) = partition ((== numeraireC) . Schema.pathStart . snd) pathQtyPathLst
         mkResult = toSetMap . map toHumanReadableLine
     in (mkResult sellPaths, mkResult buyPaths)
   where
-    numeraireC = Schema.CurrencyId (toS numeraire)
+    numeraireC = Schema.CurrencyId (toS numeraire')
 
 readBooksFile :: FilePath -> IO [Insert.SomeOrderBook]
 readBooksFile filePath = do
@@ -128,18 +165,18 @@ readBooksFile filePath = do
 
 runCalcTest
     :: App.Monad.Has App.Monad.DbConn conf
-    => Text -- ^ numeraire
-    -> Text -- ^ "test currency"
+    => G.Currency -- ^ numeraire
+    -> G.Currency -- ^ "test currency"
     -> [Insert.SomeOrderBook] -- ^ must contain at least a single order book for "test currency"
     -> App.Monad.AppM conf ()
-runCalcTest numeraire currency bookList = do
+runCalcTest numeraire' currency' bookList = do
     dummyTime <- lift Clock.getCurrentTime
     _ <- App.Monad.withDbConn $ \conn -> lift $ storeBooks dummyTime conn bookList
-    App.Monad.runDbTx $ CP.setCalcParams [(numeraire, 0.5)]
+    App.Monad.runDbTx $ CP.setCalcParams [(toS numeraire', slippage)]
     _ <- App.Monad.runDbTx Query.insertRunRunCurrencies
     calcLst <- App.Monad.runDbTx $ Query.insertMissingCalculations dummyTime
-    let calc = fromMaybe (error $ "Missing currency: " ++ toS currency) $
-            lookup currency $ map (\calc' -> (Schema.getSymbol $ Schema.calculationCurrency calc', calc')) calcLst
+    let calc = fromMaybe (error $ "Missing currency': " ++ toS currency') $
+            lookup (toS currency') $ map (\calc' -> (Schema.getSymbol $ Schema.calculationCurrency calc', calc')) calcLst
     App.RunCalc.runInsertCalculation calc
 
 storeBooks :: Clock.UTCTime -> App.Main.Util.Connection -> [Insert.SomeOrderBook] -> IO Run.RunId

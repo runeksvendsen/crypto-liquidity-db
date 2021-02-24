@@ -3,8 +3,10 @@
 
 module Process.WebApiRead
 ( mkClientEnv
-, runRequest
+, runPathSingleReq
 , PathSingleReq(..)
+, runLiquidityReq
+, LiquidityReq(..)
 , SC.ClientEnv
 ) where
 
@@ -98,30 +100,42 @@ mkClientEnv baseUrlString = do
 
 data PathSingleReq = PathSingleReq LibCalc.RunId G.Currency Double G.Currency
 
-runRequest
+runPathSingleReq
     :: SC.ClientEnv
     -> PathSingleReq
     -> IO (Either SC.ClientError [(Schema.PathQty, Schema.Path)])
-runRequest env (PathSingleReq runId numeraire slippage currency) =
+runPathSingleReq env (PathSingleReq runId numeraire slippage currency) =
     fmap (concatMap snd . snd . handleNoResult) <$>
         SC.runClientM (pathSingle runId numeraire slippage currency) env
   where
     handleNoResult = fromMaybe (error "WebApiRead: empty result")
 
-allLiquidity
-    :: Maybe LibCalc.UTCTime
-    -> Maybe LibCalc.UTCTime
-    -> Maybe App.Main.WebApi.Currency
-    -> Maybe Double
-    -> Maybe Word
-    -> SC.ClientM [Lib.LiquidityData]
+data LiquidityReq = LiquidityReq G.Currency Double G.Currency
+
+runLiquidityReq
+    :: SC.ClientEnv
+    -> LiquidityReq
+    -> IO (Either SC.ClientError [Lib.LiquidityData])
+runLiquidityReq env (LiquidityReq numeraire slippage currency) =
+    SC.runClientM request env
+  where
+    request = liquidity [currency] Nothing Nothing (Just numeraire) (Just slippage) Nothing
+
 pathSingle
     :: Run.RunId
     -> App.Main.WebApi.Currency
     -> Double
     -> App.Main.WebApi.Currency
     -> SC.ClientM (Maybe Lib.TestPathsSingleRes)
-allLiquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathSingle =
+liquidity
+    :: [App.Main.WebApi.Currency]
+    -> Maybe LibCalc.UTCTime
+    -> Maybe LibCalc.UTCTime
+    -> Maybe App.Main.WebApi.Currency
+    -> Maybe Double
+    -> Maybe Word
+    -> SC.ClientM [Lib.LiquidityData]
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathSingle =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

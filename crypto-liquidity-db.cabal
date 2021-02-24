@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 753e3250d4ca2a78752ec202434cddff0306ed5e94eb3bbb355153632f14b647
+-- hash: e61a14d923b6fc06998003cbab130e87cfd2bec3cbb890913a13330f055605e3
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -190,6 +190,7 @@ test-suite crypto-liquidity-db-test
     , crypto-liquidity-db
     , crypto-orderbook-db
     , hspec
+    , hspec-contrib
     , hspec-expectations-pretty-diff
     , http-client
     , multimap
