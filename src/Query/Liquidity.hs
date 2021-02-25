@@ -226,7 +226,7 @@ selectTestPathsSingle
     -> Pg.Pg (Maybe TestPathsSingleRes)
 selectTestPathsSingle runId numeraire slippage currency = fmap (headMay . convert) $
     runSelectReturningList $ select $
-        orderBy_ getPathQty $
+        orderBy_ (desc_ . getPathQty) $
         testPathsSingle runQ numeraire slippage currency
   where
     runQ = do
@@ -234,7 +234,7 @@ selectTestPathsSingle runId numeraire slippage currency = fmap (headMay . conver
         guard_ $ val_ runId `references_` run
         pure run
 
-    getPathQty (run, (calc, (pathQty, path))) = desc_ $ PathQty.pathqtyQty pathQty
+    getPathQty (_, (_, (pathQty, _))) = PathQty.pathqtyQty pathQty
 
     convert = map (fmap fromCalcList) . fromRunList
 
@@ -299,4 +299,4 @@ groupNest groupF nestF lst' =
         groupOn groupF lst'
 
 limitQ limitM =
-    maybe (offset_ 0) (limit_ . fromIntegral) limitM
+    maybe (offset_ 0) (limit_ . fromIntegral) (limitM :: Maybe Word)

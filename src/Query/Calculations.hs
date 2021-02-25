@@ -139,7 +139,7 @@ selectAllCalculations
 selectAllCalculations = do
     runSelectReturningList $ select $ all_ (calculations liquidityDb)
 
--- insertMissingCalculations :: Calc.UTCTime -> DbTx [(RC.RunCurrency, CalcParam.CalcParam)]
+insertMissingCalculations :: Calc.UTCTime -> DbTx [Calc.Calculation]
 insertMissingCalculations now = asTx $ do
     rcCalcParam <- selectMissingCalculations
     runInsertReturningList $

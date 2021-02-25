@@ -80,10 +80,10 @@ insertRunRunCurrencies = do
             "RunId %d: inserted %d run currencies" runId (length currencies)
     return resM
 
--- insertMissingCalculations
---     :: Has DbConn r
---     => Db.UTCTime
---     -> AppM r [(Schema.RunCurrency.RunCurrency, Schema.CalculationParameter.CalcParam)]
+insertMissingCalculations
+    :: Has DbConn r
+    => Db.UTCTime
+    -> AppM r [Calc.Calculation]
 insertMissingCalculations now = do
     calcs <- runDbTx $ Calc.insertMissingCalculations now
     unless (null calcs) $

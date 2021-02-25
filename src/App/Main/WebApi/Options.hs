@@ -14,7 +14,7 @@ withArgs f = do
     f args
 
 data Options = Options
-    { optServerPort :: Word
+    { optServerPort :: !Word
     }
 
 opts :: ParserInfo Options

@@ -152,17 +152,13 @@ dbTraceStatements statement =
     withDbConn $ \conn -> R.liftIO $ Pg.pgTraceStmtIO' conn statement
 
 -- |
-dbTraceStatementsIO'
+dbTraceStatementsIO
     :: Pg.PgDebugStmt statement
     => String -- ^ DB connection string
     -> statement
     -> IO BC.ByteString
-dbTraceStatementsIO' connStr statement = Log.withLogging $
-    Pool.withPoolPg connStr $ \pool -> runAppM pool (dbTraceStatements statement)
-
-dbTraceStatementsIO :: Pg.PgDebugStmt statement => String -> statement -> IO ()
 dbTraceStatementsIO connStr statement =
-    dbTraceStatementsIO' connStr statement >>= putStrLn . toS
+    Pool.withPoolPg connStr $ \pool -> runAppM pool (dbTraceStatements statement)
 
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do
