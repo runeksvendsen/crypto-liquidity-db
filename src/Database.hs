@@ -17,7 +17,6 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Order  as Order
 import qualified CryptoDepth.OrderBook.Db.Schema.Book   as Book
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calculation
-import qualified Schema.PathSum
 import qualified Schema.CalculationParameter as CalcParam
 import qualified Schema.PathQty as PathQty
 import qualified Schema.PathSum as PathSum
@@ -44,7 +43,7 @@ data LiquidityDb f = LiquidityDb
       -- Calculation output data
     , paths :: f (Beam.TableEntity Path.PathT)
     , path_qtys :: f (Beam.TableEntity PathQty.PathQtyT)
-    , path_sums :: f (Beam.TableEntity Schema.PathSum.PathSumT)
+    , path_sums :: f (Beam.TableEntity PathSum.PathSumT)
 
     , venues :: f (Beam.TableEntity Venue.VenueT)
     , currencys :: f (Beam.TableEntity Currency.CurrencyT)
