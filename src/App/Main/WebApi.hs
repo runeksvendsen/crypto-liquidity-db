@@ -1,5 +1,4 @@
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
