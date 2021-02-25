@@ -7,11 +7,14 @@ on:
       - '!README.md'
 
 jobs:
-  docker-build:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: docker-compose pull
+        run: docker-compose pull
 
       - name: docker-compose build
         run: docker-compose build
