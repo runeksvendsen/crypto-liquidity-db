@@ -7,6 +7,7 @@ module Database
 , calcsForRun
 , qtysForCalc
 , pathForPathQty
+, sumForCalc
 )
 where
 
@@ -16,8 +17,10 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Order  as Order
 import qualified CryptoDepth.OrderBook.Db.Schema.Book   as Book
 import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calculation
+import qualified Schema.PathSum
 import qualified Schema.CalculationParameter as CalcParam
 import qualified Schema.PathQty as PathQty
+import qualified Schema.PathSum as PathSum
 import qualified Schema.Path as Path
 import qualified Schema.Venue as Venue
 import qualified Schema.Currency as Currency
@@ -41,6 +44,7 @@ data LiquidityDb f = LiquidityDb
       -- Calculation output data
     , paths :: f (Beam.TableEntity Path.PathT)
     , path_qtys :: f (Beam.TableEntity PathQty.PathQtyT)
+    , path_sums :: f (Beam.TableEntity Schema.PathSum.PathSumT)
 
     , venues :: f (Beam.TableEntity Venue.VenueT)
     , currencys :: f (Beam.TableEntity Currency.CurrencyT)
@@ -78,3 +82,11 @@ pathForPathQty
 pathForPathQty =
     Beam.oneToOne_ (path_qtys liquidityDb)
                     PathQty.pathqtyPath
+
+sumForCalc
+    :: Beam.HasSqlEqualityCheck be Currency.Int32
+    => Calculation.CalculationT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (PathSum.PathSumT (Beam.QExpr be s))
+sumForCalc =
+    Beam.oneToOne_ (path_sums liquidityDb)
+                    PathSum.pathsumCalc
