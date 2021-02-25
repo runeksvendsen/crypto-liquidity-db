@@ -1,4 +1,4 @@
-name: Docker build
+name: build & test
 
 on:
   push:
@@ -7,11 +7,17 @@ on:
       - '!README.md'
 
 jobs:
-  docker-build:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: docker build
-        run: docker build .
+      - name: docker-compose pull
+        run: docker-compose pull --include-deps
+
+      - name: docker-compose build
+        run: docker-compose build
+
+      - name: docker-compose test
+        run: docker-compose up --exit-code-from liquidity-service-test

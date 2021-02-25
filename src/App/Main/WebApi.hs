@@ -1,5 +1,4 @@
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
@@ -106,17 +105,21 @@ server timeout =
     :<|> Lib.selectStalledCalculations timeout
     :<|> Lib.selectUnfinishedCalcCount
     :<|> Query.Books.runBooks
+    :<|> Lib.selectTestPathsSingle
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
 
 type API
-    =    Liquidity "all"
-    :<|> Liquidity CurrencySymbolList
-    :<|> GetAllCalcs
-    :<|> GetUnfinishedCalcs
-    :<|> GetUnfinishedCalcCount
-    :<|> GetRunBooks
+    =    BasePath (Liquidity "all")
+    :<|> BasePath (Liquidity CurrencySymbolList)
+    :<|> BasePath GetAllCalcs
+    :<|> BasePath GetUnfinishedCalcs
+    :<|> BasePath GetUnfinishedCalcCount
+    :<|> BasePath GetRunBooks
+    :<|> BasePath PathSingle
+
+type BasePath a = "api" :> "v1" :> a
 
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
@@ -128,7 +131,6 @@ type Liquidity (currencies :: k) =
         :> QueryParam "slippage" Double
         :> QueryParam "limit" Word
         :> Get '[JSON] [Lib.LiquidityData]
-
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"
@@ -156,3 +158,13 @@ type GetRunBooks =
         :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
         :> "books"
         :> Get '[JSON] [G.OrderBook Double]
+
+type PathSingle =
+    Summary "Get paths for single run currency"
+        :> "run"
+        :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
+        :> "paths"
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
+        :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
+        :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)

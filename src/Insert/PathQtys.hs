@@ -24,21 +24,21 @@ import qualified Schema.Currency                          as Currency
 import qualified Schema.Venue                          as Venue
 
 import qualified Schema.Path                              as Path
-import qualified Schema.PathPart                          as PP
 import qualified Schema.PathQty                           as PQty
 import           Schema.Venue
                  ( PrimaryKey(VenueId) )
 import Data.Int (Int16)
+import qualified Data.Vector as Vec
 
 
-insertAllPathQtys calcPk pathList = asTx $
-    let groupedPaths = groupOn G.pathDescr pathList
-        pathPriceQtyLst =
+insertAllPathQtys calcPk buyPaths sellPaths = asTx $
+    let mkPathPriceQtyLst pathList =
             map (\lst ->
                  (G.pathDescr $ head lst, (map G.pQty lst, map (realToFrac . G.pPrice) lst)))
-                groupedPaths
+                (groupOn G.pathDescr pathList)
+        allPaths = mkPathPriceQtyLst buyPaths ++ mkPathPriceQtyLst sellPaths
     in
-        forM_ pathPriceQtyLst $ \(pathDescr, (pathQtyLst, pathPrices)) ->
+        forM_ allPaths $ \(pathDescr, (pathQtyLst, pathPrices)) ->
         insertSinglePathQty calcPk
                             pathDescr
                             (round $ sum pathQtyLst)
@@ -59,26 +59,16 @@ insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
                                     }
                      ]
 
-pathInsert pathDescr = do
-    pathT <- runInsertReturningOne pathInsert'
-    runInsert $ pathPartInsert (pk pathT)
-    return (pk pathT)
+pathInsert pathDescr =
+    pk <$> runInsertReturningOne pathInsert'
   where
     pathEdges = G.pMoves pathDescr
+    (venues', currencys') = unzip (NE.toList pathEdges)
 
     pathInsert' = insert (paths liquidityDb) $
         insertExpressions [ Path.Path default_
-                                      (val_ . fromIntegral $ length pathEdges)
                                       (Currency.CurrencyId (val_ . toS $
                                                    G.pStart pathDescr))
+                                      (val_ $ Vec.fromList venues')
+                                      (val_ $ Vec.fromList (map toS currencys'))
                           ]
-
-    pathPartInsert = insert (path_parts liquidityDb) . insertValues . mkPathParts pathEdges
-
-    mkPathParts pathEdges' pathPk = for (zip [ 0 .. ] (NE.toList pathEdges')) $
-        \(idx, (venue, currency)) ->
-        PP.PathPart { PP.pathpartPath     = pathPk
-                    , PP.pathpartIndex    = idx
-                    , PP.pathpartVenue    = VenueId (toS venue)
-                    , PP.pathpartCurrency = Currency.CurrencyId (toS currency)
-                    }

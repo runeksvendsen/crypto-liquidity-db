@@ -35,6 +35,9 @@ import Data.List (intercalate)
 graphCache :: LRU.AtomicLRU (Db.RunId, Double) G.IBuyGraph
 graphCache = unsafePerformIO $ LRU.newAtomicLRU (Just 10)
 
+{-# NOINLINE bookCache #-}
+bookCache :: LRU.AtomicLRU Db.RunId [Books.OrderBook Double]
+bookCache = unsafePerformIO $ LRU.newAtomicLRU (Just 5)
 
 -- TODO: update:
 --   * calculationStartTime
@@ -55,22 +58,35 @@ runInsertCalculation calc = do
             return ()
         Right ((sellPaths, buyPaths), durationSecs) -> do
             logInfo "Process" $ "Finished calculation in " ++ printf "%.2fs" durationSecs
-            runDbTx $ do
-                let paths = map G.pathPath sellPaths ++ map G.pathPath buyPaths
-                Insert.PathQtys.insertAllPathQtys (Beam.pk dbCalc) paths
-                asTx $ Update.Calculation.updateDuration (Beam.pk dbCalc) (realToFrac durationSecs)
-            logInfo "Process" $ "Inserted quantities for crypto " ++ toS crypto ++ " (" ++ toS numeraire ++ ") @ " ++ show slippage
+            runDbTx_ ReadCommitted $ do
+                Insert.PathQtys.insertAllPathQtys (Beam.pk calc) buyPaths sellPaths
+                asTx $ Update.Calculation.updateDuration (Beam.pk calc) (realToFrac durationSecs)
+            logInfo "Process" $
+                printf "Inserted quantities for crypto %s (%s) @ %f. Buy qty: %d, sell qty: %d"
+                       (toS crypto :: String)
+                       (toS numeraire :: String)
+                       slippage
+                       (round $ sum $ map G.pQty buyPaths :: Calc.Int64)
+                       (round $ sum $ map G.pQty sellPaths :: Calc.Int64)
   where
     numeraire = toS $ Calc.calcNumeraire calc
     crypto = toS $ Calc.calcCrypto calc
-    slippage = Db.calculationSlippage dbCalc
-    runId = Db.getRunId dbCalc
-    dbCalc = Calc.calcCalc calc
+    slippage = Db.calculationSlippage calc
+    runId = Db.getRunId calc
     cacheKey = (runId, slippage)
     logger :: Monad m => String -> m ()
-    logger = return . unsafePerformIO . App.Log.logTrace (toS $ show (Db.fromCalcId (Beam.pk dbCalc)) ++ "/Process")
+    logger = return . unsafePerformIO . App.Log.logDebug (toS $ show (Db.fromCalcId (Beam.pk calc)) ++ "/Process")
+    fetchRunBook = do
+        runBooksM <- lift $ LRU.lookup runId bookCache
+        let fetchUpdateCache = do
+                books <- runDbRaw $ Books.runBooks runId
+                lift $ LRU.insert runId books bookCache
+                return books
+            logCacheHit = logInfo "Process/Cache/Books" ("Cache hit for " ++ show runId)
+            logCacheMiss = logDebug "Process/Cache/Books" ("Miss for " ++ show runId)
+        maybe (logCacheMiss >> fetchUpdateCache) (\books -> logCacheHit >> return books) runBooksM
     buildGraphAndCache = do
-        books <- runDbRaw $ Books.runBooks runId -- look up order books
+        books <- fetchRunBook -- look up order books
         (buyGraph, durationSecs) <- lift $ App.Timed.timeEval
             (fmap snd . ST.stToIO . G.buildBuyGraph logger (toRational slippage)) books -- create buyGraph
         lift $ LRU.insert cacheKey buyGraph graphCache -- update cache

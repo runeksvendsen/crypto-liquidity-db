@@ -13,7 +13,6 @@ module App.Monad
 -- * Monad
 , AppM
 , runAppM
--- , runBeamIO
 , async
 , Config(..)
 , CfgConstants(..)
@@ -21,9 +20,12 @@ module App.Monad
 , DbConn
 , calculationParameters
 , runDbTx
+, runDbTx_
+, PgSimple.IsolationLevel(..)
 , runDbTxWithConn
 , runDbRaw
 , runDbTxConn
+, withDbConn
 , DbTx
 , asTx
 , TxConn
@@ -31,6 +33,9 @@ module App.Monad
 , R.lift
 , R.ask
 , Has(..)
+ -- * Debugging
+, dbTraceStatements
+, dbTraceStatementsIO
 )
 where
 
@@ -52,6 +57,7 @@ import Control.Monad.Base (MonadBase)
 import Data.Has ( Has(..) )
 import qualified Control.Retry as Re
 import Control.Monad.Catch ( Handler(Handler) )
+import qualified Data.ByteString.Char8 as BC
 
 
 asTx :: Pg.Pg a -> DbTx a
@@ -65,10 +71,10 @@ newtype TxConn = TxConn Pg.Connection
 txConn :: TxConn -> Pg.Connection
 txConn (TxConn conn) = conn
 
-runDbTxWithConnNoRetry :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
-runDbTxWithConnNoRetry action = do
+runDbTxWithConnNoRetry :: Has DbConn r => PgSimple.IsolationLevel -> (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConnNoRetry level action = do
     withDbConn $ \conn ->
-        R.lift $ PgSimple.withTransactionLevel PgSimple.Serializable conn $ do
+        R.lift $ PgSimple.withTransactionLevel level conn $ do
             let (DbTx pgM) = action (TxConn conn)
             runBeamIONoRetry conn pgM
 
@@ -103,6 +109,9 @@ withDbConn f = do
 runDbTx :: Has DbConn r => DbTx a -> AppM r a
 runDbTx dbTxM = runDbTxWithConn (const dbTxM)
 
+runDbTx_ :: Has DbConn r => PgSimple.IsolationLevel -> DbTx a -> AppM r a
+runDbTx_ level dbTxM = runDbTxWithConn_ level (const dbTxM)
+
 -- | Run a database query outside of a transaction
 runDbRaw :: Has DbConn r => Pg.Pg a -> AppM r a
 runDbRaw pgM = do
@@ -114,9 +123,12 @@ runDbTxConn (TxConn conn) pgM = do
     R.liftIO $ runBeamIONoRetry conn pgM
 
 runDbTxWithConn :: Has DbConn r => (TxConn -> DbTx a) -> AppM r a
-runDbTxWithConn action = do
+runDbTxWithConn = runDbTxWithConn_ PgSimple.Serializable
+
+runDbTxWithConn_ :: Has DbConn r => PgSimple.IsolationLevel -> (TxConn -> DbTx a) -> AppM r a
+runDbTxWithConn_ level action = do
     cfg <- R.ask
-    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry action)
+    R.liftIO $ Re.recovering policy [const pgSqlErrorHandler] (const $ runAppM cfg $ runDbTxWithConnNoRetry level action)
   where
     pgSqlErrorHandler = Handler $ \ex ->
         let (retry, msg) = shouldRetry ex
@@ -134,6 +146,19 @@ runDbTxWithConn action = do
 runBeamIONoRetry :: Pg.Connection -> Pg.Pg a -> IO a
 runBeamIONoRetry conn pgM = do
     Pg.runBeamPostgresDebug (logDebugIO "SQL") conn pgM
+
+dbTraceStatements :: Has DbConn r => Pg.PgDebugStmt statement => statement -> AppM r BC.ByteString
+dbTraceStatements statement =
+    withDbConn $ \conn -> R.liftIO $ Pg.pgTraceStmtIO' conn statement
+
+-- |
+dbTraceStatementsIO
+    :: Pg.PgDebugStmt statement
+    => String -- ^ DB connection string
+    -> statement
+    -> IO BC.ByteString
+dbTraceStatementsIO connStr statement =
+    Pool.withPoolPg connStr $ \pool -> runAppM pool (dbTraceStatements statement)
 
 async :: AppM r a -> AppM r (Async.Async a)
 async appM = do

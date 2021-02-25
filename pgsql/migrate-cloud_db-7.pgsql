@@ -1,0 +1,1 @@
+CREATE INDEX calculation_runs ON calculations (run__id);

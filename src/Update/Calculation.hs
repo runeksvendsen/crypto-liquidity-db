@@ -17,7 +17,6 @@ import qualified Schema.Calculation                       as Calc
 import           Schema.Currency
                  ( PrimaryKey(CurrencyId) )
 import qualified Schema.Path                              as Path
-import qualified Schema.PathPart                          as PP
 import qualified Schema.PathQty                           as PQty
 import           Schema.Venue
                  ( PrimaryKey(VenueId) )

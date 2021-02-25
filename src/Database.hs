@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Database
 ( LiquidityDb(..)
 , liquidityDb
-, partsForPath
 , calcsForRun
+, qtysForCalc
+, pathForPathQty
 )
 where
 
@@ -18,7 +18,6 @@ import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calculation
 import qualified Schema.CalculationParameter as CalcParam
 import qualified Schema.PathQty as PathQty
-import qualified Schema.PathPart as PathPart
 import qualified Schema.Path as Path
 import qualified Schema.Venue as Venue
 import qualified Schema.Currency as Currency
@@ -41,7 +40,6 @@ data LiquidityDb f = LiquidityDb
 
       -- Calculation output data
     , paths :: f (Beam.TableEntity Path.PathT)
-    , path_parts :: f (Beam.TableEntity PathPart.PathPartT)
     , path_qtys :: f (Beam.TableEntity PathQty.PathQtyT)
 
     , venues :: f (Beam.TableEntity Venue.VenueT)
@@ -56,14 +54,6 @@ instance Beam.Database be LiquidityDb
 liquidityDb :: Beam.DatabaseSettings be LiquidityDb
 liquidityDb = Beam.defaultDbSettings
 
-partsForPath
-    :: Beam.HasSqlEqualityCheck be Path.Int32
-    => Path.PathT (Beam.QExpr be s)
-    -> Beam.Q be LiquidityDb s (PathPart.PathPartT (Beam.QExpr be s))
-partsForPath =
-    Beam.oneToMany_ (path_parts liquidityDb)
-                    PathPart.pathpartPath
-
 calcsForRun
     :: Beam.HasSqlEqualityCheck be Currency.Int32
     => Run.RunT (Beam.QExpr be s)
@@ -71,3 +61,20 @@ calcsForRun
 calcsForRun =
     Beam.oneToMany_ (calculations liquidityDb)
                     Calculation.calculationRun
+
+qtysForCalc
+    :: Beam.HasSqlEqualityCheck be Currency.Int32
+    => Calculation.CalculationT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (PathQty.PathQtyT (Beam.QExpr be s))
+qtysForCalc =
+    Beam.oneToMany_ (path_qtys liquidityDb)
+                    PathQty.pathqtyCalc
+
+
+pathForPathQty
+    :: Beam.HasSqlEqualityCheck be Currency.Int32
+    => Path.PathT (Beam.QExpr be s)
+    -> Beam.Q be LiquidityDb s (PathQty.PathQtyT (Beam.QExpr be s))
+pathForPathQty =
+    Beam.oneToOne_ (path_qtys liquidityDb)
+                    PathQty.pathqtyPath

@@ -1,0 +1,1 @@
+CREATE INDEX calculation_currencies ON calculations (currency__symbol);

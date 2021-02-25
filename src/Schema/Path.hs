@@ -21,13 +21,15 @@ import           Database.Beam              (C, Identity, PrimaryKey)
 import Data.Time.Clock                      (UTCTime)
 import Database.Beam.Backend.SQL.Types      (SqlSerial(unSerial))
 import Data.Int                            (Int16, Int32)
+import qualified Data.Vector as Vec
 
 
 data PathT f
     = Path
     { pathId        :: C f (SqlSerial Int32)
-    , pathPartCount :: C f Int16 -- ^ how many 'PathPart' are associated with this 'Path'?
     , pathStart     :: PrimaryKey Currency.CurrencyT f -- ^ where does the path start?
+    , pathVenues    :: C f (Vec.Vector Text) -- venues moved through (length = length pathCurrencys)
+    , pathCurrencys :: C f (Vec.Vector Text) -- currencies moved through (length = length pathVenues)
     } deriving Generic
 
 type Path = PathT Identity

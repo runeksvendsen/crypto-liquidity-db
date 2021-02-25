@@ -60,16 +60,15 @@ processCalculations = do
             return ()
         Just calculation -> do
             logInfo "Process" $ "Starting calculation "
-                ++ show (Db.fromCalcId $ Beam.pk $ Calc.calcCalc calculation)
+                ++ show (Db.fromCalcId $ Beam.pk calculation)
                 ++ " (" ++ showCalc calculation ++ ")..."
             RunCalc.runInsertCalculation calculation
             processCalculations
   where
     showCalc calc =
-        let dbCalc = Calc.calcCalc calc in
         intercalate "/"
-            [ show (Db.calculationRun dbCalc)
+            [ show (Db.calculationRun calc)
             , toS $ Calc.calcNumeraire calc
             , toS $ Calc.calcCrypto calc
-            , printf "%f" (Db.calculationSlippage dbCalc)
+            , printf "%f" (Db.calculationSlippage calc)
             ]

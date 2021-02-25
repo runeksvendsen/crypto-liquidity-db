@@ -8,6 +8,7 @@ module Schema.Currency
 , CurrencyId
 , PrimaryKey(type CurrencyId)
 , Int32
+, getSymbol
 )
 where
 
@@ -42,3 +43,6 @@ instance Beam.Table CurrencyT where
     primaryKey = CurrencyId . currencySymbol
 
 instance Beam.Beamable (PrimaryKey CurrencyT)
+
+getSymbol :: CurrencyId -> Text
+getSymbol (CurrencyId txt) = txt
