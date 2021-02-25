@@ -127,7 +127,6 @@ stalledCalculations timeoutTime = do
 selectAllCalculations
     :: ( MonadBeam be m
        , FromBackendRow be Calc.Int32
-       , FromBackendRow be Calc.Int32
        , FromBackendRow be Text
        , FromBackendRow be Double
        , FromBackendRow be Calc.UTCTime

@@ -20,6 +20,7 @@ import           Internal.Prelude
 import qualified OrderBook.Graph                          as G
 
 import qualified Schema.Calculation                       as Calc
+import qualified Schema.PathSum
 import qualified Schema.Currency                          as Currency
 import qualified Schema.Venue                          as Venue
 
@@ -31,18 +32,31 @@ import Data.Int (Int16)
 import qualified Data.Vector as Vec
 
 
+insertPathSum calcPk buyPaths sellPaths =
+    insert (path_sums liquidityDb) $ insertValues
+        [ Schema.PathSum.PathSum
+            { Schema.PathSum.pathsumCalc = calcPk
+            , Schema.PathSum.pathsumBuyQty = pathsSum buyPaths
+            , Schema.PathSum.pathsumSellQty = pathsSum sellPaths
+            }
+        ]
+  where
+    pathsSum :: G.HasPathQuantity path Rational => [path] -> PQty.Int64
+    pathsSum = round . sum . map G.pQty
+
 insertAllPathQtys calcPk buyPaths sellPaths = asTx $
     let mkPathPriceQtyLst pathList =
             map (\lst ->
                  (G.pathDescr $ head lst, (map G.pQty lst, map (realToFrac . G.pPrice) lst)))
                 (groupOn G.pathDescr pathList)
         allPaths = mkPathPriceQtyLst buyPaths ++ mkPathPriceQtyLst sellPaths
-    in
+    in do
         forM_ allPaths $ \(pathDescr, (pathQtyLst, pathPrices)) ->
-        insertSinglePathQty calcPk
-                            pathDescr
-                            (round $ sum pathQtyLst)
-                            (sort pathPrices)
+            insertSinglePathQty calcPk
+                                pathDescr
+                                (round $ sum pathQtyLst)
+                                (sort pathPrices)
+        runInsert $ insertPathSum calcPk buyPaths sellPaths
 
 insertSinglePathQty calcPk pathDescr pathQty sortedPathPrices = do
     pathPk <- pathInsert pathDescr

@@ -28,6 +28,7 @@ import qualified Schema.RunCurrency as RC
 import qualified Schema.Calculation as Calc
 import qualified Schema.Path as Path
 import qualified Schema.PathQty as PathQty
+import qualified Schema.PathSum as PathSum
 import qualified Schema.CalculationParameter as CalcParam
 
 import Database.Beam
@@ -101,7 +102,7 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         (Just limit, Just numeraire, Just slippage, []) ->
             quantitiesLimit fromM toM numeraire slippage limit
         _ -> do
-            res@(_, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM Nothing
+            res@(_, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
@@ -115,7 +116,7 @@ runsWithinTime numeraireM slippageM fromM toM = do
     pure run
 
 quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage) Nothing
+    res@(_, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage)
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -127,6 +128,20 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                 aggregate_
                     (\(currency, qty) ->
                         ( group_ currency
+                        -- NB: postgres converts the type of this column to "numeric".
+                        -- We need to cast this in order to avoid the following runtime error,
+                        --  which happens when beam tries to parse an Int64 from a "numeric".
+                        --
+                        -- BeamRowReadError {
+                        --    brreColumn = Just 6,
+                        --    brreError = ColumnTypeMismatch {
+                        --       ctmHaskellType = "Integer",
+                        --       ctmSQLType = "numeric",
+                        --       ctmMessage = "types incompatible"
+                        --    }
+                        -- }
+                        --
+                        -- Beam issue: https://github.com/haskell-beam/beam/issues/545
                         , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
                         )
                     ) $ do
@@ -135,10 +150,11 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                             runsWithinTime (Just numeraire) (Just slippage) fromM toM
                         calc <- calcsForRun run
                         guard_ $ isCrypto calc
-                        pathQty <- qtysForCalc calc
-                        pure (getSymbol $ Calc.calculationCurrency calc, PathQty.pathqtyQty pathQty)
+                        pathSum <- sumForCalc calc
+                        let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+                        pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
--- | Runs with at least a single PathQty
+-- | Runs with at least a single PathSum
 nonEmptyRuns :: Currency -> Double -> Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
 nonEmptyRuns numeraire slippage = do
     run <- all_ (runs liquidityDb)
@@ -147,51 +163,29 @@ nonEmptyRuns numeraire slippage = do
         guard_ $
             Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
             &&. Calc.calculationSlippage calc ==. val_ slippage
-        pathQty <- qtysForCalc calc
-        pure $ PathQty.pathqtyQty pathQty
+        pathSum <- sumForCalc calc
+        pure $ PathSum.pathsumBuyQty pathSum
     pure run
 
 quantities
-    :: Q Pg.Postgres LiquidityDb (QNested (QNested s)) (Run.RunT (QExpr Pg.Postgres (QNested (QNested s))))
+    :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
     -> Maybe Currency
     -> Maybe Double
-    -> Maybe Word
     -> Q Pg.Postgres LiquidityDb s
-        ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
-        , QGenExpr QValueContext Pg.Postgres s Text
-        , QGenExpr QValueContext Pg.Postgres s PathQty.Int64
+        ( Run.RunT (QExpr Pg.Postgres s)
+        , QExpr Pg.Postgres s Text
+        , QExpr Pg.Postgres s PathSum.Int64
         )
-quantities runQ numeraireM slippageM limitM =
-    maybe (offset_ 0) (limit_ . fromIntegral) limitM $ -- apply LIMIT if present ("OFFSET 0" is a no-op)
-    aggregate_
-        (\(run, calc, pathQty) ->
-            ( group_ run
-            , group_ $ getSymbol (Calc.calculationCurrency calc)
-              -- NB: postgres converts the type of this column to "numeric".
-              -- We need to cast this in order to avoid the following runtime error,
-              --  which happens when beam tries to parse an Int64 from a "numeric".
-              --
-              -- BeamRowReadError {
-              --    brreColumn = Just 6,
-              --    brreError = ColumnTypeMismatch {
-              --       ctmHaskellType = "Integer",
-              --       ctmSQLType = "numeric",
-              --       ctmMessage = "types incompatible"
-              --    }
-              -- }
-            , fromMaybe_ (val_ 0) (sum_ pathQty) `cast_` bigint
-            )
-        ) $
-        do
-            res@(_, calc, _) <- allQuantities
-            whereNumeraireSlippage calc numeraireM slippageM
-            pure res
+quantities runQ numeraireM slippageM = do
+    (run, calc, qtySum) <- runCalcQuantity
+    whereNumeraireSlippage calc numeraireM slippageM
+    pure (run, getSymbol (Calc.calculationCurrency calc), qtySum)
   where
-    allQuantities = do
+    runCalcQuantity = do
         run <- runQ
         calc <- calcsForRun run
-        pathQty <- qtysForCalc calc
-        pure (run, calc, PathQty.pathqtyQty pathQty)
+        pathSum <- sumForCalc calc
+        pure (run, calc, PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum)
 
 getSymbol (Currency.CurrencyId symbol) = symbol
 
