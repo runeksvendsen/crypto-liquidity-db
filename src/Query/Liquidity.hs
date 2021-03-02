@@ -102,21 +102,19 @@ selectQuantities currencies fromM toM numeraireM slippageM limitM =
         (Just limit, Just numeraire, Just slippage, []) ->
             quantitiesLimit fromM toM numeraire slippage limit
         _ -> do
-            res@(_, currency, _) <- quantities (runsWithinTime numeraireM slippageM fromM toM) numeraireM slippageM
+            res@(_, currency, _) <- quantities (runsWithinTime fromM toM) numeraireM slippageM
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
 
-runsWithinTime numeraireM slippageM fromM toM = do
-    run <- case (numeraireM, slippageM) of
-            (Just numeraire, Just slippage) -> nonEmptyRuns numeraire slippage
-            _ -> all_ (runs liquidityDb)
+runsWithinTime fromM toM = do
+    run <- all_ (runs liquidityDb)
     forM_ fromM $ \fromTime -> guard_ $ Run.runTimeStart run >=. val_ fromTime
     forM_ toM $ \endTime -> guard_ $ Run.runTimeEnd run <=. val_ endTime
     pure run
 
 quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, currency, _) <- quantities (runsWithinTime (Just numeraire) (Just slippage) fromM toM) (Just numeraire) (Just slippage)
+    res@(_, currency, _) <- quantities (runsWithinTime fromM toM) (Just numeraire) (Just slippage)
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -145,27 +143,26 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
                         )
                     ) $ do
-                        -- get at most 100 runs within given time period
-                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $
-                            runsWithinTime (Just numeraire) (Just slippage) fromM toM
+                        -- get at most 100 (non-empty) runs within given time period
+                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
+                            run <- runsWithinTime fromM toM
+                            guard_ $ nonEmptyRun run numeraire slippage
+                            pure run
                         calc <- calcsForRun run
                         guard_ $ isCrypto calc
                         pathSum <- sumForCalc calc
                         let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
                         pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
--- | Runs with at least a single PathSum
-nonEmptyRuns :: Currency -> Double -> Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
-nonEmptyRuns numeraire slippage = do
-    run <- all_ (runs liquidityDb)
-    guard_ $ exists_ $ do
+-- | Does the run have at least a single finished calculation?
+nonEmptyRun run numeraire slippage = do
+    exists_ $ do
         calc <- calcsForRun run
         guard_ $
             Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
             &&. Calc.calculationSlippage calc ==. val_ slippage
         pathSum <- sumForCalc calc
         pure $ PathSum.pathsumBuyQty pathSum
-    pure run
 
 quantities
     :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
