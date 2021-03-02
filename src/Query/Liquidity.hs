@@ -13,6 +13,7 @@ module Query.Liquidity
 , selectTestPathsSingle
 , TestPathsSingleRes
 , prettyPathParts
+, selectNewestRunAllLiquidity
 )
 where
 
@@ -146,23 +147,17 @@ quantitiesLimit fromM toM numeraire slippage limit = do
                         -- get at most 100 (non-empty) runs within given time period
                         run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
                             run <- runsWithinTime fromM toM
-                            guard_ $ nonEmptyRun run numeraire slippage
+                            guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
                             pure run
-                        calc <- calcsForRun run
-                        guard_ $ isCrypto calc
+                        calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
                         pathSum <- sumForCalc calc
                         let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
                         pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
 -- | Does the run have at least a single finished calculation?
-nonEmptyRun run numeraire slippage = do
-    exists_ $ do
-        calc <- calcsForRun run
-        guard_ $
-            Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
-            &&. Calc.calculationSlippage calc ==. val_ slippage
-        pathSum <- sumForCalc calc
-        pure $ PathSum.pathsumBuyQty pathSum
+nonEmptyRun run numeraireM slippageM = do
+    exists_ $
+        Calc.calculationId <$> finishedCalcsForRun run numeraireM slippageM
 
 quantities
     :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
@@ -175,27 +170,26 @@ quantities
         )
 quantities runQ numeraireM slippageM = do
     (run, calc, qtySum) <- runCalcQuantity
-    whereNumeraireSlippage calc numeraireM slippageM
     pure (run, getSymbol (Calc.calculationCurrency calc), qtySum)
   where
     runCalcQuantity = do
         run <- runQ
-        calc <- calcsForRun run
+        calc <- finishedCryptoCalcsForRun run numeraireM slippageM
         pathSum <- sumForCalc calc
         pure (run, calc, PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum)
 
 getSymbol (Currency.CurrencyId symbol) = symbol
 
-whereNumeraireSlippage calc numeraireM slippageM = do
+whereNumeraireSlippageFinished calc numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
+    guard_ $ isJust_ $ Calc.calculationDurationSeconds calc
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
 
 testPathsSingle runQ numeraire slippage currency = do
     (run, calc, pathQty) <- allQuantitiesPaths runQ
-    whereNumeraireSlippage calc (Just numeraire) (Just slippage)
     path <- all_ $ paths liquidityDb
     guard_ $ pk path ==. PathQty.pathqtyPath pathQty
     guard_ $ Calc.calculationCurrency calc ==. Currency.CurrencyId (val_ $ toS currency)
@@ -203,7 +197,7 @@ testPathsSingle runQ numeraire slippage currency = do
   where
     allQuantitiesPaths runQ' = do
         run <- runQ'
-        calc <- calcsForRun run
+        calc <- finishedCalcsForRun run (Just numeraire) (Just slippage)
         pathQty <- qtysForCalc calc
         pure (run, calc, pathQty)
 
@@ -291,3 +285,58 @@ groupNest groupF nestF lst' =
 
 limitQ limitM =
     maybe (offset_ 0) (limit_ . fromIntegral) (limitM :: Maybe Word)
+
+finishedCalcsForRun run numeraireM slippageM = do
+    calc <- calcsForRun run
+    whereNumeraireSlippageFinished calc numeraireM slippageM
+    pure calc
+
+finishedCryptoCalcsForRun run numeraireM slippageM = do
+    calc <- finishedCalcsForRun run numeraireM slippageM
+    guard_ $ isCrypto calc
+    pure calc
+
+selectNewestRunAllLiquidity numeraireM slippageM offsetM limitM =
+    runSelectReturningList $ select $ newestRunAllLiquidity numeraireM slippageM offsetM limitM
+
+newestRunAllLiquidity
+    :: ( HasQBuilder be
+       , HasSqlEqualityCheck be Text
+       , HasSqlEqualityCheck be Double
+       , HasSqlEqualityCheck be Path.Int32
+       , HasSqlInTable be
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
+       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathSum.Int64
+       )
+    => Maybe Currency
+    -> Maybe Double
+    -> Maybe Integer
+    -> Maybe Integer
+    -> Q be LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext be s)
+        , QGenExpr QValueContext be s Text
+        , QGenExpr QValueContext be s PathSum.Int64
+        , QGenExpr QValueContext be s PathSum.Int64
+        )
+newestRunAllLiquidity numeraireM slippageM offsetM limitM =
+    limit_ (fromMaybe 50 limitM) $
+        offset_ (fromMaybe 0 offsetM) $
+            orderBy_ (\(_, _, buyQty, sellQty) -> desc_ (buyQty + sellQty))
+                newestRunCalcs
+  where
+    newestRunCalcs = do
+        run <- newestNonEmptyRun
+        calc <- finishedCryptoCalcsForRun run numeraireM slippageM
+        pathSum <- sumForCalc calc
+        pure ( run
+             , getSymbol $ Calc.calculationCurrency calc
+             , PathSum.pathsumBuyQty pathSum
+             , PathSum.pathsumSellQty pathSum
+             )
+    newestNonEmptyRun =
+        limit_ 1 $
+            orderBy_ (desc_ . Run.runId) $ do
+                run <- all_ (runs liquidityDb)
+                guard_ $ nonEmptyRun run numeraireM slippageM
+                pure run

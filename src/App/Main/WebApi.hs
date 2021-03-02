@@ -106,6 +106,7 @@ server timeout =
     :<|> Lib.selectUnfinishedCalcCount
     :<|> Query.Books.runBooks
     :<|> Lib.selectTestPathsSingle
+    :<|> Lib.selectNewestRunAllLiquidity
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -118,6 +119,7 @@ type API
     :<|> BasePath GetUnfinishedCalcCount
     :<|> BasePath GetRunBooks
     :<|> BasePath PathSingle
+    :<|> BasePath CurrentTopLiquidity
 
 type BasePath a = "api" :> "v1" :> a
 
@@ -131,6 +133,17 @@ type Liquidity (currencies :: k) =
         :> QueryParam "slippage" Double
         :> QueryParam "limit" Word
         :> Get '[JSON] [Lib.LiquidityData]
+
+type CurrentTopLiquidity =
+    Summary "Get most recent liquidity for all currencies"
+        :> "liquidity"
+        :> "all"
+        :> "newest"
+        :> QueryParam "numeraire" Currency
+        :> QueryParam "slippage" Double
+        :> QueryParam "offset" Integer
+        :> QueryParam "limit" Integer
+        :> Get '[JSON] [(Run.Run, Text, Lib.Int64, Lib.Int64)]
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"
