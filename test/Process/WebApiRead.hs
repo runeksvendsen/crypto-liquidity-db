@@ -135,7 +135,7 @@ liquidity
     -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathSingle =
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathSingle :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
