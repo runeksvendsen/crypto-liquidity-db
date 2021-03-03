@@ -14,6 +14,7 @@ module Query.Liquidity
 , TestPathsSingleRes
 , prettyPathParts
 , selectNewestRunAllLiquidity
+, selectNewestRunAllPaths
 )
 where
 
@@ -159,6 +160,12 @@ nonEmptyRun run numeraireM slippageM = do
     exists_ $
         Calc.calculationId <$> finishedCalcsForRun run numeraireM slippageM
 
+finishedRun run numeraireM slippageM = do
+    not_ $ exists_ $ do
+        calc <- calcsForRun run
+        whereNumeraireSlippageUnfinished calc numeraireM slippageM
+        pure $ Calc.calculationId calc
+
 quantities
     :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
     -> Maybe Currency
@@ -184,6 +191,12 @@ whereNumeraireSlippageFinished calc numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     guard_ $ isJust_ $ Calc.calculationDurationSeconds calc
+
+-- TODO: merge with "whereNumeraireSlippageFinished" somehow
+whereNumeraireSlippageUnfinished calc numeraireM slippageM = do
+    forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
+    forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
+    guard_ $ isNothing_ $ Calc.calculationDurationSeconds calc
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
@@ -340,3 +353,28 @@ newestRunAllLiquidity numeraireM slippageM offsetM limitM =
                 run <- all_ (runs liquidityDb)
                 guard_ $ nonEmptyRun run numeraireM slippageM
                 pure run
+
+newestFinishedRun numeraireM slippageM =
+    limit_ 1 $
+        orderBy_ (desc_ . Run.runId) $ do
+            run <- all_ (runs liquidityDb)
+            guard_ $ finishedRun run numeraireM slippageM
+            pure run
+
+selectNewestRunAllPaths numeraire slippage =
+    runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+
+newestRunAllPaths numeraire slippage = do
+    run <- newestFinishedRun (Just numeraire) (Just slippage)
+    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+    (pathQty, path) <- qtyAndPath calc
+    pure ( Calc.calculationCurrency calc
+         , PathQty.pathqtyQty pathQty
+         , path
+         )
+  where
+    qtyAndPath calc = do
+        pathQty <- qtysForCalc calc
+        path <- all_ $ paths liquidityDb
+        guard_ $ pk path ==. PathQty.pathqtyPath pathQty
+        pure (pathQty, path)
