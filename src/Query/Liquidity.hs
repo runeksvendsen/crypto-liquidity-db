@@ -20,6 +20,7 @@ where
 
 import Internal.Prelude
 
+import qualified Query.Graph
 import App.Orphans ()
 import qualified App.Util
 import Database
@@ -47,6 +48,7 @@ import Database.Beam.Query.Internal (QNested)
 import Data.Bifunctor (Bifunctor(first))
 import qualified Data.Vector as Vec
 import Protolude (headMay)
+import qualified Data.Aeson as Json
 
 
 isCrypto calc = do
@@ -160,11 +162,20 @@ nonEmptyRun run numeraireM slippageM = do
     exists_ $
         Calc.calculationId <$> finishedCalcsForRun run numeraireM slippageM
 
-finishedRun run numeraireM slippageM = do
-    not_ $ exists_ $ do
-        calc <- calcsForRun run
-        whereNumeraireSlippageUnfinished calc numeraireM slippageM
+-- | A run with at least a single calculation, all of which are finished
+finishedRun runQ numeraireM slippageM = do
+    guard_ noUnfinishedCalcs
+    guard_ $ exists_ $ do
+        calc <- calcsForRun runQ
+        whereNumeraireSlippage calc numeraireM slippageM
         pure $ Calc.calculationId calc
+  where
+    noUnfinishedCalcs =
+        not_ $ exists_ $ do
+            calc <- calcsForRun runQ
+            whereNumeraireSlippage calc numeraireM slippageM
+            guard_ $ isNothing_ $ Calc.calculationDurationSeconds calc
+            pure $ Calc.calculationId calc
 
 quantities
     :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
@@ -193,10 +204,9 @@ whereNumeraireSlippageFinished calc numeraireM slippageM = do
     guard_ $ isJust_ $ Calc.calculationDurationSeconds calc
 
 -- TODO: merge with "whereNumeraireSlippageFinished" somehow
-whereNumeraireSlippageUnfinished calc numeraireM slippageM = do
+whereNumeraireSlippage calc numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
-    guard_ $ isNothing_ $ Calc.calculationDurationSeconds calc
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
@@ -244,8 +254,8 @@ selectTestPathsSingle runId numeraire slippage currency = fmap (headMay . conver
                  -> [(Calc.Calculation, [(PathQty.PathQty, Path.Path)])]
     fromCalcList = groupNestByFst
 
-    groupNestByFst :: Ord (UsingId b1) => [(b1, b2)] -> [(b1, [b2])]
-    groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
+groupNestByFst :: Ord (UsingId b1) => [(b1, a)] -> [(b1, [a])]
+groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
 
 prettyPathParts
     :: Path.Path
@@ -358,19 +368,26 @@ newestFinishedRun numeraireM slippageM =
     limit_ 1 $
         orderBy_ (desc_ . Run.runId) $ do
             run <- all_ (runs liquidityDb)
-            guard_ $ finishedRun run numeraireM slippageM
+            finishedRun run numeraireM slippageM
             pure run
 
+selectNewestRunAllPaths
+    :: Currency
+    -> Double
+    -> Pg.Pg Query.Graph.GraphData
 selectNewestRunAllPaths numeraire slippage =
-    runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+    fmap (Query.Graph.toGraphData . head . groupNestByFst) $
+        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
 
 newestRunAllPaths numeraire slippage = do
     run <- newestFinishedRun (Just numeraire) (Just slippage)
     calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
     (pathQty, path) <- qtyAndPath calc
-    pure ( Calc.calculationCurrency calc
-         , PathQty.pathqtyQty pathQty
-         , path
+    pure ( run
+           , ( getSymbol $ Calc.calculationCurrency calc
+             , PathQty.pathqtyQty pathQty
+             , path
+             )
          )
   where
     qtyAndPath calc = do
@@ -378,3 +395,8 @@ newestRunAllPaths numeraire slippage = do
         path <- all_ $ paths liquidityDb
         guard_ $ pk path ==. PathQty.pathqtyPath pathQty
         pure (pathQty, path)
+
+instance Json.ToJSON LiquidityData where
+    toJSON = Json.genericToJSON App.Util.prefixOptions
+instance Json.FromJSON LiquidityData where
+    parseJSON = Json.genericParseJSON App.Util.prefixOptions

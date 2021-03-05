@@ -49,12 +49,12 @@ packages:
     version: 0.1.0.0
     git: https://github.com/runeksvendsen/bellman-ford.git
     pantry-tree:
-      size: 1696
-      sha256: f83f3f72d0facf089cbbd890003c87412bcf8314984a1ea05387b3de2bd1b55a
-    commit: a089bfe9d449afbc1907ded5223bba23a5de9e8a
+      size: 1697
+      sha256: baf97a033320c3a45fa030c41b627e7e9969873c8606ee24d578f14c2c15d522
+    commit: 45bfb65d16a635fadb4097cdb8f3ec9281784083
   original:
     git: https://github.com/runeksvendsen/bellman-ford.git
-    commit: a089bfe9d449afbc1907ded5223bba23a5de9e8a
+    commit: 45bfb65d16a635fadb4097cdb8f3ec9281784083
 - completed:
     subdir: mutable-containers
     name: mutable-containers

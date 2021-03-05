@@ -28,7 +28,9 @@ import App.Monad (Config(..), CfgConstants(..), CfgParams(..) )
 -- crypto-liquidity-db
 import qualified Database as Lib
 import qualified Schema.Currency as Lib
+import qualified Schema.Path as Lib
 import qualified Query.Liquidity as Lib
+import qualified Query.Graph as Lib
 import qualified Query.Books as Lib
 import qualified Query.Calculations as Lib
 import qualified Schema.Calculation as LibCalc
@@ -105,6 +107,7 @@ server timeout =
     :<|> Lib.selectStalledCalculations timeout
     :<|> Lib.selectUnfinishedCalcCount
     :<|> Query.Books.runBooks
+    :<|> Lib.selectNewestRunAllPaths
     :<|> Lib.selectTestPathsSingle
     :<|> Lib.selectNewestRunAllLiquidity
 
@@ -118,6 +121,7 @@ type API
     :<|> BasePath GetUnfinishedCalcs
     :<|> BasePath GetUnfinishedCalcCount
     :<|> BasePath GetRunBooks
+    :<|> BasePath NewestRunAllPaths
     :<|> BasePath PathSingle
     :<|> BasePath CurrentTopLiquidity
 
@@ -181,3 +185,13 @@ type PathSingle =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
         :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)
+
+type NewestRunAllPaths =
+    Summary "Get all paths for newest run"
+    :> "run"
+    :> "newest"
+    :> "paths"
+    :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+    :> Capture' '[Description "Slippage"] "slippage" Double
+    :> "all"
+    :> Get '[JSON] Lib.GraphData

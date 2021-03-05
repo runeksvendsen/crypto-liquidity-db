@@ -6,9 +6,9 @@ module App.Main.WebApi.Orphans where
 import Internal.Prelude
 
 -- crypto-liquidity-db
+import App.Util (prefixOptions)
 import qualified Schema.Currency as Lib
 import qualified Query.Books as Lib
-import qualified Query.Liquidity as Lib
 import qualified Schema.Path as Lib
 import qualified Schema.PathQty as Lib
 import qualified Schema.Calculation as LibCalc
@@ -18,36 +18,17 @@ import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
 
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import qualified Data.Aeson as Json
-import qualified Data.Aeson.Casing as Casing
-import qualified  Data.Aeson.Casing.Internal as Casing
 import OrderBook.Graph.Types (Currency)
 import Database.Beam.Backend.SQL.Types (SqlSerial(SqlSerial))
 import Text.Read (readMaybe)
 import qualified Data.Text as T
 
 
--- Drop the first word (until first capital letter) and
---  then apply a casing function
-dropFirstWord :: (String -> String) -> (String -> String)
-dropFirstWord f = f . Casing.dropFPrefix
-
-prefixOptions :: Json.Options
-prefixOptions = Json.defaultOptions
-    { Json.fieldLabelModifier = dropFirstWord Casing.snakeCase
-    , Json.sumEncoding = Json.ObjectWithSingleField
-    , Json.constructorTagModifier = Casing.snakeCase
-    }
-
 instance Json.ToJSON LibCalc.Calculation where
     toJSON = Json.genericToJSON prefixOptions
 
 instance Json.ToJSON Run.Run where
     toJSON = Json.genericToJSON prefixOptions
-
-instance Json.ToJSON Lib.LiquidityData where
-    toJSON = Json.genericToJSON prefixOptions
-instance Json.FromJSON Lib.LiquidityData where
-    parseJSON = Json.genericParseJSON prefixOptions
 
 instance Json.ToJSON Lib.PathQty where
     toJSON = Json.genericToJSON prefixOptions

@@ -63,6 +63,7 @@ library:
   - ansi-terminal
   - pretty-show
   - it-has
+  - bellman-ford  # Query.Graph
   - servant-server # WebApi
   - warp # WebApi
   - aeson # WebApi
