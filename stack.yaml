@@ -11,7 +11,7 @@ extra-deps:
 - git: https://github.com/runeksvendsen/order-graph.git
   commit: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
 - git: https://github.com/runeksvendsen/bellman-ford.git
-  commit: a089bfe9d449afbc1907ded5223bba23a5de9e8a
+  commit: 45bfb65d16a635fadb4097cdb8f3ec9281784083
 - git: https://github.com/runeksvendsen/mono-traversable.git
   commit: 5bcff3e91337c071a7855be0691eae1bc91f35b5
   subdirs:
