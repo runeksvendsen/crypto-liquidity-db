@@ -122,40 +122,42 @@ quantitiesLimit fromM toM numeraire slippage limit = do
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
-    topXCryptos = topCurrencies (Just limit)
+    topXCryptos = topCurrencies newest100Runs numeraire slippage (Just limit)
 
-    topCurrencies limitM = fmap fst $ do
-        limitQ limitM $
-            orderBy_ (desc_ . snd) $
-                aggregate_
-                    (\(currency, qty) ->
-                        ( group_ currency
-                        -- NB: postgres converts the type of this column to "numeric".
-                        -- We need to cast this in order to avoid the following runtime error,
-                        --  which happens when beam tries to parse an Int64 from a "numeric".
-                        --
-                        -- BeamRowReadError {
-                        --    brreColumn = Just 6,
-                        --    brreError = ColumnTypeMismatch {
-                        --       ctmHaskellType = "Integer",
-                        --       ctmSQLType = "numeric",
-                        --       ctmMessage = "types incompatible"
-                        --    }
-                        -- }
-                        --
-                        -- Beam issue: https://github.com/haskell-beam/beam/issues/545
-                        , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
-                        )
-                    ) $ do
-                        -- get at most 100 (non-empty) runs within given time period
-                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
-                            run <- runsWithinTime fromM toM
-                            guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
-                            pure run
-                        calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
-                        pathSum <- sumForCalc calc
-                        let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
-                        pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
+    newest100Runs = -- at most 100 (non-empty) runs within given time period
+        limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
+            run <- runsWithinTime fromM toM
+            guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
+            pure run
+
+topCurrencies runQ numeraire slippage limitM = fmap fst $ do
+    limitQ limitM $
+        orderBy_ (desc_ . snd) $
+            aggregate_
+                (\(currency, qty) ->
+                    ( group_ currency
+                    -- NB: postgres converts the type of this column to "numeric".
+                    -- We need to cast this in order to avoid the following runtime error,
+                    --  which happens when beam tries to parse an Int64 from a "numeric".
+                    --
+                    -- BeamRowReadError {
+                    --    brreColumn = Just 6,
+                    --    brreError = ColumnTypeMismatch {
+                    --       ctmHaskellType = "Integer",
+                    --       ctmSQLType = "numeric",
+                    --       ctmMessage = "types incompatible"
+                    --    }
+                    -- }
+                    --
+                    -- Beam issue: https://github.com/haskell-beam/beam/issues/545
+                    , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
+                    )
+                ) $ do
+                    run <- runQ
+                    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+                    pathSum <- sumForCalc calc
+                    let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+                    pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
 -- | Does the run have at least a single finished calculation?
 nonEmptyRun run numeraireM slippageM = do
@@ -374,17 +376,34 @@ newestFinishedRun numeraireM slippageM =
 selectNewestRunAllPaths
     :: Currency
     -> Double
+    -> Maybe Word
     -> Pg.Pg Query.Graph.GraphData
-selectNewestRunAllPaths numeraire slippage =
+selectNewestRunAllPaths numeraire slippage limitM =
     fmap (Query.Graph.toGraphData . head . groupNestByFst) $
-        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage limitM
 
-newestRunAllPaths numeraire slippage = do
+newestRunAllPaths
+    :: Currency
+    -> Double
+    -> Maybe Word
+    -> Q Pg.Postgres LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
+        ,   ( QGenExpr QValueContext Pg.Postgres s Text
+            , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
+            , Path.PathT (QExpr Pg.Postgres s)
+            )
+        )
+newestRunAllPaths numeraire slippage limitM = do
     run <- newestFinishedRun (Just numeraire) (Just slippage)
     calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+    let currencySymbol = getSymbol $ Calc.calculationCurrency calc
+    forM_ limitM $ \limit -> do
+        let topXCryptos = topCurrencies
+                (newestFinishedRun (Just numeraire) (Just slippage)) numeraire slippage (Just limit)
+        guard_ $ unknownAs_ False (currencySymbol ==*. anyOf_ topXCryptos)
     (pathQty, path) <- qtyAndPath calc
     pure ( run
-           , ( getSymbol $ Calc.calculationCurrency calc
+           , ( currencySymbol
              , PathQty.pathqtyQty pathQty
              , path
              )

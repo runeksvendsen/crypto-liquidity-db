@@ -194,4 +194,5 @@ type NewestRunAllPaths =
     :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
     :> Capture' '[Description "Slippage"] "slippage" Double
     :> "all"
+    :> QueryParam "limit" Word
     :> Get '[JSON] Lib.GraphData
