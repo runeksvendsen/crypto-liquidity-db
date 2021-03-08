@@ -34,6 +34,7 @@ import qualified Data.Aeson as Json
 import qualified Data.Text as T
 
 import Control.Monad.ST (ST, runST)
+import Data.Maybe (fromMaybe)
 
 
 -- |
@@ -51,7 +52,7 @@ toGraphOutput
     :: [(Text, PathQty.Int64, Path.Path)]
     -> ST s (DG.Digraph s Currency [(Text, PathQty.Int64)])
 toGraphOutput input =
-    DG.fromEdgesCombine (\lst [item] -> item : lst)
+    DG.fromEdgesCombine (\lstM item -> item : fromMaybe [] lstM)
                         (concatMap toEdges input)
   where
     toEdges :: (Text, PathQty.Int64, Path.Path) -> [Edge]
@@ -103,10 +104,10 @@ fromGraphData run' graph = do
         return $ map fromIdxEdge edges'
 
 
-instance DG.DirectedEdge Edge Currency [(Text, PathQty.Int64)] where
+instance DG.DirectedEdge Edge Currency (Text, PathQty.Int64) where
     fromNode (Edge _ from _ _) = from
     toNode (Edge _ _ to _) = to
-    metaData (Edge venue _ _ qty') = [(venue, qty')]
+    metaData (Edge venue _ _ qty') = (venue, qty')
 
 data JsonNode = JsonNode
     { name :: Currency
