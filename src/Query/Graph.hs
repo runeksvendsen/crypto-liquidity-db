@@ -13,7 +13,7 @@ module Query.Graph
 where
 
 import Internal.Prelude
-import Protolude (Hashable)
+import Protolude (Hashable, sort)
 
 -- crypto-liquidity-db
 import App.Main.WebApi.Orphans ()
@@ -55,14 +55,16 @@ data Edge = Edge
 
 -- |
 toGraphData
-    :: Maybe Word -- limit number of returned currencies
+    :: Currency
+    -> Maybe Word -- limit number of returned currencies
     -> [(Currency, PathQty.Int64)]
     -> (Run.Run, [(Text, PathQty.Int64, Path.Path)])
     -> GraphData
-toGraphData numCurrenciesM currencyQtys (run', input) =
+toGraphData numeraire numCurrenciesM currencyQtys (run', input) =
     let topQtyCurrenciesM = fmap ((`take` allCurrenciesSorted) . fromIntegral) numCurrenciesM
         allCurrenciesSorted = map fst $ sortBy (\(_, a) (_, b) -> b `compare` a) currencyQtys
-    in runST $ toGraphOutput input >>= fromGraphData topQtyCurrenciesM (Map.fromList currencyQtys) run'
+    in runST $ toGraphOutput input >>=
+        fromGraphData numeraire topQtyCurrenciesM (Map.fromList currencyQtys) run'
 
 type QtyMap = Map.HashMap Currency (Map.HashMap Text PathQty.Int64)
 
@@ -89,12 +91,13 @@ toGraphOutput input =
 
 fromGraphData
     :: forall s.
-       Maybe [Currency]
+       Currency
+    -> Maybe [Currency]
     -> Map.HashMap Currency PathQty.Int64
     -> Run.Run
     -> DG.Digraph s Currency QtyMap
     -> ST s GraphData
-fromGraphData topCurrenciesM qtyMap run' graph = do
+fromGraphData numeraire topCurrenciesM qtyMap run' graph = do
     nodes' <- nodesQuantitiesM
     edges' <- edgesM
     return $ GraphData
@@ -109,9 +112,11 @@ fromGraphData topCurrenciesM qtyMap run' graph = do
     nodesQuantitiesM = do
         nodes' <- fastIntersectionWith' <$> DG.vertexLabelsId graph
         let addQuantity (v, idx) =
-                let qty' = fromIntegral $ fromMaybe (error errMsg) (Map.lookup v qtyMap)
+                let quantity
+                        | v == numeraire = maximum (Map.elems qtyMap) -- TODO: what do we do here?
+                        | otherwise = fromMaybe (error errMsg) (Map.lookup v qtyMap)
                     errMsg = "BUG: fromGraphData: missing currency " ++ toS v
-                in pure (JsonNode v (DG.vidInt idx) qty')
+                in pure (JsonNode v (DG.vidInt idx) (fromIntegral quantity))
         mapM addQuantity nodes'
 
     edgesM = do

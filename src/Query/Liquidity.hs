@@ -381,7 +381,7 @@ selectNewestRunAllPaths
     -> Pg.Pg (Maybe Query.Graph.GraphData)
 selectNewestRunAllPaths numeraire slippage limitM = do
     cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys numeraire slippage)
-    fmap (fmap (Query.Graph.toGraphData limitM cryptoQtys) . headMay . groupNestByFst) $
+    fmap (fmap (Query.Graph.toGraphData numeraire limitM cryptoQtys) . headMay . groupNestByFst) $
         runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
 
 newestRunCryptoQtys
