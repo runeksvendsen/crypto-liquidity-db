@@ -129,7 +129,7 @@ fromGraphData topCurrencies qtyMap run' graph = do
     -- helpers
 
     topCurrencyRelated edge =
-        DG.eFrom edge `elem` topCurrencies ||  DG.eFrom edge `elem` topCurrencies
+        DG.eFrom edge `elem` topCurrencies &&  DG.eFrom edge `elem` topCurrencies
 
     -- fastIntersectionWith
     --     :: (Eq k, Hashable k)
