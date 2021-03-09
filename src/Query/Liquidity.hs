@@ -378,14 +378,28 @@ selectNewestRunAllPaths
     -> Double
     -> Maybe Word
     -> Pg.Pg Query.Graph.GraphData
-selectNewestRunAllPaths numeraire slippage limitM =
-    fmap (Query.Graph.toGraphData . head . groupNestByFst) $
-        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage limitM
+selectNewestRunAllPaths numeraire slippage limitM = do
+    cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys numeraire slippage)
+    fmap (Query.Graph.toGraphData limitM cryptoQtys . head . groupNestByFst) $
+        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+
+newestRunCryptoQtys
+    :: Currency
+    -> Double
+    -> Q Pg.Postgres LiquidityDb s
+        ( QGenExpr QValueContext Pg.Postgres s Text
+        , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
+        )
+newestRunCryptoQtys numeraire slippage = do
+    run <- newestFinishedRun (Just numeraire) (Just slippage)
+    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+    pathSum <- sumForCalc calc
+    let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+    pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
 newestRunAllPaths
     :: Currency
     -> Double
-    -> Maybe Word
     -> Q Pg.Postgres LiquidityDb s
         ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
         ,   ( QGenExpr QValueContext Pg.Postgres s Text
@@ -393,14 +407,10 @@ newestRunAllPaths
             , Path.PathT (QExpr Pg.Postgres s)
             )
         )
-newestRunAllPaths numeraire slippage limitM = do
+newestRunAllPaths numeraire slippage = do
     run <- newestFinishedRun (Just numeraire) (Just slippage)
     calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
     let currencySymbol = getSymbol $ Calc.calculationCurrency calc
-    forM_ limitM $ \limit -> do
-        let topXCryptos = topCurrencies
-                (newestFinishedRun (Just numeraire) (Just slippage)) numeraire slippage (Just limit)
-        guard_ $ unknownAs_ False (currencySymbol ==*. anyOf_ topXCryptos)
     (pathQty, path) <- qtyAndPath calc
     pure ( run
            , ( currencySymbol
