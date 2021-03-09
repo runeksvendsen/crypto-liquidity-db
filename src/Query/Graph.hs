@@ -51,15 +51,16 @@ data Edge = Edge
     Currency -- ^ dst
     PathQty.Int64 -- ^ quantity
 
+-- |
 toGraphData
-    :: Maybe Word
+    :: Maybe Word -- limit number of returned currencies
     -> [(Currency, PathQty.Int64)]
     -> (Run.Run, [(Text, PathQty.Int64, Path.Path)])
     -> GraphData
 toGraphData numCurrenciesM currencyQtys (run', input) =
-    let topQtyCurrencies = maybe id (take . fromIntegral) numCurrenciesM $
-            map fst $ sortBy (\(_, a) (_, b) -> b `compare` a) currencyQtys
-    in runST $ toGraphOutput input >>= fromGraphData topQtyCurrencies (Map.fromList currencyQtys) run'
+    let topQtyCurrenciesM = fmap ((`take` allCurrenciesSorted) . fromIntegral) numCurrenciesM
+        allCurrenciesSorted = map fst $ sortBy (\(_, a) (_, b) -> b `compare` a) currencyQtys
+    in runST $ toGraphOutput input >>= fromGraphData topQtyCurrenciesM (Map.fromList currencyQtys) run'
 
 type QtyMap = Map.HashMap Currency (Map.HashMap Text PathQty.Int64)
 
@@ -86,12 +87,12 @@ toGraphOutput input =
 
 fromGraphData
     :: forall s.
-       [Currency]
+       Maybe [Currency]
     -> Map.HashMap Currency PathQty.Int64
     -> Run.Run
     -> DG.Digraph s Currency QtyMap
     -> ST s GraphData
-fromGraphData topCurrencies qtyMap run' graph = do
+fromGraphData topCurrenciesM qtyMap run' graph = do
     nodes' <- nodesQuantitiesM
     edges' <- edgesM
     return $ GraphData
@@ -100,8 +101,11 @@ fromGraphData topCurrencies qtyMap run' graph = do
         , run = run'
         }
   where
+    fastIntersectionWith' =
+        maybe id (fastIntersectionWith const . map (, ())) topCurrenciesM
+
     nodesQuantitiesM = do
-        nodes' <- fastIntersectionWith const (map (,()) topCurrencies) <$> DG.vertexLabelsId graph
+        nodes' <- fastIntersectionWith' <$> DG.vertexLabelsId graph
         let addQuantity (v, idx) =
                 let qty' = fromIntegral $ fromMaybe (error errMsg) (Map.lookup v qtyMap)
                     errMsg = "BUG: fromGraphData: missing currency " ++ toS v
@@ -109,7 +113,7 @@ fromGraphData topCurrencies qtyMap run' graph = do
         mapM addQuantity nodes'
 
     edgesM = do
-        edges' <- filter topCurrencyRelated <$> DG.edges graph
+        edges' <- maybe id filterTopCurrencyRelated topCurrenciesM <$> DG.edges graph
         let fromIdxEdge ie =
                 let (src, dst) = sourceTarget ie
                     (size', venues') = sizeVenues ie
@@ -128,8 +132,8 @@ fromGraphData topCurrencies qtyMap run' graph = do
 
     -- helpers
 
-    topCurrencyRelated edge =
-        DG.eFrom edge `elem` topCurrencies && DG.eTo edge `elem` topCurrencies
+    filterTopCurrencyRelated topCurrencies = filter
+        (\edge -> DG.eFrom edge `elem` topCurrencies && DG.eTo edge `elem` topCurrencies)
 
     -- fastIntersectionWith
     --     :: (Eq k, Hashable k)
