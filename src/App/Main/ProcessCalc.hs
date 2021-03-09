@@ -1,6 +1,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 module App.Main.ProcessCalc
 ( main
+, processCalculations -- for testing
 )
 where
 
