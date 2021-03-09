@@ -393,7 +393,7 @@ newestRunCryptoQtys
         )
 newestRunCryptoQtys numeraire slippage = do
     run <- newestFinishedRun (Just numeraire) (Just slippage)
-    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+    calc <- finishedCalcsForRun run (Just numeraire) (Just slippage)
     pathSum <- sumForCalc calc
     let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
     pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
