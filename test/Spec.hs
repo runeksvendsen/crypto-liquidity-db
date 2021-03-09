@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Process.Spec
+import qualified Process.Prop.Graph
 import qualified App.Main.Util
 import           OrderBook.Graph.Internal.Prelude
 
@@ -16,11 +17,15 @@ import Data.Maybe (fromMaybe)
 
 main :: IO ()
 main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
-    baseUrl <- readBaseUrl >>= Process.Spec.mkClientEnv
+    env <- readBaseUrl >>= Process.Spec.mkClientEnv
     done <- Process.Spec.setup pool
     Hspec.hspec $
         Hspec.describe "Unit tests" $
-            fromHUnitTest $ Process.Spec.tests baseUrl done
+            fromHUnitTest $ Process.Spec.tests env done
+    runHspec $ do
+        Process.Prop.Graph.spec env done
+  where
+    runHspec = Run.hspecWith Run.defaultConfig
 
 readBaseUrl :: IO String
 readBaseUrl = do

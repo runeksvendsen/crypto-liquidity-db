@@ -15,6 +15,7 @@ module Query.Liquidity
 , prettyPathParts
 , selectNewestRunAllLiquidity
 , selectNewestRunAllPaths
+, Query.Graph.GraphData
 )
 where
 

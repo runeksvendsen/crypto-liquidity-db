@@ -133,3 +133,5 @@ tests:
     - servant-client
     - http-client
     - servant
+    - vector
+    - QuickCheck

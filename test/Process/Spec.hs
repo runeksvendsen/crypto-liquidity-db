@@ -1,13 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 
 module Process.Spec
 ( tests
 , Process.WebApiRead.mkClientEnv
 , setup
 , SetupDone
+, numeraire
+, slippage
 ) where
 
 -- crypto-liquidity-db

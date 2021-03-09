@@ -6,7 +6,9 @@
 {-# LANGUAGE TupleSections #-}
 module Query.Graph
 ( toGraphData
-, GraphData
+, GraphData(..)
+, JsonNode(..)
+, JsonEdge(..)
 )
 where
 
