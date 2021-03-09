@@ -18,7 +18,7 @@ services:
          - "5432"
 
    liquidity-web-api:
-      build: .
+      build: test
       entrypoint: crypto-liquidity-web-api
       links:
          - liquidity-database
@@ -32,7 +32,7 @@ services:
          - "8000"
 
    liquidity-service-test:
-      build: .
+      build: test
       entrypoint: crypto-liquidity-db-test
       links:
          - liquidity-database
