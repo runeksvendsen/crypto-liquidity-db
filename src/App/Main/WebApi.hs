@@ -195,4 +195,4 @@ type NewestRunAllPaths =
     :> Capture' '[Description "Slippage"] "slippage" Double
     :> "all"
     :> QueryParam "limit" Word
-    :> Get '[JSON] Lib.GraphData
+    :> Get '[JSON] (Maybe Lib.GraphData)

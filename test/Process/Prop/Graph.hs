@@ -14,15 +14,16 @@ import qualified Data.Vector as Vec
 import qualified Test.Hspec as Hspec
 
 import qualified Test.QuickCheck as QC
+import Data.Maybe (fromMaybe)
 
 
 spec :: Process.WebApiRead.ClientEnv -> Process.Spec.SetupDone -> Hspec.Spec
 spec env _ = do
     Hspec.describe "NewestRunAllPaths" $ do
         Hspec.it "edge src/dst `elem` node index list" $ QC.property $ \limitM -> do
-            graphData <- throwError <$> Process.WebApiRead.runPathAllReq
+            graphDataM <- throwError <$> Process.WebApiRead.runPathAllReq
                 env Process.Spec.numeraire Process.Spec.slippage limitM
-            testAllLinks graphData
+            testAllLinks (fromMaybe (error "empty graph data") graphDataM)
   where
     testAllLinks graphData =
         forM_ (Query.Graph.links graphData) $ \link -> do

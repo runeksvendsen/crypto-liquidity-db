@@ -127,7 +127,7 @@ runPathAllReq
     -> App.Main.WebApi.Currency
     -> Double
     -> Maybe Word
-    -> IO (Either SC.ClientError Lib.GraphData)
+    -> IO (Either SC.ClientError (Maybe Lib.GraphData))
 runPathAllReq env numeraire slippage limitM =
     SC.runClientM (pathAll numeraire slippage limitM) env
 
@@ -145,7 +145,7 @@ liquidity
     -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-pathAll :: App.Main.WebApi.Currency -> Double -> Maybe Word -> SC.ClientM Lib.GraphData
+pathAll :: App.Main.WebApi.Currency -> Double -> Maybe Word -> SC.ClientM (Maybe Lib.GraphData)
 _ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll :<|> pathSingle :<|> _ =
     SC.client api
   where
