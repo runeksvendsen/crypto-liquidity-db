@@ -63,16 +63,17 @@ toGraphData
 toGraphData numeraire numCurrenciesM currencyQtys (run', input) =
     let topQtyCurrenciesM = fmap ((`take` allCurrenciesSorted) . fromIntegral) numCurrenciesM
         allCurrenciesSorted = map fst $ sortBy (\(_, a) (_, b) -> b `compare` a) currencyQtys
-    in runST $ toGraphOutput topQtyCurrenciesM input >>=
+    in runST $ toGraphOutput numeraire topQtyCurrenciesM input >>=
         fromGraphData numeraire (Map.fromList currencyQtys) run'
 
 type QtyMap = Map.HashMap Currency (Map.HashMap Text PathQty.Int64)
 
 toGraphOutput
-    :: Maybe [Currency]
+    :: Currency
+    -> Maybe [Currency]
     -> [(Text, PathQty.Int64, Path.Path)] -- (currency, qty, path)
     -> ST s (DG.Digraph s Currency QtyMap)
-toGraphOutput topCurrenciesM input =
+toGraphOutput numeraire topCurrenciesM input =
     DG.fromEdgesCombine (\maybeMap (currency, venue, qty') ->
                             Map.insertWith (Map.unionWith (+))
                                            currency
@@ -91,7 +92,11 @@ toGraphOutput topCurrenciesM input =
                     addEdgeOrFilter
                         | Nothing <- topCurrenciesM = (edge :)
                         | Just topCurrencies <- topCurrenciesM =
-                            if topCurrencies `containsSrcDstOf` edge then (edge :) else id
+                            -- we want the graph to include the numeraire, even though
+                            --  it has no quantity, since it's a visually important node
+                            --  in the graph.
+                            let topCurrencies' = numeraire : topCurrencies
+                            in if topCurrencies' `containsSrcDstOf` edge then (edge :) else id
                 in (dst, addEdgeOrFilter lst)
               )
               (getSymbol $ Path.pathStart path, [])
