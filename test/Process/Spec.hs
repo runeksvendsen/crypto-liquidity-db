@@ -11,12 +11,10 @@ module Process.Spec
 , slippage
 ) where
 
-import qualified Process.Db.DeleteCalc
-
 -- crypto-liquidity-db
 import qualified Process.WebApiRead
 import Internal.Prelude
-import App.Monad (lift, asTx)
+import App.Monad (lift)
 import qualified App.RunCalc
 import qualified Database as Db
 import qualified Schema.Calculation as Schema
@@ -57,9 +55,6 @@ import qualified Data.MultiMap as MM
 -- containers
 import Data.Map.Lazy (Map)
 import Data.Set (Set)
-
--- random-shuffle
-import qualified System.Random.Shuffle
 
 import           Test.HUnit
 import           Test.Hspec.Expectations.Pretty
@@ -104,10 +99,6 @@ slippage = 0.5
 
 currency :: G.Currency
 currency = fromString "BTC"
-
--- | Delete 75% of calculations (process only 25% of calculations)
-deleteFraction :: Double
-deleteFraction = 0.75
 
 setup :: App.Main.Util.Pool App.Main.Util.Connection -> IO SetupDone
 setup = setup_ testDataFilePath numeraire
@@ -184,16 +175,7 @@ createProcessCalculations numeraire' bookList = do
     App.Monad.runDbTx $ CP.setCalcParams [(toS numeraire', slippage)]
     _ <- App.Monad.runDbTx Query.insertRunRunCurrencies
     _ <- App.Monad.runDbTx $ Query.insertMissingCalculations dummyTime
-    -- Process only a part of all calculations, as processing all takes too much time
-    _ <- App.Monad.runDbTx (asTx deleteFractionCalculations)
     App.Main.ProcessCalc.processCalculations
-  where
-    deleteFractionCalculations = do
-        calcIds <- map Query.calculationId <$> Query.Calculations.selectAllCalculations
-        -- Delete the percentage of calculations specified by "deleteFraction"
-        shuffledCalcIds <- Beam.liftIO $ System.Random.Shuffle.shuffleM calcIds
-        let calcsToDelete = take (round $ deleteFraction * realToFrac (length shuffledCalcIds)) shuffledCalcIds
-        Process.Db.DeleteCalc.deleteCalculations calcsToDelete
 
 storeBooks :: Clock.UTCTime -> App.Main.Util.Connection -> [Insert.SomeOrderBook] -> IO Run.RunId
 storeBooks dummyTime conn bookList = do

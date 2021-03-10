@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d57200eccf9b63666f9bdd9e500d540556690781559a8f3b3e0b450bf9dc8023
+-- hash: ab4d94d42672598956d6d53cdf81a3aa18b2f153c646a9f3bde5c86cabaf6009
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -179,7 +179,6 @@ test-suite crypto-liquidity-db-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Process.Db.DeleteCalc
       Process.Prop.Graph
       Process.Spec
       Process.WebApiRead
@@ -204,7 +203,6 @@ test-suite crypto-liquidity-db-test
     , order-graph
     , orderbook
     , protolude
-    , random-shuffle
     , servant
     , servant-client
     , time
