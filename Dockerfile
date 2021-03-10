@@ -10,9 +10,6 @@ RUN which stack || curl -sSL https://get.haskellstack.org/ | sh
 # this step fails if performed after copying stack.yaml
 RUN stack --resolver lts-14.17 setup
 
-# required by dependency: gargoyle-postgresql-nix
-ENV PATH="/usr/lib/postgresql/9.5/bin:$PATH"
-
 COPY cabal.project ./
 COPY cabal.project.freeze ./
 COPY stack.yaml ./
