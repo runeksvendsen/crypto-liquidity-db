@@ -39,9 +39,7 @@ RUN apt-get update \
   && apt-get install -y ca-certificates libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
 # clean up
-RUN apt-get clean autoclean
-RUN apt-get autoremove --yes
-RUN rm -rf /var/lib/{apt,dpkg,cache,log}/
+RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 # copy all executables
 COPY --from=builder .stack-work/dist/x86_64-linux/Cabal-2.4.0.1/build/crypto-liquidity-db-test/crypto-liquidity-db-test /usr/local/bin/
