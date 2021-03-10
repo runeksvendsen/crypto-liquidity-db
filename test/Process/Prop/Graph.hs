@@ -26,9 +26,9 @@ spec env _ = do
             testAllLinks (fromMaybe (error "empty graph data") graphDataM)
   where
     testAllLinks graphData =
-        let nodeIndices = map Query.Graph.index $ Vec.toList (Query.Graph.nodes graphData)
-            srcVertices = map Query.Graph.source $ Vec.toList (Query.Graph.links graphData)
-            dstVertices = map Query.Graph.target $ Vec.toList (Query.Graph.links graphData)
-        in nodeIndices `shouldContain` srcVertices ++ dstVertices
+        forM_ (Query.Graph.links graphData) $ \link -> do
+            let nodeIndices = map Query.Graph.index $ Vec.toList (Query.Graph.nodes graphData)
+            nodeIndices `shouldContain` [Query.Graph.source link]
+            nodeIndices `shouldContain` [Query.Graph.target link]
 
     throwError = either (error . show) id
