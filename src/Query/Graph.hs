@@ -63,23 +63,30 @@ toGraphData
 toGraphData numeraire numCurrenciesM currencyQtys (run', input) =
     let topQtyCurrenciesM = fmap ((`take` allCurrenciesSorted) . fromIntegral) numCurrenciesM
         allCurrenciesSorted = map fst $ sortBy (\(_, a) (_, b) -> b `compare` a) currencyQtys
-    in runST $ toGraphOutput input >>=
-        fromGraphData numeraire topQtyCurrenciesM (Map.fromList currencyQtys) run'
+    in runST $ toGraphOutput topQtyCurrenciesM input >>=
+        fromGraphData numeraire (Map.fromList currencyQtys) run'
 
 type QtyMap = Map.HashMap Currency (Map.HashMap Text PathQty.Int64)
 
 toGraphOutput
-    :: [(Text, PathQty.Int64, Path.Path)] -- (currency, qty, path)
+    :: Maybe [Currency]
+    -> [(Text, PathQty.Int64, Path.Path)] -- (currency, qty, path)
     -> ST s (DG.Digraph s Currency QtyMap)
-toGraphOutput input =
+toGraphOutput topCurrenciesM input =
     DG.fromEdgesCombine (\maybeMap (currency, venue, qty') ->
                             Map.insertWith (Map.unionWith (+))
                                            currency
                                            (Map.singleton venue qty')
                                            (fromMaybe Map.empty maybeMap)
                         )
-                        (concatMap toEdges input)
+                        (maybeFilterCurrencies $ concatMap toEdges input)
   where
+    filterTopCurrencyRelated topCurrencies (Edge _ src dst _) =
+        src `elem` topCurrencies && dst `elem` topCurrencies
+
+    maybeFilterCurrencies =
+        maybe id (filter . filterTopCurrencyRelated) topCurrenciesM
+
     toEdges :: (Text, PathQty.Int64, Path.Path) -> [Edge]
     toEdges (crypto, pathQty, path) = snd $
         foldr (\(venue, dst) (src, lst) ->
@@ -92,12 +99,11 @@ toGraphOutput input =
 fromGraphData
     :: forall s.
        Currency
-    -> Maybe [Currency]
     -> Map.HashMap Currency PathQty.Int64
     -> Run.Run
     -> DG.Digraph s Currency QtyMap
     -> ST s GraphData
-fromGraphData numeraire topCurrenciesM qtyMap run' graph = do
+fromGraphData numeraire qtyMap run' graph = do
     nodes' <- nodesQuantitiesM
     edges' <- edgesM
     return $ GraphData
@@ -106,11 +112,8 @@ fromGraphData numeraire topCurrenciesM qtyMap run' graph = do
         , run = run'
         }
   where
-    fastIntersectionWith' =
-        maybe id (fastIntersectionWith const . map (, ())) topCurrenciesM
-
     nodesQuantitiesM = do
-        nodes' <- fastIntersectionWith' <$> DG.vertexLabelsId graph
+        nodes' <- DG.vertexLabelsId graph
         let addQuantity (v, idx) =
                 let quantity
                         | v == numeraire = maximum (Map.elems qtyMap) -- TODO: what do we do here?
@@ -120,7 +123,7 @@ fromGraphData numeraire topCurrenciesM qtyMap run' graph = do
         mapM addQuantity nodes'
 
     edgesM = do
-        edges' <- maybe id filterTopCurrencyRelated topCurrenciesM <$> DG.edges graph
+        edges' <- DG.edges graph
         let fromIdxEdge ie =
                 let (src, dst) = sourceTarget ie
                     (size', venues') = sizeVenues ie
@@ -136,19 +139,6 @@ fromGraphData numeraire topCurrenciesM qtyMap run' graph = do
                    , T.intercalate (fromString ",") $ map fst venuesQtys
                    )
         return $ map fromIdxEdge edges'
-
-    -- helpers
-
-    filterTopCurrencyRelated topCurrencies = filter
-        (\edge -> DG.eFrom edge `elem` topCurrencies && DG.eTo edge `elem` topCurrencies)
-
-    -- fastIntersectionWith
-    --     :: (Eq k, Hashable k)
-    --     => (v1 -> v2 -> v3)
-    --     -> [(Currency, v1)]
-    --     -> [(Currency, v3)]
-    fastIntersectionWith f secondary primary = Map.toList $
-        Map.intersectionWith f (Map.fromList primary) (Map.fromList secondary)
 
 instance DG.DirectedEdge Edge Currency (Currency, Text, PathQty.Int64) where
     fromNode (Edge _ from _ _) = from
