@@ -31,8 +31,11 @@ jobs:
           docker save "$IMAGE_ID" -o docker-image.tar
           zip docker-image.tar.zip docker-image.tar
 
-      - name: Docker image artifact
-        uses: actions/upload-artifact@v2
+      - name: Release docker image
+        uses: softprops/action-gh-release@v1
         with:
+          files: docker-image.tar.zip
           name: docker-image
-          path: docker-image.tar.zip
+          tag_name: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
