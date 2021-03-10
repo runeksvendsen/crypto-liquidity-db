@@ -39,7 +39,7 @@ RUN apt-get update \
   && apt-get install -y ca-certificates libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
 # clean up
-RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
+RUN apt-get clean autoclean && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/ /usr/share/{doc,man,locale}
 
 # TMP TEST
 RUN ls /tmp/dist/
