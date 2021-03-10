@@ -36,7 +36,7 @@ RUN stack build --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
 FROM ubuntu:16.04 as runner
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommmends \
+  && apt-get install -y --no-install-recommends \
     ca-certificates libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
 # clean up
