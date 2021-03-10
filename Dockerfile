@@ -3,7 +3,8 @@ FROM ubuntu:16.04 as builder
 RUN apt-get update \
   && apt-get install -y curl libpq-dev postgresql=9.5+173ubuntu0.3 postgresql-common libgmp10
 
-RUN curl -sSL https://get.haskellstack.org/ | sh
+# install stack only if necessary
+RUN which stack || curl -sSL https://get.haskellstack.org/ | sh
 
 # matches resolver in stack.yaml
 # this step fails if performed after copying stack.yaml
