@@ -79,19 +79,20 @@ toGraphOutput topCurrenciesM input =
                                            (Map.singleton venue qty')
                                            (fromMaybe Map.empty maybeMap)
                         )
-                        (maybeFilterCurrencies $ concatMap toEdges input)
+                        (concatMap toEdges input)
   where
-    filterTopCurrencyRelated topCurrencies (Edge _ src dst _) =
+    containsSrcDstOf topCurrencies (Edge _ src dst _) =
         src `elem` topCurrencies && dst `elem` topCurrencies
-
-    maybeFilterCurrencies =
-        maybe id (filter . filterTopCurrencyRelated) topCurrenciesM
 
     toEdges :: (Text, PathQty.Int64, Path.Path) -> [Edge]
     toEdges (crypto, pathQty, path) = snd $
         foldr (\(venue, dst) (src, lst) ->
                 let edge = Edge (venue, toS crypto) (toS src) (toS dst) pathQty
-                in (dst, edge : lst)
+                    addEdgeOrFilter
+                        | Nothing <- topCurrenciesM = (edge :)
+                        | Just topCurrencies <- topCurrenciesM =
+                            if topCurrencies `containsSrcDstOf` edge then (edge :) else id
+                in (dst, addEdgeOrFilter lst)
               )
               (getSymbol $ Path.pathStart path, [])
               (Vec.zip (Path.pathVenues path) (Path.pathCurrencys path))
