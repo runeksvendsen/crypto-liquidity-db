@@ -13,6 +13,7 @@ module Query.Graph
 where
 
 import Internal.Prelude
+import Query.Config.Config (numeraires)
 import Protolude (Hashable, sort)
 
 -- crypto-liquidity-db
@@ -125,7 +126,8 @@ fromGraphData numeraire qtyMap run' graph = do
                         | v == numeraire = maximum (Map.elems qtyMap) -- TODO: what do we do here?
                         | otherwise = fromMaybe (error errMsg) (Map.lookup v qtyMap)
                     errMsg = "BUG: fromGraphData: missing currency " ++ toS v
-                in pure (JsonNode v (DG.vidInt idx) (fromIntegral quantity))
+                    isCrypto = toS v `notElem` numeraires
+                in pure (JsonNode v (DG.vidInt idx) (fromIntegral quantity) isCrypto)
         mapM addQuantity nodes'
 
     edgesM = do
@@ -155,6 +157,7 @@ data JsonNode = JsonNode
     { name :: Currency
     , index :: Int
     , qty :: Integer
+    , is_crypto :: Bool
     } deriving (Eq, Show, Generic)
 
 data JsonEdge = JsonEdge

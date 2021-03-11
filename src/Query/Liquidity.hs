@@ -22,6 +22,7 @@ where
 import Internal.Prelude
 
 import qualified Query.Graph
+import Query.Config.Config (numeraires)
 import App.Orphans ()
 import qualified App.Util
 import Database
@@ -54,28 +55,6 @@ import qualified Data.Aeson as Json
 
 isCrypto calc = do
     not_ $ Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
-  where
-    numeraires =
-        [ "USD"
-        , "EUR"
-        , "GBP"
-        , "JPY"
-        , "AUD"
-        , "CAD"
-        , "CHF"
-        , "CNY"
-        , "HKD"
-        , "NZD"
-        , "SEK"
-        , "KRW"
-        , "SGD"
-        , "NOK"
-        , "MXN"
-        , "INR"
-        , "RUB"
-        , "ZAR"
-        , "TRY"
-        ]
 
 data LiquidityData = LiquidityData
     { ldRun :: Run.Run
