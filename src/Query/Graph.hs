@@ -142,7 +142,7 @@ fromGraphData numeraire qtyMap run' graph = do
                     highestVolumeMap = last . sortOn mapQty
                     venuesQtys = Map.toList $ highestVolumeMap $ map snd (Map.toList hmap)
                 in ( fromIntegral . sum $ map snd venuesQtys
-                   , T.intercalate (fromString ",") $ map fst venuesQtys
+                   , map fst venuesQtys
                    )
         return $ map fromIdxEdge edges'
 
@@ -161,7 +161,7 @@ data JsonEdge = JsonEdge
     { source :: Int
     , target :: Int
     , size :: Integer
-    , venues :: Text
+    , venues :: [Text]
     } deriving (Eq, Show, Generic)
 
 data GraphData = GraphData
