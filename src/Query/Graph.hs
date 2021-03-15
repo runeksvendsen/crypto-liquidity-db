@@ -116,7 +116,7 @@ fromGraphData qtyMap run' graph = do
     nodes' <- nodesQuantitiesM
     edges' <- edgesM
     return $ GraphData
-        { nodes = Vec.fromList nodes'
+        { nodes = Vec.fromList $ sortOn index nodes'
         , links = Vec.fromList edges'
         , run = run'
         }
