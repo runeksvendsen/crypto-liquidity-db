@@ -67,17 +67,16 @@ toGraphData numeraire numCurrenciesM currencyQtys (run', input) =
         -- we want the numeraire to be in the graph, and therefore we need it in the "quantity map".
         -- but its quantity is undefined, so we just set it to -1 here.
         qtyMap = Map.insert numeraire (-1) $ Map.fromList currencyQtys
-    in runST $ toGraphOutput numeraire topQtyCurrenciesM input >>=
-        fromGraphData qtyMap run'
+        topQtyCurrenciesM' = fmap (numeraire :) topQtyCurrenciesM
+    in runST $ toGraphOutput input >>=
+        fromGraphData topQtyCurrenciesM' qtyMap run'
 
 type QtyMap = Map.HashMap Currency (Map.HashMap Text PathQty.Int64)
 
 toGraphOutput
-    :: Currency
-    -> Maybe [Currency]
-    -> [(Text, PathQty.Int64, Path.Path)] -- (currency, qty, path)
+    :: [(Text, PathQty.Int64, Path.Path)] -- (currency, qty, path)
     -> ST s (DG.Digraph s Currency QtyMap)
-toGraphOutput numeraire topCurrenciesM input =
+toGraphOutput input =
     DG.fromEdgesCombine (\maybeMap (currency, venue, qty') ->
                             Map.insertWith (Map.unionWith (+))
                                            currency
@@ -86,52 +85,45 @@ toGraphOutput numeraire topCurrenciesM input =
                         )
                         (concatMap toEdges input)
   where
-    containsSrcDstOf topCurrencies (Edge _ src dst _) =
-        src `elem` topCurrencies && dst `elem` topCurrencies
-
     toEdges :: (Text, PathQty.Int64, Path.Path) -> [Edge]
     toEdges (crypto, pathQty, path) = snd $
         foldr (\(venue, dst) (src, lst) ->
                 let edge = Edge (venue, toS crypto) (toS src) (toS dst) pathQty
-                    addEdgeOrFilter
-                        | Nothing <- topCurrenciesM = (edge :)
-                        | Just topCurrencies <- topCurrenciesM =
-                            -- we want the graph to include the numeraire, even though
-                            --  it has no quantity, since it's a visually important node
-                            --  in the graph.
-                            let topCurrencies' = numeraire : topCurrencies
-                            in if topCurrencies' `containsSrcDstOf` edge then (edge :) else id
-                in (dst, addEdgeOrFilter lst)
+                in (dst, edge : lst)
               )
               (getSymbol $ Path.pathStart path, [])
               (Vec.zip (Path.pathVenues path) (Path.pathCurrencys path))
 
 fromGraphData
     :: forall s.
-       Map.HashMap Currency PathQty.Int64
+       Maybe [Currency]
+    -> Map.HashMap Currency PathQty.Int64
     -> Run.Run
     -> DG.Digraph s Currency QtyMap
     -> ST s GraphData
-fromGraphData qtyMap run' graph = do
+fromGraphData topCurrenciesM qtyMap run' graph = do
     nodes' <- nodesQuantitiesM
     edges' <- edgesM
     return $ GraphData
-        { nodes = Vec.fromList $ sortOn index nodes'
+        { nodes = Vec.fromList nodes'
         , links = Vec.fromList edges'
         , run = run'
         }
   where
     nodesQuantitiesM = do
-        nodes' <- DG.vertexLabelsId graph
-        let addQuantity (v, idx) =
+        nodes' <- filterNodes <$> DG.vertexLabelsId graph
+        let addQuantity (v, idx') =
                 let quantity = fromMaybe (error errMsg) (Map.lookup v qtyMap)
                     errMsg = "BUG: fromGraphData: missing currency " ++ toS v
                     isCrypto = toS v `notElem` numeraires
-                in pure (JsonNode v (DG.vidInt idx) (fromIntegral quantity) isCrypto)
+                in do
+                    edgeList <- DG.incomingEdges graph idx'
+                    let venues' = sort $ Set.toList $ Set.unions $ map Map.keysSet $ concatMap (Map.elems . DG.eMeta) edgeList
+                    pure $ JsonNode v (DG.vidInt idx') (fromIntegral quantity) isCrypto (length edgeList) venues'
         mapM addQuantity nodes'
 
     edgesM = do
-        edges' <- DG.edges graph
+        edges' <- filterEdges <$> DG.edges graph
         let fromIdxEdge ie =
                 let (src, dst) = sourceTarget ie
                     (size', venues') = sizeVenues ie
@@ -148,6 +140,16 @@ fromGraphData qtyMap run' graph = do
                    )
         return $ map fromIdxEdge edges'
 
+    -- helpers
+
+    containsSrcDstOf topCurrencies edge =
+        DG.eFrom edge `elem` topCurrencies && DG.eTo edge `elem` topCurrencies
+
+    filterEdges = maybe id (filter . containsSrcDstOf) topCurrenciesM
+
+    filterNodes = maybe id (\topCurrencies -> filter ((`elem` topCurrencies) . fst)) topCurrenciesM
+
+
 instance DG.DirectedEdge Edge Currency (Currency, Text, PathQty.Int64) where
     fromNode (Edge _ from _ _) = from
     toNode (Edge _ _ to _) = to
@@ -155,9 +157,11 @@ instance DG.DirectedEdge Edge Currency (Currency, Text, PathQty.Int64) where
 
 data JsonNode = JsonNode
     { name :: Currency
-    , index :: Int
+    , idx :: Int -- "index" is reserved by "d3-force"
     , qty :: Integer
     , is_crypto :: Bool
+    , market_count :: Int
+    , node_venues :: [Text]
     } deriving (Eq, Show, Generic)
 
 data JsonEdge = JsonEdge
