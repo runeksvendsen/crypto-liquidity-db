@@ -27,7 +27,7 @@ spec env _ = do
   where
     testAllLinks graphData =
         forM_ (Query.Graph.links graphData) $ \link -> do
-            let nodeIndices = map Query.Graph.index $ Vec.toList (Query.Graph.nodes graphData)
+            let nodeIndices = map Query.Graph.idx $ Vec.toList (Query.Graph.nodes graphData)
             nodeIndices `shouldContain` [Query.Graph.source link]
             nodeIndices `shouldContain` [Query.Graph.target link]
 
