@@ -25,7 +25,6 @@ main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
     Hspec.hspec $
         Hspec.describe "Unit tests" $
             fromHUnitTest $ Process.Spec.tests env done
-    threadDelay 10e6 -- give the DB some time
     runHspec $ do
         Process.Prop.Graph.spec env done
   where
