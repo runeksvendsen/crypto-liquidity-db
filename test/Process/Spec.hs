@@ -1,13 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
-{-# OPTIONS_GHC -Wno-deferred-type-errors #-}
 
 module Process.Spec
 ( tests
 , Process.WebApiRead.mkClientEnv
 , setup
 , SetupDone
+, numeraire
+, slippage
 ) where
 
 -- crypto-liquidity-db
@@ -23,6 +24,7 @@ import qualified Schema.Path as Schema
 import qualified Insert.CalcParams as CP
 import qualified Query.Calculations
 import qualified App.Main.Util
+import qualified App.Main.ProcessCalc
 import qualified App.Monad
 import qualified Query.Liquidity
 import qualified Query.Calculations as Query
@@ -99,7 +101,7 @@ currency :: G.Currency
 currency = fromString "BTC"
 
 setup :: App.Main.Util.Pool App.Main.Util.Connection -> IO SetupDone
-setup = setup_ testDataFilePath numeraire currency
+setup = setup_ testDataFilePath numeraire
 
 -- | A value of this type guarantees that 'setup' has been run
 data SetupDone = SetupDone
@@ -107,12 +109,11 @@ data SetupDone = SetupDone
 setup_
     :: FilePath
     -> G.Currency
-    -> G.Currency
     -> App.Main.Util.Pool App.Main.Util.Connection
     -> IO SetupDone
-setup_ filename numeraire' currency' conn = do
+setup_ filename numeraire' conn = do
     books <- readBooksFile filename
-    App.Monad.runAppM conn $ runCalcTest numeraire' currency' books
+    App.Monad.runAppM conn $ createProcessCalculations numeraire' books
     pure SetupDone
 
 convertRegressionData
@@ -163,21 +164,18 @@ readBooksFile filePath = do
     noLogging :: Monad m => String -> m ()
     noLogging = const $ return ()
 
-runCalcTest
+createProcessCalculations
     :: App.Monad.Has App.Monad.DbConn conf
     => G.Currency -- ^ numeraire
-    -> G.Currency -- ^ "test currency"
     -> [Insert.SomeOrderBook] -- ^ must contain at least a single order book for "test currency"
     -> App.Monad.AppM conf ()
-runCalcTest numeraire' currency' bookList = do
+createProcessCalculations numeraire' bookList = do
     dummyTime <- lift Clock.getCurrentTime
     _ <- App.Monad.withDbConn $ \conn -> lift $ storeBooks dummyTime conn bookList
     App.Monad.runDbTx $ CP.setCalcParams [(toS numeraire', slippage)]
     _ <- App.Monad.runDbTx Query.insertRunRunCurrencies
-    calcLst <- App.Monad.runDbTx $ Query.insertMissingCalculations dummyTime
-    let calc = fromMaybe (error $ "Missing currency': " ++ toS currency') $
-            lookup (toS currency') $ map (\calc' -> (Schema.getSymbol $ Schema.calculationCurrency calc', calc')) calcLst
-    App.RunCalc.runInsertCalculation calc
+    _ <- App.Monad.runDbTx $ Query.insertMissingCalculations dummyTime
+    App.Main.ProcessCalc.processCalculations
 
 storeBooks :: Clock.UTCTime -> App.Main.Util.Connection -> [Insert.SomeOrderBook] -> IO Run.RunId
 storeBooks dummyTime conn bookList = do

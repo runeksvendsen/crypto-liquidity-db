@@ -63,6 +63,8 @@ library:
   - ansi-terminal
   - pretty-show
   - it-has
+  - bellman-ford  # Query.Graph
+  - unordered-containers # Query.Graph
   - servant-server # WebApi
   - warp # WebApi
   - aeson # WebApi
@@ -131,3 +133,5 @@ tests:
     - servant-client
     - http-client
     - servant
+    - vector
+    - QuickCheck

@@ -14,11 +14,15 @@ module Query.Liquidity
 , TestPathsSingleRes
 , prettyPathParts
 , selectNewestRunAllLiquidity
+, selectNewestRunAllPaths
+, Query.Graph.GraphData
 )
 where
 
 import Internal.Prelude
 
+import qualified Query.Graph
+import Query.Config.Config (numeraires)
 import App.Orphans ()
 import qualified App.Util
 import Database
@@ -46,32 +50,11 @@ import Database.Beam.Query.Internal (QNested)
 import Data.Bifunctor (Bifunctor(first))
 import qualified Data.Vector as Vec
 import Protolude (headMay)
+import qualified Data.Aeson as Json
 
 
 isCrypto calc = do
     not_ $ Calc.calculationCurrency calc `in_` map (val_ . Currency.CurrencyId) numeraires
-  where
-    numeraires =
-        [ "USD"
-        , "EUR"
-        , "GBP"
-        , "JPY"
-        , "AUD"
-        , "CAD"
-        , "CHF"
-        , "CNY"
-        , "HKD"
-        , "NZD"
-        , "SEK"
-        , "KRW"
-        , "SGD"
-        , "NOK"
-        , "MXN"
-        , "INR"
-        , "RUB"
-        , "ZAR"
-        , "TRY"
-        ]
 
 data LiquidityData = LiquidityData
     { ldRun :: Run.Run
@@ -119,45 +102,62 @@ quantitiesLimit fromM toM numeraire slippage limit = do
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
-    topXCryptos = topCurrencies (Just limit)
+    topXCryptos = topCurrencies newest100Runs numeraire slippage (Just limit)
 
-    topCurrencies limitM = fmap fst $ do
-        limitQ limitM $
-            orderBy_ (desc_ . snd) $
-                aggregate_
-                    (\(currency, qty) ->
-                        ( group_ currency
-                        -- NB: postgres converts the type of this column to "numeric".
-                        -- We need to cast this in order to avoid the following runtime error,
-                        --  which happens when beam tries to parse an Int64 from a "numeric".
-                        --
-                        -- BeamRowReadError {
-                        --    brreColumn = Just 6,
-                        --    brreError = ColumnTypeMismatch {
-                        --       ctmHaskellType = "Integer",
-                        --       ctmSQLType = "numeric",
-                        --       ctmMessage = "types incompatible"
-                        --    }
-                        -- }
-                        --
-                        -- Beam issue: https://github.com/haskell-beam/beam/issues/545
-                        , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
-                        )
-                    ) $ do
-                        -- get at most 100 (non-empty) runs within given time period
-                        run <- limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
-                            run <- runsWithinTime fromM toM
-                            guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
-                            pure run
-                        calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
-                        pathSum <- sumForCalc calc
-                        let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
-                        pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
+    newest100Runs = -- at most 100 (non-empty) runs within given time period
+        limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
+            run <- runsWithinTime fromM toM
+            guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
+            pure run
+
+topCurrencies runQ numeraire slippage limitM = fmap fst $ do
+    limitQ limitM $
+        orderBy_ (desc_ . snd) $
+            aggregate_
+                (\(currency, qty) ->
+                    ( group_ currency
+                    -- NB: postgres converts the type of this column to "numeric".
+                    -- We need to cast this in order to avoid the following runtime error,
+                    --  which happens when beam tries to parse an Int64 from a "numeric".
+                    --
+                    -- BeamRowReadError {
+                    --    brreColumn = Just 6,
+                    --    brreError = ColumnTypeMismatch {
+                    --       ctmHaskellType = "Integer",
+                    --       ctmSQLType = "numeric",
+                    --       ctmMessage = "types incompatible"
+                    --    }
+                    -- }
+                    --
+                    -- Beam issue: https://github.com/haskell-beam/beam/issues/545
+                    , fromMaybe_ (val_ 0) (sum_ qty) `cast_` (bigint :: DataType Pg.Postgres PathQty.Int64)
+                    )
+                ) $ do
+                    run <- runQ
+                    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+                    pathSum <- sumForCalc calc
+                    let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+                    pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
 
 -- | Does the run have at least a single finished calculation?
 nonEmptyRun run numeraireM slippageM = do
     exists_ $
         Calc.calculationId <$> finishedCalcsForRun run numeraireM slippageM
+
+-- | A run with at least a single calculation, all of which are finished
+finishedRun runQ numeraireM slippageM = do
+    guard_ noUnfinishedCalcs
+    guard_ $ exists_ $ do
+        calc <- calcsForRun runQ
+        whereNumeraireSlippage calc numeraireM slippageM
+        pure $ Calc.calculationId calc
+  where
+    noUnfinishedCalcs =
+        not_ $ exists_ $ do
+            calc <- calcsForRun runQ
+            whereNumeraireSlippage calc numeraireM slippageM
+            guard_ $ isNothing_ $ Calc.calculationDurationSeconds calc
+            pure $ Calc.calculationId calc
 
 quantities
     :: Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
@@ -184,6 +184,11 @@ whereNumeraireSlippageFinished calc numeraireM slippageM = do
     forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
     forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
     guard_ $ isJust_ $ Calc.calculationDurationSeconds calc
+
+-- TODO: merge with "whereNumeraireSlippageFinished" somehow
+whereNumeraireSlippage calc numeraireM slippageM = do
+    forM_ numeraireM $ \numeraire -> guard_ $ Calc.calculationNumeraire calc ==. val_ (mkSymbol numeraire)
+    forM_ slippageM $ \slippage -> guard_ $ Calc.calculationSlippage calc ==. val_ slippage
 
 mkSymbol :: Currency -> Currency.CurrencyId
 mkSymbol symbol = Currency.CurrencyId (toS symbol)
@@ -231,8 +236,8 @@ selectTestPathsSingle runId numeraire slippage currency = fmap (headMay . conver
                  -> [(Calc.Calculation, [(PathQty.PathQty, Path.Path)])]
     fromCalcList = groupNestByFst
 
-    groupNestByFst :: Ord (UsingId b1) => [(b1, b2)] -> [(b1, [b2])]
-    groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
+groupNestByFst :: Ord (UsingId b1) => [(b1, a)] -> [(b1, [a])]
+groupNestByFst resLst = map (first getUsingId) $ groupNest fst snd (map (first UsingId) resLst)
 
 prettyPathParts
     :: Path.Path
@@ -340,3 +345,67 @@ newestRunAllLiquidity numeraireM slippageM offsetM limitM =
                 run <- all_ (runs liquidityDb)
                 guard_ $ nonEmptyRun run numeraireM slippageM
                 pure run
+
+newestFinishedRun numeraireM slippageM =
+    limit_ 1 $
+        orderBy_ (desc_ . Run.runId) $ do
+            run <- all_ (runs liquidityDb)
+            finishedRun run numeraireM slippageM
+            pure run
+
+selectNewestRunAllPaths
+    :: Currency
+    -> Double
+    -> Maybe Word
+    -> Pg.Pg (Maybe Query.Graph.GraphData)
+selectNewestRunAllPaths numeraire slippage limitM = do
+    cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys numeraire slippage)
+    fmap (fmap (Query.Graph.toGraphData numeraire limitM cryptoQtys) . headMay . groupNestByFst) $
+        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+
+newestRunCryptoQtys
+    :: Currency
+    -> Double
+    -> Q Pg.Postgres LiquidityDb s
+        ( QGenExpr QValueContext Pg.Postgres s Text
+        , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
+        )
+newestRunCryptoQtys numeraire slippage = do
+    run <- newestFinishedRun (Just numeraire) (Just slippage)
+    calc <- finishedCalcsForRun run (Just numeraire) (Just slippage)
+    pathSum <- sumForCalc calc
+    let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+    pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
+
+newestRunAllPaths
+    :: Currency
+    -> Double
+    -> Q Pg.Postgres LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
+        ,   ( QGenExpr QValueContext Pg.Postgres s Text
+            , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
+            , Path.PathT (QExpr Pg.Postgres s)
+            )
+        )
+newestRunAllPaths numeraire slippage = do
+    run <- newestFinishedRun (Just numeraire) (Just slippage)
+    calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
+    let currencySymbol = getSymbol $ Calc.calculationCurrency calc
+    (pathQty, path) <- qtyAndPath calc
+    pure ( run
+           , ( currencySymbol
+             , PathQty.pathqtyQty pathQty
+             , path
+             )
+         )
+  where
+    qtyAndPath calc = do
+        pathQty <- qtysForCalc calc
+        path <- all_ $ paths liquidityDb
+        guard_ $ pk path ==. PathQty.pathqtyPath pathQty
+        pure (pathQty, path)
+
+instance Json.ToJSON LiquidityData where
+    toJSON = Json.genericToJSON App.Util.prefixOptions
+instance Json.FromJSON LiquidityData where
+    parseJSON = Json.genericParseJSON App.Util.prefixOptions

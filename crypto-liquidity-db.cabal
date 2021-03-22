@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5f096eb5a6b8fb135153659d01149c0fca41ced204fcb1853e8c33ffa3c0fa60
+-- hash: 75599fca5c1438a19884bdad559dd763302b5e1ef66768995d62f8a2e9d6ced9
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -51,6 +51,8 @@ library
       Internal.Prelude
       Query.Books
       Query.Calculations
+      Query.Config.Config
+      Query.Graph
       Query.Liquidity
       Query.Migrations
       Query.RunCurrencies
@@ -79,6 +81,7 @@ library
     , base >=4.7 && <5
     , beam-core
     , beam-postgres
+    , bellman-ford
     , bytestring
     , containers
     , crypto-orderbook-db
@@ -102,6 +105,7 @@ library
     , time >=1.9
     , transformers
     , transformers-base
+    , unordered-containers
     , vector
     , wai-cors
     , wai-extra
@@ -176,6 +180,7 @@ test-suite crypto-liquidity-db-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Process.Prop.Graph
       Process.Spec
       Process.WebApiRead
       Paths_crypto_liquidity_db
@@ -185,6 +190,7 @@ test-suite crypto-liquidity-db-test
   ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
       HUnit
+    , QuickCheck
     , base >=4.7 && <5
     , beam-core
     , containers
@@ -201,4 +207,5 @@ test-suite crypto-liquidity-db-test
     , servant
     , servant-client
     , time
+    , vector
   default-language: Haskell2010
