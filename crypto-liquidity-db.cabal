@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 75599fca5c1438a19884bdad559dd763302b5e1ef66768995d62f8a2e9d6ced9
+-- hash: a9be35fa5bce2238feb02cd5f143556bc76006ec062c413556102acc13d7573f
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       App.Main.ProcessCalc
       App.Main.Util
       App.Main.WebApi
+      App.Main.WebApi.ClientUrl
       App.Main.WebApi.Options
       App.Migrate.Raw
       App.Migrate.Util
@@ -82,10 +83,13 @@ library
     , beam-core
     , beam-postgres
     , bellman-ford
+    , binary
     , bytestring
     , containers
     , crypto-orderbook-db
     , exceptions
+    , free
+    , http-types
     , it-has
     , logging
     , lrucache
@@ -99,12 +103,14 @@ library
     , protolude
     , resource-pool
     , retry
+    , servant-client-core
     , servant-server
     , stm
     , text
     , time >=1.9
     , transformers
     , transformers-base
+    , universum
     , unordered-containers
     , vector
     , wai-cors

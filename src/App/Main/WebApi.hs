@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ApplicativeDo #-}
 module App.Main.WebApi
 ( main
 , API
@@ -15,6 +16,8 @@ module App.Main.WebApi
 )
 where
 
+import Universum.VarArg ((...))
+import qualified App.Main.WebApi.ClientUrl as ClientUrl
 import qualified App.Main.WebApi.Options as Opt
 import App.Main.WebApi.Orphans ()
 
@@ -51,15 +54,23 @@ import qualified Network.Wai.Middleware.RequestLogger as RL
 
 
 import Control.Monad.IO.Class
+-- servant-server
 import Servant
+-- servant-client-core
+import qualified Servant.Client.Free as SCF
+
 import qualified Data.Aeson as JSON
 
 -- warp
 import qualified Network.Wai.Handler.Warp as Warp
+
 import System.Environment (lookupEnv)
 import OrderBook.Graph.Types (Currency)
-import Internal.Prelude (Text)
+import Internal.Prelude (Text, IsString (fromString), (<=<), toS)
 import Data.Maybe (fromMaybe)
+import Text.Printf (printf)
+import Database.Beam.Backend (SqlSerial(SqlSerial))
+
 
 
 
@@ -96,20 +107,52 @@ mkServer
 mkServer cfg =
     let timeout = AppLib.cfgMaxCalculationTime $ AppLib.cfgConstants cfg in
     hoistServer (Proxy :: Proxy API)
-                (liftIO . AppLib.runAppM cfg . AppLib.runDbRaw)
+                (either throwError pure <=< (liftIO . AppLib.runAppM cfg . AppLib.runDbRaw . pgResult))
                 (server timeout)
 
-server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
+
+-- ### PgResult
+newtype PgResult a = PgResult { pgResult :: Pg.Pg (Either ServerError a) }
+
+pgReturn :: Pg.Pg a -> PgResult a
+pgReturn = PgResult . fmap Right
+
+instance Functor PgResult where
+    fmap f (PgResult pgE) = PgResult $ fmap (fmap f) pgE
+instance Applicative PgResult where
+    pure a = PgResult (return $ Right a)
+    PgResult pgMf <*> PgResult pgMa = PgResult $ do
+        f <- pgMf
+        a <- pgMa
+        pure (f <*> a)
+instance Monad PgResult where
+    PgResult ma >>= fb = PgResult $ do
+        ma >>= either (pure . Left) (pgResult . fb)
+-- ### PgResult
+
+server :: Lib.NominalDiffTime -> ServerT API PgResult
 server timeout =
-         Lib.selectQuantities []
-    :<|> Lib.selectQuantities
-    :<|> Lib.selectAllCalculations
-    :<|> Lib.selectStalledCalculations timeout
-    :<|> Lib.selectUnfinishedCalcCount
-    :<|> Query.Books.runBooks
-    :<|> Lib.selectNewestRunAllPaths
-    :<|> Lib.selectTestPathsSingle
-    :<|> Lib.selectNewestRunAllLiquidity
+         pgReturn ... Lib.selectQuantities []
+    :<|> pgReturn ... Lib.selectQuantities
+    :<|> pgReturn ... Lib.selectAllCalculations
+    :<|> pgReturn ... Lib.selectStalledCalculations timeout
+    :<|> pgReturn ... Lib.selectUnfinishedCalcCount
+    :<|> pgReturn ... Query.Books.runBooks
+    :<|> selectNewestFinishedRunRedirect
+    :<|> pgReturn ... Lib.selectNewestRunAllPaths
+    :<|> pgReturn ... Lib.selectTestPathsSingle
+    :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
+  where
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRunSpecificPath :<|> _ :<|> _ =
+        SCF.client (Proxy :: Proxy App.Main.WebApi.API)
+
+    selectNewestFinishedRunRedirect numeraire slippage limitM = PgResult $ do
+        runM <- Lib.selectNewestFinishedRunId numeraire slippage
+        case runM of
+            Nothing -> pure $ Left err404
+            Just run -> do
+                let clientF = newestRunSpecificPath run numeraire slippage limitM
+                pure $ Right $ addHeader (toS $ ClientUrl.clientFUrl clientF) Nothing
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -122,6 +165,7 @@ type API
     :<|> BasePath GetUnfinishedCalcCount
     :<|> BasePath GetRunBooks
     :<|> BasePath NewestRunAllPaths
+    :<|> BasePath SpecificRunAllPaths
     :<|> BasePath PathSingle
     :<|> BasePath CurrentTopLiquidity
 
@@ -186,13 +230,22 @@ type PathSingle =
         :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
         :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)
 
-type NewestRunAllPaths =
+type GenericRunAllPaths runIdent statusCode a =
     Summary "Get all paths for newest run"
     :> "run"
-    :> "newest"
+    :> runIdent
     :> "paths"
     :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
     :> Capture' '[Description "Slippage"] "slippage" Double
     :> "all"
     :> QueryParam "limit" Word
-    :> Get '[JSON] (Maybe Lib.GraphData)
+    :> Verb 'GET statusCode '[JSON] a
+
+type SpecificRunAllPaths =
+    GenericRunAllPaths
+        (Capture' '[Description "Run ID (integer)"] "run_id" Run.RunId)
+        200
+        (Maybe Lib.GraphData)
+
+type NewestRunAllPaths =
+    GenericRunAllPaths "newest" 302 (Headers '[Header "Location" Text] (Maybe Lib.GraphData))

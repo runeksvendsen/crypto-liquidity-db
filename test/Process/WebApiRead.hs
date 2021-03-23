@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
+{-# LANGUAGE DataKinds #-}
 module Process.WebApiRead
 ( mkClientEnv
 , runPathSingleReq
@@ -129,7 +130,9 @@ runPathAllReq
     -> Maybe Word
     -> IO (Either SC.ClientError (Maybe Lib.GraphData))
 runPathAllReq env numeraire slippage limitM =
-    SC.runClientM (pathAll numeraire slippage limitM) env
+    SC.runClientM (discardHeaders <$> pathAll' numeraire slippage limitM) env
+  where
+    discardHeaders (Headers resp _) = resp
 
 pathSingle
     :: Run.RunId
@@ -145,8 +148,12 @@ liquidity
     -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-pathAll :: App.Main.WebApi.Currency -> Double -> Maybe Word -> SC.ClientM (Maybe Lib.GraphData)
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll :<|> pathSingle :<|> _ =
+pathAll'
+    :: App.Main.WebApi.Currency
+    -> Double
+    -> Maybe Word
+    -> SC.ClientM (Headers '[Header "Location" Text] (Maybe Lib.GraphData))
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

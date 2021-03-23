@@ -13,6 +13,7 @@ module Query.Liquidity
 , selectTestPathsSingle
 , TestPathsSingleRes
 , prettyPathParts
+, selectNewestFinishedRunId
 , selectNewestRunAllLiquidity
 , selectNewestRunAllPaths
 , Query.Graph.GraphData
@@ -346,39 +347,58 @@ newestRunAllLiquidity numeraireM slippageM offsetM limitM =
                 guard_ $ nonEmptyRun run numeraireM slippageM
                 pure run
 
-newestFinishedRun numeraireM slippageM =
+selectNewestFinishedRunId
+    :: Currency
+    -> Double
+    -> Pg.Pg (Maybe Run.RunId)
+selectNewestFinishedRunId numeraire slippage = do
+    fmap pk <$> runSelectReturningOne (select $ newestFinishedRun numeraire slippage)
+
+newestFinishedRun
+    :: Currency
+    -> Double
+    -> Q Pg.Postgres LiquidityDb s (Run.RunT (QGenExpr QValueContext Pg.Postgres s))
+newestFinishedRun numeraire slippage =
     limit_ 1 $
         orderBy_ (desc_ . Run.runId) $ do
             run <- all_ (runs liquidityDb)
-            finishedRun run numeraireM slippageM
+            finishedRun run (Just numeraire) (Just slippage)
             pure run
 
 selectNewestRunAllPaths
-    :: Currency
+    :: Run.RunId
+    -> Currency
     -> Double
     -> Maybe Word
     -> Pg.Pg (Maybe Query.Graph.GraphData)
-selectNewestRunAllPaths numeraire slippage limitM = do
-    cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys numeraire slippage)
+selectNewestRunAllPaths runId numeraire slippage limitM = do
+    cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys runId numeraire slippage)
     fmap (fmap (Query.Graph.toGraphData numeraire limitM cryptoQtys) . headMay . groupNestByFst) $
-        runSelectReturningList $ select $ newestRunAllPaths numeraire slippage
+        runSelectReturningList $ select $ newestRunAllPaths runId numeraire slippage
 
 newestRunCryptoQtys
-    :: Currency
+    :: Run.RunId
+    -> Currency
     -> Double
     -> Q Pg.Postgres LiquidityDb s
         ( QGenExpr QValueContext Pg.Postgres s Text
         , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
         )
-newestRunCryptoQtys numeraire slippage = do
-    run <- newestFinishedRun (Just numeraire) (Just slippage)
+newestRunCryptoQtys runId numeraire slippage = do
+    run <- theRun
     calc <- finishedCalcsForRun run (Just numeraire) (Just slippage)
     pathSum <- sumForCalc calc
     let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
     pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
+  where
+    theRun = do
+        run <- all_ (runs liquidityDb)
+        guard_ $ pk run ==. val_ runId
+        pure run
 
 newestRunAllPaths
-    :: Currency
+    :: Run.RunId
+    -> Currency
     -> Double
     -> Q Pg.Postgres LiquidityDb s
         ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
@@ -387,8 +407,8 @@ newestRunAllPaths
             , Path.PathT (QExpr Pg.Postgres s)
             )
         )
-newestRunAllPaths numeraire slippage = do
-    run <- newestFinishedRun (Just numeraire) (Just slippage)
+newestRunAllPaths runId numeraire slippage = do
+    run <- theRun
     calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
     let currencySymbol = getSymbol $ Calc.calculationCurrency calc
     (pathQty, path) <- qtyAndPath calc
@@ -404,6 +424,11 @@ newestRunAllPaths numeraire slippage = do
         path <- all_ $ paths liquidityDb
         guard_ $ pk path ==. PathQty.pathqtyPath pathQty
         pure (pathQty, path)
+
+    theRun = do
+        run <- all_ (runs liquidityDb)
+        guard_ $ pk run ==. val_ runId
+        pure run
 
 instance Json.ToJSON LiquidityData where
     toJSON = Json.genericToJSON App.Util.prefixOptions
