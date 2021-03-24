@@ -144,7 +144,7 @@ server timeout =
     :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
   where
     _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRunSpecificPath :<|> _ :<|> _ =
-        SCF.client (Proxy :: Proxy App.Main.WebApi.API)
+        SCF.client (Proxy :: Proxy API)
 
     selectNewestFinishedRunRedirect numeraire slippage limitM = PgResult $ do
         runM <- Lib.selectNewestFinishedRunId numeraire slippage
@@ -157,17 +157,19 @@ server timeout =
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
 
-type API
-    =    BasePath (Liquidity "all")
-    :<|> BasePath (Liquidity CurrencySymbolList)
-    :<|> BasePath GetAllCalcs
-    :<|> BasePath GetUnfinishedCalcs
-    :<|> BasePath GetUnfinishedCalcCount
-    :<|> BasePath GetRunBooks
-    :<|> BasePath NewestRunAllPaths
-    :<|> BasePath SpecificRunAllPaths
-    :<|> BasePath PathSingle
-    :<|> BasePath CurrentTopLiquidity
+type API = BasePath API'
+
+type API'
+    =    Liquidity "all"
+    :<|> Liquidity CurrencySymbolList
+    :<|> GetAllCalcs
+    :<|> GetUnfinishedCalcs
+    :<|> GetUnfinishedCalcCount
+    :<|> GetRunBooks
+    :<|> NewestRunAllPaths
+    :<|> SpecificRunAllPaths
+    :<|> PathSingle
+    :<|> CurrentTopLiquidity
 
 type BasePath a = "api" :> "v1" :> a
 
