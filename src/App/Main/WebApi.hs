@@ -117,6 +117,9 @@ newtype PgResult a = PgResult { pgResult :: Pg.Pg (Either ServerError a) }
 pgReturn :: Pg.Pg a -> PgResult a
 pgReturn = PgResult . fmap Right
 
+pgError :: ServerError -> PgResult a
+pgError = PgResult . pure . Left
+
 instance Functor PgResult where
     fmap f (PgResult pgE) = PgResult $ fmap (fmap f) pgE
 instance Applicative PgResult where
@@ -132,8 +135,8 @@ instance Monad PgResult where
 
 server :: Lib.NominalDiffTime -> ServerT API PgResult
 server timeout =
-         pgReturn ... Lib.selectQuantities []
-    :<|> pgReturn ... Lib.selectQuantities
+         selectQuantities []
+    :<|> selectQuantities
     :<|> pgReturn ... Lib.selectAllCalculations
     :<|> pgReturn ... Lib.selectStalledCalculations timeout
     :<|> pgReturn ... Lib.selectUnfinishedCalcCount
@@ -142,17 +145,34 @@ server timeout =
     :<|> pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
     :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
+    :<|> selectQuantitiesPure
   where
-    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRunSpecificPath :<|> _ :<|> _ =
-        SCF.client (Proxy :: Proxy API)
+    -- Redirect
+    selectQuantities [] numeraire slippage Nothing Nothing limitM = do
+        run <- selectNewestFinishedRunId numeraire slippage
+        let clientF = liquidityPure numeraire slippage run limitM
+            url = toS $ ClientUrl.clientFUrl clientF
+        pgError $ err302 { errHeaders = [(fromString "Location", url)] }
 
-    selectNewestFinishedRunRedirect numeraire slippage limitM = PgResult $ do
+    selectQuantities currencies numeraire slippage fromM toM limitM =
+        let toRun = maybe (Left Lib.NewestFinishedRun) Right toM
+        in pgReturn $! Lib.selectQuantities currencies numeraire slippage fromM toRun limitM
+
+    selectQuantitiesPure numeraire slippage endRunId limitM =
+        let toRun = Left $ Lib.SpecificRun endRunId
+        in pgReturn $! Lib.selectQuantities [] numeraire slippage Nothing toRun limitM
+
+    selectNewestFinishedRunRedirect numeraire slippage limitM = do
+        run <- selectNewestFinishedRunId numeraire slippage
+        let clientF = specificRunAllPaths run numeraire slippage limitM
+        pure $ addHeader (toS $ ClientUrl.clientFUrl clientF) Nothing
+
+    selectNewestFinishedRunId numeraire slippage = PgResult $ do
         runM <- Lib.selectNewestFinishedRunId numeraire slippage
-        case runM of
-            Nothing -> pure $ Left err404
-            Just run -> do
-                let clientF = newestRunSpecificPath run numeraire slippage limitM
-                pure $ Right $ addHeader (toS $ ClientUrl.clientFUrl clientF) Nothing
+        maybe (pure $ Left err404) (pure . Right) runM
+
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|> liquidityPure =
+        SCF.client (Proxy :: Proxy API)
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
@@ -170,6 +190,7 @@ type API'
     :<|> SpecificRunAllPaths
     :<|> PathSingle
     :<|> CurrentTopLiquidity
+    :<|> LiquidityPure
 
 type BasePath a = "api" :> "v1" :> a
 
@@ -177,10 +198,22 @@ type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
         :> "liquidity"
         :> currencies
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
-        :> QueryParam "numeraire" Currency
-        :> QueryParam "slippage" Double
+        :> QueryParam "limit" Word
+        :> Get '[JSON] [Lib.LiquidityData]
+
+-- | Liquidity from the first run to a specific run.
+--   Given the same arguments will always return the same data (cacheable with infinite TTL).
+type LiquidityPure =
+    Summary "Get liquidity for one or more currencies"
+        :> "liquidity"
+        :> "all"
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
+        :> Capture' '[Description "End run"] "run_id" Run.RunId
         :> QueryParam "limit" Word
         :> Get '[JSON] [Lib.LiquidityData]
 
@@ -189,8 +222,8 @@ type CurrentTopLiquidity =
         :> "liquidity"
         :> "all"
         :> "newest"
-        :> QueryParam "numeraire" Currency
-        :> QueryParam "slippage" Double
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
         :> Get '[JSON] [(Run.Run, Text, Lib.Int64, Lib.Int64)]
@@ -250,4 +283,7 @@ type SpecificRunAllPaths =
         (Maybe Lib.GraphData)
 
 type NewestRunAllPaths =
-    GenericRunAllPaths "newest" 302 (Headers '[Header "Location" Text] (Maybe Lib.GraphData))
+    GenericRunAllPaths
+        "newest"
+        302
+        (Headers '[Header "Location" Text] (Maybe Lib.GraphData))

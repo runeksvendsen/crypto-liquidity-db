@@ -9,6 +9,7 @@
 module Query.Liquidity
 ( selectQuantities
 , LiquidityData(..)
+, SingleRun(..)
 , PathQty.Int64
 , selectTestPathsSingle
 , TestPathsSingleRes
@@ -52,6 +53,7 @@ import Data.Bifunctor (Bifunctor(first))
 import qualified Data.Vector as Vec
 import Protolude (headMay)
 import qualified Data.Aeson as Json
+import Database.Beam.Backend (SqlSerial(SqlSerial)) -- TMP!!!!
 
 
 isCrypto calc = do
@@ -64,42 +66,75 @@ data LiquidityData = LiquidityData
     , ldQty :: PathQty.Int64
     } deriving (Eq, Show, Generic)
 
+-- | A single run
+data SingleRun
+    = SpecificRun Run.RunId
+    | NewestFinishedRun
+
+runsWithinRange
+    :: Currency
+    -> Double
+    -> Maybe Run.UTCTime -- ^ from
+    -> Either SingleRun Run.UTCTime -- ^ to
+    -> Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
+runsWithinRange _ _ fromM (Right to) =
+    runsWithinTime' fromM (Just to)
+runsWithinRange numeraire slippage fromM (Left singleRun) = do
+    runId <- case singleRun of
+        NewestFinishedRun -> Run.runId <$> newestFinishedRun numeraire slippage
+        SpecificRun (Run.RunId runId') -> return $ val_ runId'
+    run <- all_ (runs liquidityDb)
+    guard_ $ Run.runId run <=. runId
+    forM_ fromM (runStartTime run)
+    pure run
+
+runStartTime :: Run.RunT (QExpr Pg.Postgres s) -> Run.UTCTime -> Q Pg.Postgres LiquidityDb s ()
+runStartTime run fromTime = guard_ $ Run.runTimeStart run >=. val_ fromTime
+
+runEndTime :: Run.RunT (QExpr Pg.Postgres s) -> Run.UTCTime -> Q Pg.Postgres LiquidityDb s ()
+runEndTime run endTime = guard_ $ Run.runTimeEnd run <=. val_ endTime
+
+runsWithinTime'
+    :: Maybe Run.UTCTime
+    -> Maybe Run.UTCTime
+    -> Q Pg.Postgres LiquidityDb s (Run.RunT (QExpr Pg.Postgres s))
+runsWithinTime' fromM toM = do
+    run <- all_ (runs liquidityDb)
+    forM_ fromM (runStartTime run)
+    forM_ toM (runEndTime run)
+    pure run
+
 -- |
 selectQuantities
     :: [Currency]
-    -> Maybe Run.UTCTime
-    -> Maybe Run.UTCTime
-    -> Maybe Currency
-    -> Maybe Double
+    -> Currency
+    -> Double
+    -> Maybe Run.UTCTime -- ^ from
+    -> Either SingleRun Run.UTCTime -- ^ to
     -> Maybe Word
     -> Pg.Pg [LiquidityData]
-selectQuantities currencies fromM toM numeraireM slippageM limitM =
+selectQuantities currencies numeraire slippage fromM runOrTo limitM =
     fmap (map mkLiquidityData) $
         runSelectReturningList $ select query
   where
-    mkLiquidityData (run, currency, qty) = LiquidityData
-        { ldRun = run
-        , ldRunId = pk run
+    mkLiquidityData (run', currency, qty) = LiquidityData
+        { ldRun = run'
+        , ldRunId = pk run'
         , ldCurrency = currency
         , ldQty = qty
         }
-    query = case (limitM, numeraireM, slippageM, currencies) of
-        (Just limit, Just numeraire, Just slippage, []) ->
-            quantitiesLimit fromM toM numeraire slippage limit
+    query = case (limitM, currencies) of
+        (Just limit, []) ->
+            quantitiesLimit fromM runOrTo numeraire slippage limit
         _ -> do
-            res@(_, currency, _) <- quantities (runsWithinTime fromM toM) numeraireM slippageM
+            let runQ = runsWithinRange numeraire slippage fromM runOrTo
+            res@(_, currency, _) <- quantities runQ (Just numeraire) (Just slippage)
             forM_ (NE.nonEmpty currencies) $ \currenciesNonEmpty ->
                 guard_ $ currency `in_` map (val_ . toS) (NE.toList currenciesNonEmpty)
             pure res
 
-runsWithinTime fromM toM = do
-    run <- all_ (runs liquidityDb)
-    forM_ fromM $ \fromTime -> guard_ $ Run.runTimeStart run >=. val_ fromTime
-    forM_ toM $ \endTime -> guard_ $ Run.runTimeEnd run <=. val_ endTime
-    pure run
-
-quantitiesLimit fromM toM numeraire slippage limit = do
-    res@(_, currency, _) <- quantities (runsWithinTime fromM toM) (Just numeraire) (Just slippage)
+quantitiesLimit fromM runOrTo numeraire slippage limit = do
+    res@(_, currency, _) <- quantities (runsWithinRange numeraire slippage fromM runOrTo) (Just numeraire) (Just slippage)
     guard_ $ unknownAs_ False (currency ==*. anyOf_ topXCryptos)
     pure res
   where
@@ -107,7 +142,7 @@ quantitiesLimit fromM toM numeraire slippage limit = do
 
     newest100Runs = -- at most 100 (non-empty) runs within given time period
         limitQ (Just 100) $ orderBy_ (desc_ . Run.runId) $ do
-            run <- runsWithinTime fromM toM
+            run <- runsWithinRange numeraire slippage fromM runOrTo
             guard_ $ nonEmptyRun run (Just numeraire) (Just slippage)
             pure run
 
@@ -302,50 +337,35 @@ finishedCryptoCalcsForRun run numeraireM slippageM = do
     guard_ $ isCrypto calc
     pure calc
 
-selectNewestRunAllLiquidity numeraireM slippageM offsetM limitM =
-    runSelectReturningList $ select $ newestRunAllLiquidity numeraireM slippageM offsetM limitM
+selectNewestRunAllLiquidity numeraire slippage offsetM limitM =
+    runSelectReturningList $ select $ newestRunAllLiquidity numeraire slippage offsetM limitM
 
 newestRunAllLiquidity
-    :: ( HasQBuilder be
-       , HasSqlEqualityCheck be Text
-       , HasSqlEqualityCheck be Double
-       , HasSqlEqualityCheck be Path.Int32
-       , HasSqlInTable be
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Text
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) Double
-       , HasSqlValueSyntax (Sql92ExpressionValueSyntax (Sql92SelectTableExpressionSyntax (Sql92SelectSelectTableSyntax (Sql92SelectSyntax (BeamSqlBackendSyntax be))))) PathSum.Int64
-       )
-    => Maybe Currency
-    -> Maybe Double
+    :: Currency
+    -> Double
     -> Maybe Integer
     -> Maybe Integer
-    -> Q be LiquidityDb s
-        ( Run.RunT (QGenExpr QValueContext be s)
-        , QGenExpr QValueContext be s Text
-        , QGenExpr QValueContext be s PathSum.Int64
-        , QGenExpr QValueContext be s PathSum.Int64
+    -> Q Pg.Postgres LiquidityDb s
+        ( Run.RunT (QGenExpr QValueContext Pg.Postgres s)
+        , QGenExpr QValueContext Pg.Postgres s Text
+        , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
+        , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
         )
-newestRunAllLiquidity numeraireM slippageM offsetM limitM =
+newestRunAllLiquidity numeraire slippage offsetM limitM =
     limit_ (fromMaybe 50 limitM) $
         offset_ (fromMaybe 0 offsetM) $
             orderBy_ (\(_, _, buyQty, sellQty) -> desc_ (buyQty + sellQty))
                 newestRunCalcs
   where
     newestRunCalcs = do
-        run <- newestNonEmptyRun
-        calc <- finishedCryptoCalcsForRun run numeraireM slippageM
+        run <- newestFinishedRun numeraire slippage
+        calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
         pathSum <- sumForCalc calc
         pure ( run
              , getSymbol $ Calc.calculationCurrency calc
              , PathSum.pathsumBuyQty pathSum
              , PathSum.pathsumSellQty pathSum
              )
-    newestNonEmptyRun =
-        limit_ 1 $
-            orderBy_ (desc_ . Run.runId) $ do
-                run <- all_ (runs liquidityDb)
-                guard_ $ nonEmptyRun run numeraireM slippageM
-                pure run
 
 selectNewestFinishedRunId
     :: Currency

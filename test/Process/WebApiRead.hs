@@ -121,7 +121,7 @@ runLiquidityReq
 runLiquidityReq env (LiquidityReq numeraire slippage currency) =
     SC.runClientM request env
   where
-    request = liquidity [currency] Nothing Nothing (Just numeraire) (Just slippage) Nothing
+    request = liquidity [currency] numeraire slippage Nothing Nothing Nothing
 
 runPathAllReq
     :: SC.ClientEnv
@@ -142,10 +142,10 @@ pathSingle
     -> SC.ClientM (Maybe Lib.TestPathsSingleRes)
 liquidity
     :: [App.Main.WebApi.Currency]
+    -> App.Main.WebApi.Currency
+    -> Double
     -> Maybe LibCalc.UTCTime
     -> Maybe LibCalc.UTCTime
-    -> Maybe App.Main.WebApi.Currency
-    -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
 pathAll'
@@ -153,7 +153,7 @@ pathAll'
     -> Double
     -> Maybe Word
     -> SC.ClientM (Headers '[Header "Location" Text] (Maybe Lib.GraphData))
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ =
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
