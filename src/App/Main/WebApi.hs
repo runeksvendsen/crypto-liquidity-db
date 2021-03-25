@@ -206,7 +206,7 @@ type Liquidity (currencies :: k) =
         :> Get '[JSON] [Lib.LiquidityData]
 
 -- | Liquidity from the first run to a specific run.
---   Given the same arguments will always return the same data (cacheable with infinite TTL).
+--   Given the same arguments will always return the same data (hence cacheable with infinite TTL).
 type LiquidityPure =
     Summary "Get liquidity for one or more currencies"
         :> "liquidity"
