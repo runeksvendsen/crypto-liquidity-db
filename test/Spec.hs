@@ -1,5 +1,3 @@
-{-# LANGUAGE NumDecimals #-}
-
 module Main where
 
 import qualified Process.Spec

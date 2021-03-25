@@ -1,6 +1,7 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
-
 {-# LANGUAGE DataKinds #-}
 module Process.WebApiRead
 ( mkClientEnv
@@ -148,11 +149,6 @@ liquidity
     -> Maybe LibCalc.UTCTime
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-pathAll'
-    :: App.Main.WebApi.Currency
-    -> Double
-    -> Maybe Word
-    -> SC.ClientM (Headers '[Header "Location" Text] (Maybe Lib.GraphData))
 _ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where

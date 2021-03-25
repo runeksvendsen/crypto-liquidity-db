@@ -19,6 +19,7 @@ where
 import Universum.VarArg ((...))
 import qualified App.Main.WebApi.ClientUrl as ClientUrl
 import qualified App.Main.WebApi.Options as Opt
+import qualified App.Main.WebApi.Cache as Cache
 import App.Main.WebApi.Orphans ()
 
 -- crypto-liquidity-db
@@ -141,18 +142,24 @@ server timeout =
     :<|> pgReturn ... Lib.selectStalledCalculations timeout
     :<|> pgReturn ... Lib.selectUnfinishedCalcCount
     :<|> pgReturn ... Query.Books.runBooks
-    :<|> selectNewestFinishedRunRedirect
-    :<|> pgReturn ... Lib.selectNewestRunAllPaths
+    :<|> fmap cacheOneMinute ... selectNewestFinishedRunRedirect
+    :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
     :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
-    :<|> selectQuantitiesPure
+    :<|> fmap cacheTwoDays ... selectQuantitiesPure
   where
+    cacheTwoDays :: a -> Headers '[Header "Cache-Control" Cache.Public] a
+    cacheTwoDays = addHeader $ Cache.MaxAge (2 :: Cache.Day)
+
+    cacheOneMinute = addHeader oneMinute
+    oneMinute = Cache.MaxAge (1 :: Cache.Minute)
+
     -- Redirect
     selectQuantities [] numeraire slippage Nothing Nothing limitM = do
         run <- selectNewestFinishedRunId numeraire slippage
         let clientF = liquidityPure numeraire slippage run limitM
             url = toS $ ClientUrl.clientFUrl clientF
-        pgError $ err302 { errHeaders = [(fromString "Location", url)] }
+        pgError $ err302 { errHeaders = [(fromString "Location", url), Cache.toHeader oneMinute] }
 
     selectQuantities currencies numeraire slippage fromM toM limitM =
         let toRun = maybe (Left Lib.NewestFinishedRun) Right toM
@@ -215,7 +222,7 @@ type LiquidityPure =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> Capture' '[Description "End run"] "run_id" Run.RunId
         :> QueryParam "limit" Word
-        :> Get '[JSON] [Lib.LiquidityData]
+        :> Get '[JSON] (Headers '[Header "Cache-Control" Cache.Public] [Lib.LiquidityData])
 
 type CurrentTopLiquidity =
     Summary "Get most recent liquidity for all currencies"
@@ -280,10 +287,10 @@ type SpecificRunAllPaths =
     GenericRunAllPaths
         (Capture' '[Description "Run ID (integer)"] "run_id" Run.RunId)
         200
-        (Maybe Lib.GraphData)
+        (Headers '[Header "Cache-Control" Cache.Public] (Maybe Lib.GraphData))
 
 type NewestRunAllPaths =
     GenericRunAllPaths
         "newest"
         302
-        (Headers '[Header "Location" Text] (Maybe Lib.GraphData))
+        (Headers '[Header "Cache-Control" Cache.Public, Header "Location" Text] (Maybe Lib.GraphData))

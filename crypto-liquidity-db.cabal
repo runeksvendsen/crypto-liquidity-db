@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a9be35fa5bce2238feb02cd5f143556bc76006ec062c413556102acc13d7573f
+-- hash: d399b77dadccd50a8a45150df5716beb83cbcf68a46fd8f75d3a7c80cc4db6de
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -32,6 +32,7 @@ library
       App.Main.ProcessCalc
       App.Main.Util
       App.Main.WebApi
+      App.Main.WebApi.Cache
       App.Main.WebApi.ClientUrl
       App.Main.WebApi.Options
       App.Migrate.Raw
@@ -108,6 +109,7 @@ library
     , stm
     , text
     , time >=1.9
+    , time-units
     , transformers
     , transformers-base
     , universum
