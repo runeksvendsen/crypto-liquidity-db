@@ -72,6 +72,12 @@ library:
   - wai-cors # WebApi
   - optparse-applicative # WebApi
   - wai-extra # WebApi
+  - servant-client-core # WebApi
+  - free # WebApi
+  - universum # WebApi
+  - binary # WebApi
+  - http-types # WebApi
+  - time-units # WebApi
 
 executables:
   crypto-liquidity-service-process:

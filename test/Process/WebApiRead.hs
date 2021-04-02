@@ -1,6 +1,8 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
-
+{-# LANGUAGE DataKinds #-}
 module Process.WebApiRead
 ( mkClientEnv
 , runPathSingleReq
@@ -120,7 +122,7 @@ runLiquidityReq
 runLiquidityReq env (LiquidityReq numeraire slippage currency) =
     SC.runClientM request env
   where
-    request = liquidity [currency] Nothing Nothing (Just numeraire) (Just slippage) Nothing
+    request = liquidity [currency] numeraire slippage Nothing Nothing Nothing
 
 runPathAllReq
     :: SC.ClientEnv
@@ -129,7 +131,9 @@ runPathAllReq
     -> Maybe Word
     -> IO (Either SC.ClientError (Maybe Lib.GraphData))
 runPathAllReq env numeraire slippage limitM =
-    SC.runClientM (pathAll numeraire slippage limitM) env
+    SC.runClientM (discardHeaders <$> pathAll' numeraire slippage limitM) env
+  where
+    discardHeaders (Headers resp _) = resp
 
 pathSingle
     :: Run.RunId
@@ -139,14 +143,13 @@ pathSingle
     -> SC.ClientM (Maybe Lib.TestPathsSingleRes)
 liquidity
     :: [App.Main.WebApi.Currency]
+    -> App.Main.WebApi.Currency
+    -> Double
     -> Maybe LibCalc.UTCTime
     -> Maybe LibCalc.UTCTime
-    -> Maybe App.Main.WebApi.Currency
-    -> Maybe Double
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-pathAll :: App.Main.WebApi.Currency -> Double -> Maybe Word -> SC.ClientM (Maybe Lib.GraphData)
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll :<|> pathSingle :<|> _ =
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

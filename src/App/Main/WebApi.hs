@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ApplicativeDo #-}
+
 module App.Main.WebApi
 ( main
 , API
@@ -15,7 +17,10 @@ module App.Main.WebApi
 )
 where
 
+import Universum.VarArg ((...))
+import qualified App.Main.WebApi.ClientUrl as ClientUrl
 import qualified App.Main.WebApi.Options as Opt
+import qualified App.Main.WebApi.Cache as Cache
 import App.Main.WebApi.Orphans ()
 
 -- crypto-liquidity-db
@@ -51,15 +56,23 @@ import qualified Network.Wai.Middleware.RequestLogger as RL
 
 
 import Control.Monad.IO.Class
+-- servant-server
 import Servant
+-- servant-client-core
+import qualified Servant.Client.Free as SCF
+
 import qualified Data.Aeson as JSON
 
 -- warp
 import qualified Network.Wai.Handler.Warp as Warp
+
 import System.Environment (lookupEnv)
 import OrderBook.Graph.Types (Currency)
-import Internal.Prelude (Text)
+import Internal.Prelude (Text, IsString (fromString), (<=<), toS)
 import Data.Maybe (fromMaybe)
+import Text.Printf (printf)
+import Database.Beam.Backend (SqlSerial(SqlSerial))
+
 
 
 
@@ -96,34 +109,96 @@ mkServer
 mkServer cfg =
     let timeout = AppLib.cfgMaxCalculationTime $ AppLib.cfgConstants cfg in
     hoistServer (Proxy :: Proxy API)
-                (liftIO . AppLib.runAppM cfg . AppLib.runDbRaw)
+                (either throwError pure <=< (liftIO . AppLib.runAppM cfg . AppLib.runDbRaw . pgResult))
                 (server timeout)
 
-server :: Lib.NominalDiffTime -> ServerT API Pg.Pg
+
+-- ### PgResult
+newtype PgResult a = PgResult { pgResult :: Pg.Pg (Either ServerError a) }
+
+pgReturn :: Pg.Pg a -> PgResult a
+pgReturn = PgResult . fmap Right
+
+pgError :: ServerError -> PgResult a
+pgError = PgResult . pure . Left
+
+instance Functor PgResult where
+    fmap f (PgResult pgE) = PgResult $ fmap (fmap f) pgE
+instance Applicative PgResult where
+    pure a = PgResult (return $ Right a)
+    PgResult pgMf <*> PgResult pgMa = PgResult $ do
+        f <- pgMf
+        a <- pgMa
+        pure (f <*> a)
+instance Monad PgResult where
+    PgResult ma >>= fb = PgResult $ do
+        ma >>= either (pure . Left) (pgResult . fb)
+-- ### PgResult
+
+server :: Lib.NominalDiffTime -> ServerT API PgResult
 server timeout =
-         Lib.selectQuantities []
-    :<|> Lib.selectQuantities
-    :<|> Lib.selectAllCalculations
-    :<|> Lib.selectStalledCalculations timeout
-    :<|> Lib.selectUnfinishedCalcCount
-    :<|> Query.Books.runBooks
-    :<|> Lib.selectNewestRunAllPaths
-    :<|> Lib.selectTestPathsSingle
-    :<|> Lib.selectNewestRunAllLiquidity
+         selectQuantities []
+    :<|> selectQuantities
+    :<|> pgReturn ... Lib.selectAllCalculations
+    :<|> pgReturn ... Lib.selectStalledCalculations timeout
+    :<|> pgReturn ... Lib.selectUnfinishedCalcCount
+    :<|> pgReturn ... Query.Books.runBooks
+    :<|> fmap cacheOneMinute ... selectNewestFinishedRunRedirect
+    :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
+    :<|> pgReturn ... Lib.selectTestPathsSingle
+    :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
+    :<|> fmap cacheTwoDays ... selectQuantitiesPure
+  where
+    cacheTwoDays :: a -> Headers '[Header "Cache-Control" Cache.Public] a
+    cacheTwoDays = addHeader $ Cache.MaxAge (2 :: Cache.Day)
+
+    cacheOneMinute = addHeader oneMinute
+    oneMinute = Cache.MaxAge (1 :: Cache.Minute)
+
+    -- Redirect
+    selectQuantities [] numeraire slippage Nothing Nothing limitM = do
+        run <- selectNewestFinishedRunId numeraire slippage
+        let clientF = liquidityPure numeraire slippage run limitM
+            url = toS $ ClientUrl.clientFUrl clientF
+        pgError $ err302 { errHeaders = [(fromString "Location", url), Cache.toHeader oneMinute] }
+
+    selectQuantities currencies numeraire slippage fromM toM limitM =
+        let toRun = maybe (Left Lib.NewestFinishedRun) Right toM
+        in pgReturn $! Lib.selectQuantities currencies numeraire slippage fromM toRun limitM
+
+    selectQuantitiesPure numeraire slippage endRunId limitM =
+        let toRun = Left $ Lib.SpecificRun endRunId
+        in pgReturn $! Lib.selectQuantities [] numeraire slippage Nothing toRun limitM
+
+    selectNewestFinishedRunRedirect numeraire slippage limitM = do
+        run <- selectNewestFinishedRunId numeraire slippage
+        let clientF = specificRunAllPaths run numeraire slippage limitM
+        pure $ addHeader (toS $ ClientUrl.clientFUrl clientF) Nothing
+
+    selectNewestFinishedRunId numeraire slippage = PgResult $ do
+        runM <- Lib.selectNewestFinishedRunId numeraire slippage
+        maybe (pure $ Left err404) (pure . Right) runM
+
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|> liquidityPure =
+        SCF.client (Proxy :: Proxy API)
 
 type CurrencySymbolList =
     Capture' '[Description "One or more comma-separated currency symbols"] "currency_symbols" [Currency]
 
-type API
-    =    BasePath (Liquidity "all")
-    :<|> BasePath (Liquidity CurrencySymbolList)
-    :<|> BasePath GetAllCalcs
-    :<|> BasePath GetUnfinishedCalcs
-    :<|> BasePath GetUnfinishedCalcCount
-    :<|> BasePath GetRunBooks
-    :<|> BasePath NewestRunAllPaths
-    :<|> BasePath PathSingle
-    :<|> BasePath CurrentTopLiquidity
+type API = BasePath API'
+
+type API'
+    =    Liquidity "all"
+    :<|> Liquidity CurrencySymbolList
+    :<|> GetAllCalcs
+    :<|> GetUnfinishedCalcs
+    :<|> GetUnfinishedCalcCount
+    :<|> GetRunBooks
+    :<|> NewestRunAllPaths
+    :<|> SpecificRunAllPaths
+    :<|> PathSingle
+    :<|> CurrentTopLiquidity
+    :<|> LiquidityPure
 
 type BasePath a = "api" :> "v1" :> a
 
@@ -131,20 +206,32 @@ type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
         :> "liquidity"
         :> currencies
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
-        :> QueryParam "numeraire" Currency
-        :> QueryParam "slippage" Double
         :> QueryParam "limit" Word
         :> Get '[JSON] [Lib.LiquidityData]
+
+-- | Liquidity from the first run to a specific run.
+--   Given the same arguments will always return the same data (hence cacheable with infinite TTL).
+type LiquidityPure =
+    Summary "Get liquidity for one or more currencies"
+        :> "liquidity"
+        :> "all"
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
+        :> Capture' '[Description "End run"] "run_id" Run.RunId
+        :> QueryParam "limit" Word
+        :> Get '[JSON] (Headers '[Header "Cache-Control" Cache.Public] [Lib.LiquidityData])
 
 type CurrentTopLiquidity =
     Summary "Get most recent liquidity for all currencies"
         :> "liquidity"
         :> "all"
         :> "newest"
-        :> QueryParam "numeraire" Currency
-        :> QueryParam "slippage" Double
+        :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
+        :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
         :> Get '[JSON] [(Run.Run, Text, Lib.Int64, Lib.Int64)]
@@ -186,13 +273,25 @@ type PathSingle =
         :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
         :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)
 
-type NewestRunAllPaths =
+type GenericRunAllPaths runIdent statusCode a =
     Summary "Get all paths for newest run"
     :> "run"
-    :> "newest"
+    :> runIdent
     :> "paths"
     :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
     :> Capture' '[Description "Slippage"] "slippage" Double
     :> "all"
     :> QueryParam "limit" Word
-    :> Get '[JSON] (Maybe Lib.GraphData)
+    :> Verb 'GET statusCode '[JSON] a
+
+type SpecificRunAllPaths =
+    GenericRunAllPaths
+        (Capture' '[Description "Run ID (integer)"] "run_id" Run.RunId)
+        200
+        (Headers '[Header "Cache-Control" Cache.Public] (Maybe Lib.GraphData))
+
+type NewestRunAllPaths =
+    GenericRunAllPaths
+        "newest"
+        302
+        (Headers '[Header "Cache-Control" Cache.Public, Header "Location" Text] (Maybe Lib.GraphData))
