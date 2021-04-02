@@ -64,6 +64,8 @@ data LiquidityData = LiquidityData
     , ldRunId :: Run.RunId
     , ldCurrency :: Text
     , ldQty :: PathQty.Int64
+    , ldQtyBuy :: PathQty.Int64
+    , ldQtySell :: PathQty.Int64
     } deriving (Eq, Show, Generic)
 
 -- | A single run
@@ -117,11 +119,13 @@ selectQuantities currencies numeraire slippage fromM runOrTo limitM =
     fmap (map mkLiquidityData) $
         runSelectReturningList $ select query
   where
-    mkLiquidityData (run', currency, qty) = LiquidityData
-        { ldRun = run'
-        , ldRunId = pk run'
+    mkLiquidityData (run, currency, (qty, qtyBuy, qtySell)) = LiquidityData
+        { ldRun = run
+        , ldRunId = pk run
         , ldCurrency = currency
         , ldQty = qty
+        , ldQtyBuy = qtyBuy
+        , ldQtySell = qtySell
         }
     query = case (limitM, currencies) of
         (Just limit, []) ->
@@ -202,7 +206,10 @@ quantities
     -> Q Pg.Postgres LiquidityDb s
         ( Run.RunT (QExpr Pg.Postgres s)
         , QExpr Pg.Postgres s Text
-        , QExpr Pg.Postgres s PathSum.Int64
+        , ( QExpr Pg.Postgres s PathSum.Int64
+          , QExpr Pg.Postgres s PathSum.Int64
+          , QExpr Pg.Postgres s PathSum.Int64
+          )
         )
 quantities runQ numeraireM slippageM = do
     (run, calc, qtySum) <- runCalcQuantity
@@ -212,7 +219,13 @@ quantities runQ numeraireM slippageM = do
         run <- runQ
         calc <- finishedCryptoCalcsForRun run numeraireM slippageM
         pathSum <- sumForCalc calc
-        pure (run, calc, PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum)
+        pure ( run
+             , calc
+             , ( PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
+               , PathSum.pathsumBuyQty pathSum
+               , PathSum.pathsumSellQty pathSum
+               )
+             )
 
 getSymbol (Currency.CurrencyId symbol) = symbol
 
