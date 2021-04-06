@@ -117,8 +117,9 @@ selectQuantities
     -> Pg.Pg [LiquidityData]
 selectQuantities currencies numeraire slippage fromM runOrTo limitM =
     fmap (map mkLiquidityData) $
-        runSelectReturningList $ select query
+        runSelectReturningList $ select (orderBy_ runTimeStart query)
   where
+    runTimeStart (run, _, _) = asc_ $ Run.runTimeStart run
     mkLiquidityData (run, currency, (qty, qtyBuy, qtySell)) = LiquidityData
         { ldRun = run
         , ldRunId = pk run
