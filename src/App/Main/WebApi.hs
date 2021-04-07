@@ -234,7 +234,7 @@ type CurrentTopLiquidity =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
-        :> Get '[JSON] [(Run.Run, Text, Lib.Int64, Lib.Int64)]
+        :> Get '[JSON] [Lib.LiquidityData]
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"

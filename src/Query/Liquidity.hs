@@ -351,8 +351,17 @@ finishedCryptoCalcsForRun run numeraireM slippageM = do
     guard_ $ isCrypto calc
     pure calc
 
-selectNewestRunAllLiquidity numeraire slippage offsetM limitM =
+selectNewestRunAllLiquidity numeraire slippage offsetM limitM = fmap (map mkLiquidityData) $
     runSelectReturningList $ select $ newestRunAllLiquidity numeraire slippage offsetM limitM
+  where
+    mkLiquidityData (run, currency, buy, sell) = LiquidityData
+        { ldRun = run
+        , ldRunId = pk run
+        , ldCurrency = currency
+        , ldQty = buy + sell
+        , ldQtyBuy = buy
+        , ldQtySell = sell
+        }
 
 newestRunAllLiquidity
     :: Currency
