@@ -156,23 +156,23 @@ server timeout =
     oneMinute = Cache.MaxAge (1 :: Cache.Minute)
 
     -- Redirect
-    selectQuantities [] numeraire slippage Nothing Nothing limitM = do
+    selectQuantities [] numeraire slippage Nothing Nothing limitM creditM = do
         run <- selectNewestFinishedRunId numeraire slippage
-        let clientF = liquidityPure numeraire slippage run limitM
+        let clientF = liquidityPure numeraire slippage run limitM creditM
             url = toS $ ClientUrl.clientFUrl clientF
         pgError $ err302 { errHeaders = [(fromString "Location", url), Cache.toHeader oneMinute] }
 
-    selectQuantities currencies numeraire slippage fromM toM limitM =
+    selectQuantities currencies numeraire slippage fromM toM limitM creditM =
         let toRun = maybe (Left Lib.NewestFinishedRun) Right toM
-        in pgReturn $! Lib.selectQuantities currencies numeraire slippage fromM toRun limitM
+        in pgReturn $! Lib.selectQuantities currencies numeraire slippage fromM toRun limitM creditM
 
-    selectQuantitiesPure numeraire slippage endRunId limitM =
+    selectQuantitiesPure numeraire slippage endRunId limitM creditM =
         let toRun = Left $ Lib.SpecificRun endRunId
-        in pgReturn $! Lib.selectQuantities [] numeraire slippage Nothing toRun limitM
+        in pgReturn $! Lib.selectQuantities [] numeraire slippage Nothing toRun limitM creditM
 
-    selectNewestFinishedRunRedirect numeraire slippage limitM = do
+    selectNewestFinishedRunRedirect numeraire slippage limitM creditM = do
         run <- selectNewestFinishedRunId numeraire slippage
-        let clientF = specificRunAllPaths run numeraire slippage limitM
+        let clientF = specificRunAllPaths run numeraire slippage limitM creditM
         pure $ addHeader (toS $ ClientUrl.clientFUrl clientF) Nothing
 
     selectNewestFinishedRunId numeraire slippage = PgResult $ do
@@ -202,6 +202,8 @@ type API'
 
 type BasePath a = "api" :> "v1" :> a
 
+type IncludeCreditInstruments = QueryParam "include_credit_instruments" Bool
+
 type Liquidity (currencies :: k) =
     Summary "Get liquidity for one or more currencies"
         :> "liquidity"
@@ -211,6 +213,7 @@ type Liquidity (currencies :: k) =
         :> QueryParam "from" Run.UTCTime
         :> QueryParam "to" Run.UTCTime
         :> QueryParam "limit" Word
+        :> IncludeCreditInstruments
         :> Get '[JSON] [Lib.LiquidityData]
 
 -- | Liquidity from the first run to a specific run.
@@ -223,6 +226,7 @@ type LiquidityPure =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> Capture' '[Description "End run"] "run_id" Run.RunId
         :> QueryParam "limit" Word
+        :> IncludeCreditInstruments
         :> Get '[JSON] (Headers '[Header "Cache-Control" Cache.Public] [Lib.LiquidityData])
 
 type CurrentTopLiquidity =
@@ -234,6 +238,7 @@ type CurrentTopLiquidity =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
+        :> IncludeCreditInstruments
         :> Get '[JSON] [Lib.LiquidityData]
 
 type GetAllCalcs =
@@ -282,6 +287,7 @@ type GenericRunAllPaths runIdent statusCode a =
     :> Capture' '[Description "Slippage"] "slippage" Double
     :> "all"
     :> QueryParam "limit" Word
+    :> IncludeCreditInstruments
     :> Verb 'GET statusCode '[JSON] a
 
 type SpecificRunAllPaths =

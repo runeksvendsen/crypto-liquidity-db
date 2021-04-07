@@ -2,6 +2,7 @@
 
 module Query.Config.Config
 ( numeraires
+, creditInstruments
 )
 where
 
@@ -29,4 +30,24 @@ numeraires =
     , "RUB"
     , "ZAR"
     , "TRY"
+    ]
+
+creditInstruments :: [Text]
+creditInstruments =
+    [ "USDT"
+    , "TUSD"
+    , "TSD"
+    , "USDC"
+    , "BUSD"
+    , "UST"
+    , "TGBP"
+    , "TAUD"
+    , "TCAD"
+    , "THKD"
+    , "PAX"
+    , "WBTC"
+    , "BTCB"
+    , "DGX"
+    , "GUSD"
+    -- , "EOSDT" -- not redeemable
     ]

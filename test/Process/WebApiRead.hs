@@ -122,7 +122,7 @@ runLiquidityReq
 runLiquidityReq env (LiquidityReq numeraire slippage currency) =
     SC.runClientM request env
   where
-    request = liquidity [currency] numeraire slippage Nothing Nothing Nothing
+    request = liquidity [currency] numeraire slippage Nothing Nothing Nothing Nothing
 
 runPathAllReq
     :: SC.ClientEnv
@@ -131,7 +131,7 @@ runPathAllReq
     -> Maybe Word
     -> IO (Either SC.ClientError (Maybe Lib.GraphData))
 runPathAllReq env numeraire slippage limitM =
-    SC.runClientM (discardHeaders <$> pathAll' numeraire slippage limitM) env
+    SC.runClientM (discardHeaders <$> pathAll' numeraire slippage limitM Nothing) env
   where
     discardHeaders (Headers resp _) = resp
 
@@ -148,6 +148,7 @@ liquidity
     -> Maybe LibCalc.UTCTime
     -> Maybe LibCalc.UTCTime
     -> Maybe Word
+    -> Maybe Bool
     -> SC.ClientM [Lib.LiquidityData]
 _ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api

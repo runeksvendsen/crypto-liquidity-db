@@ -80,7 +80,7 @@ server env = do
     testHandlerRun Test.testCaseBooks (runBooks (LibCalc.mkRunId 1)) env
     return "Success \\o/"
   where
-    allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
+    allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing Nothing
 
 testHandlerRun
     :: Show a
@@ -106,6 +106,7 @@ allLiquidity
     -> Maybe LibCalc.UTCTime
     -> Maybe LibCalc.UTCTime
     -> Maybe Word
+    -> Maybe Bool
     -> SC.ClientM [Lib.LiquidityData]
 runBooks :: LibCalc.RunId -> SC.ClientM [Lib.OrderBook Double]
 allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks :<|> _ :<|> _ =
