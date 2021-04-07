@@ -430,25 +430,23 @@ selectNewestRunAllPaths
     -> Maybe Bool
     -> Pg.Pg (Maybe Query.Graph.GraphData)
 selectNewestRunAllPaths runId numeraire slippage limitM creditM = do
-    cryptoQtys <- map (first toS) <$> runSelectReturningList (select query)
+    cryptoQtys <- map (first toS) <$> runSelectReturningList (select $ newestRunCryptoQtys runId numeraire slippage)
     fmap (fmap (Query.Graph.toGraphData numeraire limitM cryptoQtys) . headMay . groupNestByFst) $
         runSelectReturningList $ select $ newestRunAllPaths runId numeraire slippage excludeLst
   where
-    query = newestRunCryptoQtys runId numeraire slippage excludeLst
     excludeLst = toExcludeList creditM
 
 newestRunCryptoQtys
     :: Run.RunId
     -> Currency
     -> Double
-    -> [Text]
     -> Q Pg.Postgres LiquidityDb s
         ( QGenExpr QValueContext Pg.Postgres s Text
         , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
         )
-newestRunCryptoQtys runId numeraire slippage excludeLst = do
+newestRunCryptoQtys runId numeraire slippage = do
     run <- theRun
-    calc <- finishedCryptoCalcsForRun run excludeLst (Just numeraire) (Just slippage)
+    calc <- finishedCalcsForRun run (Just numeraire) (Just slippage)
     pathSum <- sumForCalc calc
     let qtySum = PathSum.pathsumBuyQty pathSum + PathSum.pathsumSellQty pathSum
     pure (getSymbol $ Calc.calculationCurrency calc, qtySum)
