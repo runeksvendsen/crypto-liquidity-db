@@ -16,6 +16,7 @@ module Query.Liquidity
 , prettyPathParts
 , selectNewestFinishedRunId
 , selectNewestRunAllLiquidity
+, selectSpecificRunAllLiquidity
 , selectNewestRunAllPaths
 , Query.Graph.GraphData
 )
@@ -351,8 +352,21 @@ finishedCryptoCalcsForRun run numeraireM slippageM = do
     guard_ $ isCrypto calc
     pure calc
 
-selectNewestRunAllLiquidity numeraire slippage offsetM limitM = fmap (map mkLiquidityData) $
-    runSelectReturningList $ select $ newestRunAllLiquidity numeraire slippage offsetM limitM
+selectNewestRunAllLiquidity numeraire slippage =
+    selectRunAllLiquidity runQ numeraire slippage
+  where
+    runQ = newestFinishedRun numeraire slippage
+
+selectSpecificRunAllLiquidity runId =
+    selectRunAllLiquidity runQ
+  where
+    runQ = do
+        run <- all_ (runs liquidityDb)
+        guard_ $ pk run ==. val_ runId
+        pure run
+
+selectRunAllLiquidity runQ numeraire slippage offsetM limitM = fmap (map mkLiquidityData) $
+    runSelectReturningList $ select $ newestRunAllLiquidity runQ numeraire slippage offsetM limitM
   where
     mkLiquidityData (run, currency, buy, sell) = LiquidityData
         { ldRun = run
@@ -364,7 +378,10 @@ selectNewestRunAllLiquidity numeraire slippage offsetM limitM = fmap (map mkLiqu
         }
 
 newestRunAllLiquidity
-    :: Currency
+    :: Q Pg.Postgres LiquidityDb
+        (QNested (QNested (QNested s)))
+        (Run.RunT (QExpr Pg.Postgres (QNested (QNested (QNested s)))))
+    -> Currency
     -> Double
     -> Maybe Integer
     -> Maybe Integer
@@ -374,14 +391,14 @@ newestRunAllLiquidity
         , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
         , QGenExpr QValueContext Pg.Postgres s PathSum.Int64
         )
-newestRunAllLiquidity numeraire slippage offsetM limitM =
+newestRunAllLiquidity runQ numeraire slippage offsetM limitM =
     limit_ (fromMaybe 50 limitM) $
         offset_ (fromMaybe 0 offsetM) $
             orderBy_ (\(_, _, buyQty, sellQty) -> desc_ (buyQty + sellQty))
                 newestRunCalcs
   where
     newestRunCalcs = do
-        run <- newestFinishedRun numeraire slippage
+        run <- runQ
         calc <- finishedCryptoCalcsForRun run (Just numeraire) (Just slippage)
         pathSum <- sumForCalc calc
         pure ( run
