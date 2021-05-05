@@ -380,7 +380,12 @@ selectRunAllLiquidity runQ numeraire slippage offsetM limitM otherMinPctM = fmap
             aggregate' minPct ld (lst, otherM) =
                 if ldQty ld `relativeToInPercent` totalQty >= minPct
                     then (ld : lst, otherM)
-                    else let addToExistingQty otherLd = otherLd { ldQty = ldQty otherLd + ldQty ld }
+                    else let addToExistingQty otherLd =
+                                otherLd
+                                    { ldQty = ldQty otherLd + ldQty ld
+                                    , ldQtyBuy = ldQtyBuy otherLd + ldQtyBuy ld
+                                    , ldQtySell = ldQtySell otherLd + ldQtySell ld
+                                    }
                              newOtherLd = ld { ldCurrency = "Other" }
                          in (lst, Just $ maybe newOtherLd addToExistingQty otherM)
             appendOther (lst, Nothing) = lst
