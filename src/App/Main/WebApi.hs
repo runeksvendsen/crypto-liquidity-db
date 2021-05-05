@@ -147,6 +147,7 @@ server timeout =
     :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
     :<|> pgReturn ... Lib.selectNewestRunAllLiquidity
+    :<|> pgReturn ... Lib.selectSpecificRunAllLiquidity
     :<|> fmap cacheTwoDays ... selectQuantitiesPure
   where
     cacheTwoDays :: a -> Headers '[Header "Cache-Control" Cache.Public] a
@@ -179,7 +180,7 @@ server timeout =
         runM <- Lib.selectNewestFinishedRunId numeraire slippage
         maybe (pure $ Left err404) (pure . Right) runM
 
-    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|> liquidityPure =
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|>  _ :<|> liquidityPure =
         SCF.client (Proxy :: Proxy API)
 
 type CurrencySymbolList =
@@ -198,6 +199,7 @@ type API'
     :<|> SpecificRunAllPaths
     :<|> PathSingle
     :<|> CurrentTopLiquidity
+    :<|> SpecificTopLiquidity
     :<|> LiquidityPure
 
 type BasePath a = "api" :> "v1" :> a
@@ -225,16 +227,22 @@ type LiquidityPure =
         :> QueryParam "limit" Word
         :> Get '[JSON] (Headers '[Header "Cache-Control" Cache.Public] [Lib.LiquidityData])
 
-type CurrentTopLiquidity =
-    Summary "Get most recent liquidity for all currencies"
+type GenericTopLiquidity runIdent =
+    Summary "Get liquidity for all currencies"
         :> "liquidity"
         :> "all"
-        :> "newest"
+        :> runIdent
         :> Capture' '[Description "Numeraire (e.g. USD, EUR)"] "numeraire" Currency
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
         :> Get '[JSON] [Lib.LiquidityData]
+
+type CurrentTopLiquidity =
+    GenericTopLiquidity "newest"
+
+type SpecificTopLiquidity =
+    GenericTopLiquidity (Capture' '[Description "Run ID (integer)"] "run_id" Run.RunId)
 
 type GetAllCalcs =
     Summary "Get unfinished calculations"
