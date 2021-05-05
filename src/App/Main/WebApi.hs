@@ -236,6 +236,10 @@ type GenericTopLiquidity runIdent =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> QueryParam "offset" Integer
         :> QueryParam "limit" Integer
+           -- if a currency's liquidity is less than this percentage of the sum of all liquidities
+           --  then aggregate into a currency called "Other".
+           -- used for e.g. creating a pie chart with an "Other"-group that contains illiquid currencies
+        :> QueryParam "other_minimum_percent" Double
         :> Get '[JSON] [Lib.LiquidityData]
 
 type CurrentTopLiquidity =
