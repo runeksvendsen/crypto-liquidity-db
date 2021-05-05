@@ -352,7 +352,7 @@ finishedCryptoCalcsForRun run numeraireM slippageM = do
     guard_ $ isCrypto calc
     pure calc
 
-selectNewestRunAllLiquidity numeraire slippage  =
+selectNewestRunAllLiquidity numeraire slippage =
     selectRunAllLiquidity runQ numeraire slippage
   where
     runQ = newestFinishedRun numeraire slippage
@@ -365,9 +365,8 @@ selectSpecificRunAllLiquidity runId =
         guard_ $ pk run ==. val_ runId
         pure run
 
-selectRunAllLiquidity runQ numeraire slippage offsetM limitM otherMinPctM =
-    fmap (aggregateOther . map mkLiquidityData) $
-        runSelectReturningList $ select $ newestRunAllLiquidity runQ numeraire slippage offsetM limitM
+selectRunAllLiquidity runQ numeraire slippage offsetM limitM otherMinPctM = fmap (aggregateOther . map mkLiquidityData) $
+    runSelectReturningList $ select $ newestRunAllLiquidity runQ numeraire slippage offsetM limitM
   where
     -- aggregate all 'LiquidityData' whose 'ldQty' relative to the sum of 'ldQty' in percent
     --  is less than 'otherMinPctM' into a single 'LiquidityData' with a 'ldCurrency' equal to "Other"
