@@ -29,10 +29,9 @@ jobs:
         run: |
           IMAGE_ID=$(docker images | awk 'NR==2' | awk '{print $3}')
           docker save "$IMAGE_ID" -o docker-image.tar
-          zip docker-image.tar.zip docker-image.tar
 
       - name: Docker image artifact
         uses: actions/upload-artifact@v2
         with:
-          name: docker-image
-          path: docker-image.tar.zip
+          name: docker-image.tar
+          path: docker-image.tar
