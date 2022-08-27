@@ -6,6 +6,7 @@ module Test
 , testCaseLiquidity
 , Spec
 , testCaseBooks
+, testCaseBook
 )
 where
 
@@ -14,6 +15,7 @@ import qualified Query.Liquidity as Lib
 import qualified Query.Books as Lib
 import Data.Maybe (isJust)
 import Data.List (all)
+import qualified Data.Text as T
 
 
 type Spec a =
@@ -45,6 +47,17 @@ testCaseBooks
 testCaseBooks obs =
         [ ("non-empty order book list", 0, length obs, (/=))
         ]
+
+testCaseBook
+    :: ( Lib.BookResult (Lib.OrderBook Double) -- The book returned by the endpoint
+       , Lib.OrderBook Double -- The book we want to fetch
+       )
+    -> Spec (Lib.BookResult (Lib.OrderBook Double))
+testCaseBook (bs, ob) =
+        [ ("non-null result", Lib.emptyBookResult, bs, \_ actual -> isJust $ Lib.result actual)
+        , ("no warnings", Lib.emptyBookResult, bs, \_ actual -> null $ Lib.warnings actual)
+        , ("BookResult matches expected book", Lib.emptyBookResult, bs, \_ actual -> Lib.result actual == Just ob)
+        ] -- NB: we use 'Lib.emptyBookResult' and ignore it because the 'Spec' type is not generic enough
 
 testCaseLiquidity
     :: [Lib.LiquidityData]

@@ -13,7 +13,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/runeksvendsen/crypto-orderbook-db.git
-    tag: 83003611168eb058cce4b76a754875dcbd89f078
+    tag: ab94bb27e3ec2b6d229364dfd7ab738eeb743ad9
 
 source-repository-package
     type: git
@@ -24,7 +24,7 @@ source-repository-package
 source-repository-package
     type: git
     location: https://github.com/runeksvendsen/order-graph.git
-    tag: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
+    tag: eef0006cba7aea019611063d648b0e9915644820
 
 source-repository-package
     type: git

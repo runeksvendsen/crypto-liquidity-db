@@ -143,6 +143,7 @@ server timeout =
     :<|> pgReturn ... Lib.selectStalledCalculations timeout
     :<|> pgReturn ... Lib.selectUnfinishedCalcCount
     :<|> pgReturn ... Query.Books.runBooks
+    :<|> pgReturn ... Query.Books.runBook
     :<|> fmap cacheOneMinute ... selectNewestFinishedRunRedirect
     :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
@@ -180,7 +181,7 @@ server timeout =
         runM <- Lib.selectNewestFinishedRunId numeraire slippage
         maybe (pure $ Left err404) (pure . Right) runM
 
-    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|>  _ :<|> liquidityPure =
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|>  _ :<|> liquidityPure =
         SCF.client (Proxy :: Proxy API)
 
 type CurrencySymbolList =
@@ -195,6 +196,7 @@ type API'
     :<|> GetUnfinishedCalcs
     :<|> GetUnfinishedCalcCount
     :<|> GetRunBooks
+    :<|> GetRunBook
     :<|> NewestRunAllPaths
     :<|> SpecificRunAllPaths
     :<|> PathSingle
@@ -274,6 +276,16 @@ type GetRunBooks =
         :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
         :> "books"
         :> Get '[JSON] [G.OrderBook Double]
+
+type GetRunBook =
+    Summary "Get single run order book"
+        :> "run"
+        :> Capture' '[Description "Run ID (integer)"] "id" Run.RunId
+        :> "book"
+        :> Capture' '[Description "Venue"] "venue" Text
+        :> Capture' '[Description "Either base or quote"] "currency1" Currency
+        :> Capture' '[Description "if currency1 is base then quote else base"] "currency2" Currency
+        :> Get '[JSON] (Lib.BookResult (G.OrderBook Double))
 
 type PathSingle =
     Summary "Get paths for single run currency"

@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d399b77dadccd50a8a45150df5716beb83cbcf68a46fd8f75d3a7c80cc4db6de
+-- hash: 6e8bc9c3e1dd3cdb38864a0e732afab67db34f558508fe1b1f311aa479fcf3c1
 
 name:           crypto-liquidity-db
 version:        0.1.0.0
@@ -73,7 +73,9 @@ library
       App.Orphans
   hs-source-dirs:
       src
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
       aeson
@@ -126,7 +128,9 @@ executable crypto-liquidity-service-create
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app/service/create-calc
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       base >=4.7 && <5
@@ -140,7 +144,9 @@ executable crypto-liquidity-service-process
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app/service/process-calc
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       base >=4.7 && <5
@@ -155,7 +161,9 @@ executable crypto-liquidity-test
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app/test
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       aeson
@@ -168,6 +176,7 @@ executable crypto-liquidity-test
     , servant-client
     , servant-server
     , warp
+    , text
   default-language: Haskell2010
 
 executable crypto-liquidity-web-api
@@ -176,7 +185,9 @@ executable crypto-liquidity-web-api
       Paths_crypto_liquidity_db
   hs-source-dirs:
       app/web-api
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports -O2
   build-depends:
       base >=4.7 && <5
@@ -194,7 +205,9 @@ test-suite crypto-liquidity-db-test
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test
-  default-extensions: FlexibleContexts StrictData
+  default-extensions:
+      FlexibleContexts
+      StrictData
   ghc-options: -Wall -fno-warn-unused-imports
   build-depends:
       HUnit

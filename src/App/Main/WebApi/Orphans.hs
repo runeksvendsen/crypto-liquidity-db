@@ -44,6 +44,8 @@ instance Json.FromJSON LibCalc.CalculationId
 instance Json.ToJSON LibCalc.CalculationId
 instance Json.FromJSON Lib.PathId
 instance Json.ToJSON Lib.PathId
+instance Json.FromJSON a => Json.FromJSON (Lib.BookResult a)
+instance Json.ToJSON a => Json.ToJSON (Lib.BookResult a)
 
 instance Json.ToJSON Lib.CurrencyId
 instance Json.ToJSON Run.RunId

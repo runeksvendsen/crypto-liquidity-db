@@ -16,12 +16,12 @@ packages:
     version: 0.1.0.0
     git: https://github.com/runeksvendsen/crypto-orderbook-db.git
     pantry-tree:
-      size: 1664
-      sha256: 12d92b092f3799a79dc29cb16029848ca073833e744904fa20353512311ad0f3
-    commit: 83003611168eb058cce4b76a754875dcbd89f078
+      size: 1779
+      sha256: 7dc73ab4007ad93bd55b198909f303f096da81140b019c6280bd52dd92a4c0e9
+    commit: ab94bb27e3ec2b6d229364dfd7ab738eeb743ad9
   original:
     git: https://github.com/runeksvendsen/crypto-orderbook-db.git
-    commit: 83003611168eb058cce4b76a754875dcbd89f078
+    commit: ab94bb27e3ec2b6d229364dfd7ab738eeb743ad9
 - completed:
     name: orderbook
     version: 0.1.0.0
@@ -39,11 +39,11 @@ packages:
     git: https://github.com/runeksvendsen/order-graph.git
     pantry-tree:
       size: 4137
-      sha256: eab1b46336ce61f9099cb80c7be47f2287d05c2ecbd5bbd3809cfc1998d8ac30
-    commit: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
+      sha256: b703e33c02aeb0dcbaffc1d79f1644aa7302a5fd547fb23fb24f935eef09b39f
+    commit: eef0006cba7aea019611063d648b0e9915644820
   original:
     git: https://github.com/runeksvendsen/order-graph.git
-    commit: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
+    commit: eef0006cba7aea019611063d648b0e9915644820
 - completed:
     name: bellman-ford
     version: 0.1.0.0

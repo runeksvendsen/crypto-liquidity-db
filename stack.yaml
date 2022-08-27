@@ -5,11 +5,11 @@ allow-newer: true
 extra-deps:
 - logging-3.0.5@sha256:88096d3124fce9a19af3720f751e1a354d866ed5030d2e5197238d2277cdb2f2,2374
 - git: https://github.com/runeksvendsen/crypto-orderbook-db.git
-  commit: e50681a1d68e89a2d816299960a2e0f96bde18ba
+  commit: ab94bb27e3ec2b6d229364dfd7ab738eeb743ad9
 - git: https://github.com/runeksvendsen/orderbook.git
   commit: b0b7babf47e26538af611210b92adf00b3f79b11
 - git: https://github.com/runeksvendsen/order-graph.git
-  commit: 44da9d6c9b8483f50d0fcdf39b5048c81cd134a9
+  commit: eef0006cba7aea019611063d648b0e9915644820
 - git: https://github.com/runeksvendsen/bellman-ford.git
   commit: 967b590aac5ffaee34779d91d092a38e7eb9ecbb
 - git: https://github.com/runeksvendsen/mono-traversable.git

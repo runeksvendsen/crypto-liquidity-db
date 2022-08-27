@@ -41,6 +41,7 @@ import qualified Servant.Client as SC
 import qualified Network.HTTP.Client as HTTP
 import Data.List (intercalate)
 import Control.Exception (assert)
+import Data.Tuple (swap)
 
 
 main :: IO ()
@@ -75,19 +76,27 @@ mkServer env =
 
 server :: SC.ClientEnv -> ServerT API Handler
 server env = do
-    testHandlerRun Test.testCaseCalc allCalculations env
-    testHandlerRun Test.testCaseLiquidity allLiquidity' env
-    testHandlerRun Test.testCaseBooks (runBooks (LibCalc.mkRunId 1)) env
+    _ <- testHandlerRun Test.testCaseCalc allCalculations env
+    _ <- testHandlerRun Test.testCaseLiquidity allLiquidity' env
+    allBooks <- testHandlerRun Test.testCaseBooks (runBooks runId) env
+    let targetBook = head allBooks -- NB: The above test case fails if 'allBooks' is empty
+        baseQuote = Lib.baseQuote targetBook
+    _ <- testHandlerRun Test.testCaseBook (runBook' targetBook baseQuote) env
+    _ <- testHandlerRun Test.testCaseBook (runBook' targetBook (swap baseQuote)) env
     return "Success \\o/"
   where
+    runId = LibCalc.mkRunId 1
     allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
+    runBook' targetBook (currency1, currency2) = do
+            res <- runBook runId (Lib.bookVenue targetBook) (toS currency1) (toS currency2)
+            pure (res, targetBook)
 
 testHandlerRun
     :: Show a
     => (t -> Test.Spec a)
     -> SC.ClientM t
     -> SC.ClientEnv
-    -> Handler ()
+    -> Handler t
 testHandlerRun testCase allCalculations' env = do
     calcLstE <- liftIO $ runClientM allCalculations'
     calcLst <- either (throw500 . ("allCalculations failed: " ++) . show) return calcLstE
@@ -95,6 +104,7 @@ testHandlerRun testCase allCalculations' env = do
     (success, output) <- liftIO $ Test.runTest (testCase calcLst)
     unless success $
         throw500 output
+    pure calcLst
   where
     throw500 str = throwError $ err500 { errBody = toS str }
     runClientM = (`SC.runClientM` env)
@@ -108,7 +118,13 @@ allLiquidity
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
 runBooks :: LibCalc.RunId -> SC.ClientM [Lib.OrderBook Double]
-allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks :<|> _ :<|> _ =
+runBook
+    :: LibCalc.RunId
+    -> Text
+    -> App.Main.WebApi.Currency
+    -> App.Main.WebApi.Currency
+    -> SC.ClientM (Lib.BookResult (Lib.OrderBook Double))
+allLiquidity :<|> _ :<|> allCalculations :<|> _ :<|> _ :<|> runBooks :<|> runBook :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
