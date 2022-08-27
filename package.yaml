@@ -118,6 +118,7 @@ executables:
     - aeson-casing
     - servant-client
     - http-client
+    - text
 
 tests:
   crypto-liquidity-db-test:
