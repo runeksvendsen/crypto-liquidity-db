@@ -23,6 +23,7 @@ import qualified Query.Liquidity as Lib
 import qualified Query.Books as Lib
 import qualified Query.Calculations as Lib
 import qualified Schema.Calculation as LibCalc
+import qualified OrderBook.Graph as Lib
 
 import Control.Monad.IO.Class
 import Servant
@@ -79,7 +80,7 @@ spec env = do
         Hspec.it "no warnings" $
             Lib.warnings bs `shouldBe` []
         Hspec.it "matches expected book" $
-            Lib.result bs `shouldBe` Just ob
+            (Lib.sortOrders <$> Lib.result bs) `shouldBe` Just (Lib.sortOrders ob)
 
     unfinishedCalculations :: [LibCalc.Calculation] -> [LibCalc.Calculation]
     unfinishedCalculations =
