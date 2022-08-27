@@ -3,11 +3,9 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 module WebApi.Spec
-( tests
+( spec
 )
 where
-
-import qualified WebApi.Test as Test
 
 -- crypto-liquidity-db
 import Internal.Prelude
@@ -28,7 +26,6 @@ import qualified Schema.Calculation as LibCalc
 
 import Control.Monad.IO.Class
 import Servant
-
 import System.Environment (getArgs, lookupEnv)
 import Data.Maybe (isJust, fromMaybe)
 import qualified Servant.Client as SC
@@ -36,17 +33,36 @@ import qualified Network.HTTP.Client as HTTP
 import Data.List (intercalate)
 import Control.Exception (assert)
 import Data.Tuple (swap)
+import qualified Test.Hspec as Hspec
+import Servant.Client (ClientEnv)
+import Test.Hspec (shouldBe, shouldNotBe, shouldSatisfy)
 
-tests :: SC.ClientEnv -> IO ()
-tests env = do
-    _ <- testRun Test.testCaseCalc allCalculations env
-    _ <- testRun Test.testCaseLiquidity allLiquidity' env
-    allBooks <- testRun Test.testCaseBooks (runBooks runId) env
-    let targetBook = head allBooks -- NB: The above test case fails if 'allBooks' is empty
-        baseQuote = Lib.baseQuote targetBook
-    _ <- testRun Test.testCaseBook (runBook' targetBook baseQuote) env
-    _ <- testRun Test.testCaseBook (runBook' targetBook (swap baseQuote)) env
-    pure ()
+spec :: ClientEnv -> Hspec.Spec
+spec env = do
+    Hspec.describe "WebApi" $ do
+        Hspec.describe "allCalculations" $ do
+            calcs <- Hspec.runIO $ runCM allCalculations
+            Hspec.it "at least a single calculation" $ do
+                calcs `shouldNotBe` []
+            Hspec.it "no unfinished calculations" $ do
+                unfinishedCalculations calcs `shouldBe` []
+        Hspec.describe "allLiquidity" $ do
+            ld <- Hspec.runIO $ runCM allLiquidity'
+            Hspec.it "non-empty liquidity data" $
+                ld `shouldNotBe` []
+        allBooks <- Hspec.runIO $ runCM (runBooks runId)
+        Hspec.describe "testCaseBooks" $
+            Hspec.it "non-empty order book list" $
+                allBooks `shouldNotBe` []
+        let targetBook = head allBooks -- NB: The above test case fails if 'allBooks' is empty
+            baseQuote = Lib.baseQuote targetBook
+        Hspec.describe "testCaseBook" $ do
+            Hspec.describe "(base, quote)" $ do
+                res <- Hspec.runIO $ runCM $ runBook' targetBook baseQuote
+                testCaseBook res
+            Hspec.describe "(quote, base)" $ do
+                res <- Hspec.runIO $ runCM $ runBook' targetBook (swap baseQuote)
+                testCaseBook res
   where
     runId = LibCalc.mkRunId 1
     allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
@@ -54,22 +70,24 @@ tests env = do
         res <- runBook runId (Lib.bookVenue targetBook) (toS currency1) (toS currency2)
         pure (res, targetBook)
 
-testRun
-    :: Show a
-    => (t -> Test.Spec a)
-    -> SC.ClientM t
-    -> SC.ClientEnv
-    -> IO t
-testRun testCase allCalculations' env = do
-    calcLstE <- liftIO $ runClientM allCalculations'
-    calcLst <- either (fail . ("testRun failed: " ++) . show) return calcLstE
-    -- Run tests
-    (success, output) <- liftIO $ Test.runTest (testCase calcLst)
-    unless success $
-        fail output
-    pure calcLst
-  where
-    runClientM = (`SC.runClientM` env)
+    runCM :: SC.ClientM a -> IO a
+    runCM action =
+        SC.runClientM action env >>=
+        either (fail . ("runClientM failed: " ++) . show) pure
+
+    testCaseBook (bs, ob) = Hspec.describe "BookResult" $ do
+        Hspec.it "no warnings" $
+            Lib.warnings bs `shouldBe` []
+        Hspec.it "matches expected book" $
+            Lib.result bs `shouldBe` Just ob
+
+    unfinishedCalculations :: [LibCalc.Calculation] -> [LibCalc.Calculation]
+    unfinishedCalculations =
+        filter (not . isFinishedCalculation)
+        where
+        isFinishedCalculation calc =
+            isJust (LibCalc.calculationStartTime calc)
+            && isJust (LibCalc.calculationDurationSeconds calc)
 
 allCalculations :: SC.ClientM [LibCalc.Calculation]
 allLiquidity

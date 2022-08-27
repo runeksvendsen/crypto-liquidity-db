@@ -177,7 +177,6 @@ test-suite crypto-liquidity-db-test
       Process.Prop.Graph
       Process.Spec
       Process.WebApiRead
-      WebApi.Test
       WebApi.Spec
       Paths_crypto_liquidity_db
   hs-source-dirs:
