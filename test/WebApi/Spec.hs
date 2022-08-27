@@ -35,7 +35,7 @@ import Control.Exception (assert)
 import Data.Tuple (swap)
 import qualified Test.Hspec as Hspec
 import Servant.Client (ClientEnv)
-import Test.Hspec (shouldBe, shouldNotBe, shouldSatisfy)
+import Test.Hspec.Expectations.Pretty (shouldBe, shouldNotBe, shouldSatisfy)
 
 spec :: ClientEnv -> Hspec.Spec
 spec env = do
