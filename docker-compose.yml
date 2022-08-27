@@ -35,9 +35,9 @@ services:
       build: .
       entrypoint: crypto-liquidity-db-test
       links:
-         - liquidity-database
+         - liquidity-web-api
       depends_on:
-         - liquidity-database
+         - liquidity-web-api
       environment:
          - SERVER_ADDRESS=http://liquidity-web-api:8000
          - DATABASE_URL=postgresql://test:test@liquidity-database:5432/liquidity?sslmode=disable

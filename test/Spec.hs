@@ -4,6 +4,7 @@ module Main where
 
 import qualified Process.Spec
 import qualified Process.Prop.Graph
+import qualified WebApi.Spec
 import qualified App.Main.Util
 import           OrderBook.Graph.Internal.Prelude
 
@@ -27,6 +28,7 @@ main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
             fromHUnitTest $ Process.Spec.tests env done
     runHspec $ do
         Process.Prop.Graph.spec env done
+    WebApi.Spec.tests env
   where
     runHspec = Run.hspecWith Run.defaultConfig
 

@@ -154,31 +154,6 @@ executable crypto-liquidity-service-process
     , protolude
   default-language: Haskell2010
 
-executable crypto-liquidity-test
-  main-is: Main.hs
-  other-modules:
-      Test
-      Paths_crypto_liquidity_db
-  hs-source-dirs:
-      app/test
-  default-extensions:
-      FlexibleContexts
-      StrictData
-  ghc-options: -Wall -fno-warn-unused-imports -O2
-  build-depends:
-      aeson
-    , aeson-casing
-    , base >=4.7 && <5
-    , crypto-liquidity-db
-    , http-client
-    , protolude
-    , servant
-    , servant-client
-    , servant-server
-    , warp
-    , text
-  default-language: Haskell2010
-
 executable crypto-liquidity-web-api
   main-is: Main.hs
   other-modules:
@@ -202,6 +177,8 @@ test-suite crypto-liquidity-db-test
       Process.Prop.Graph
       Process.Spec
       Process.WebApiRead
+      WebApi.Test
+      WebApi.Spec
       Paths_crypto_liquidity_db
   hs-source-dirs:
       test
@@ -227,6 +204,8 @@ test-suite crypto-liquidity-db-test
     , protolude
     , servant
     , servant-client
+    , servant-server
     , time
     , vector
+    , text
   default-language: Haskell2010

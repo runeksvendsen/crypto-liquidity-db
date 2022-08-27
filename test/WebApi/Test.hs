@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE BangPatterns #-}
-module Test
+module WebApi.Test
 ( runTest
 , testCaseCalc
 , testCaseLiquidity
