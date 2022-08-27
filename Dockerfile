@@ -17,6 +17,7 @@ COPY stack.yaml ./
 COPY stack.yaml.lock ./
 COPY package.yaml ./package.yaml
 COPY crypto-liquidity-db.cabal ./crypto-liquidity-db.cabal
+COPY LICENSE ./LICENSE
 # build library and executable dependencies
 RUN stack build --dependencies-only
 
