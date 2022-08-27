@@ -56,7 +56,7 @@ spec env = do
                 allBooks `shouldNotBe` []
         let targetBook = head allBooks -- NB: The above test case fails if 'allBooks' is empty
             baseQuote = Lib.baseQuote targetBook
-        Hspec.describe "testCaseBook" $ do
+        Hspec.describe ("testCaseBook: " <> toS (Lib.showBook targetBook)) $ do
             Hspec.describe "(base, quote)" $ do
                 res <- Hspec.runIO $ runCM $ runBook' targetBook baseQuote
                 testCaseBook res

@@ -7,6 +7,7 @@ module Query.Books
 , G.OrderBook
 , BookResult(..)
 , emptyBookResult
+, showBook
   -- * Re-exports
 , G.baseQuote
 , G.bookVenue
@@ -77,9 +78,10 @@ runBook runPk venue bookCurrency1 bookCurrency2 =
                     ]
                 else Nothing
 
-    showBook ob' =
-        let (base, quote) = G.baseQuote ob'
-        in T.intercalate "/" [G.bookVenue ob', base, quote]
+showBook :: G.OrderBook numType -> Text
+showBook ob' =
+    let (base, quote) = G.baseQuote ob'
+    in T.unwords [G.bookVenue ob', T.intercalate "/" [base, quote]]
 
 convertBook :: Books.OB -> G.OrderBook Double
 convertBook Books.OB{..} =
