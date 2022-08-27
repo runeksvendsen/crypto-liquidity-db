@@ -42,7 +42,7 @@ runBook
     -> G.Currency -- ^ currency2: @if currency1 is base then quote else base@
     -> Pg.Pg (BookResult (G.OrderBook Double))
 runBook runPk venue bookCurrency1 bookCurrency2 =
-    toResult . map convertBook <$> Books.runBook venue bookCurrency1' bookCurrency2' runPk
+    toResult . map (G.sortOrders . convertBook) <$> Books.runBook venue bookCurrency1' bookCurrency2' runPk
   where
     bookCurrency1' = toS bookCurrency1
     bookCurrency2' = toS bookCurrency2
@@ -58,11 +58,11 @@ runBook runPk venue bookCurrency1 bookCurrency2 =
                 ]
         in BookResult (Just ob) (maybeToList $ checkCrossed ob) [warning]
 
+    -- NB: assumes 'G.sortOrders' has been applied to the orderbook
     checkCrossed :: G.OrderBook Double -> Maybe Text
     checkCrossed ob =
-        let ob' = G.sortOrders ob
-            bids' = G.bookBids ob'
-            asks' = G.bookAsks ob'
+        let bids' = G.bookBids ob
+            asks' = G.bookAsks ob
         in do
             highestBid <- G.orderPrice <$> Vec.headM bids'
             lowestAsk <- G.orderPrice <$> Vec.headM asks'
