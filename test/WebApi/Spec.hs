@@ -55,15 +55,7 @@ spec env = do
         Hspec.describe "testCaseBooks" $
             Hspec.it "non-empty order book list" $
                 allBooks `shouldNotBe` []
-        let targetBook = head allBooks -- NB: The above test case fails if 'allBooks' is empty
-            baseQuote = Lib.baseQuote targetBook
-        Hspec.describe ("testCaseBook: " <> toS (Lib.showBook targetBook)) $ do
-            Hspec.describe "(base, quote)" $ do
-                res <- Hspec.runIO $ runCM $ runBook' targetBook baseQuote
-                testCaseBook res
-            Hspec.describe "(quote, base)" $ do
-                res <- Hspec.runIO $ runCM $ runBook' targetBook (swap baseQuote)
-                testCaseBook res
+        forM_ (take 20 allBooks) fullTestCaseBook
   where
     runId = LibCalc.mkRunId 1
     allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
@@ -75,6 +67,16 @@ spec env = do
     runCM action =
         SC.runClientM action env >>=
         either (fail . ("runClientM failed: " ++) . show) pure
+
+    fullTestCaseBook targetBook = do
+        Hspec.describe ("testCaseBook: " <> toS (Lib.showBook targetBook)) $ do
+            let baseQuote = Lib.baseQuote targetBook
+            Hspec.describe "(base, quote)" $ do
+                res <- Hspec.runIO $ runCM $ runBook' targetBook baseQuote
+                testCaseBook res
+            Hspec.describe "(quote, base)" $ do
+                res <- Hspec.runIO $ runCM $ runBook' targetBook (swap baseQuote)
+                testCaseBook res
 
     testCaseBook (bs, ob) = Hspec.describe "BookResult" $ do
         Hspec.it "no warnings" $
