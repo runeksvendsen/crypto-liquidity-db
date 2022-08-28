@@ -39,6 +39,9 @@ import Servant.Client (ClientEnv)
 import Test.Hspec.Expectations.Pretty (shouldBe, shouldNotBe, shouldSatisfy)
 import qualified Test.QuickCheck as QC
 
+countTestCaseBook :: Int
+countTestCaseBook = 100
+
 spec :: ClientEnv -> Hspec.Spec
 spec env = do
     Hspec.describe "WebApi" $ do
@@ -57,7 +60,7 @@ spec env = do
             Hspec.it "non-empty order book list" $
                 allBooks `shouldNotBe` []
         allBooksShuffled <- Hspec.runIO . QC.generate . QC.shuffle $ allBooks
-        forM_ (take 20 allBooksShuffled) fullTestCaseBook
+        forM_ (take countTestCaseBook allBooksShuffled) fullTestCaseBook
   where
     runId = LibCalc.mkRunId 1
     allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
