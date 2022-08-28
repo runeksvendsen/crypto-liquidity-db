@@ -37,6 +37,7 @@ import Data.Tuple (swap)
 import qualified Test.Hspec as Hspec
 import Servant.Client (ClientEnv)
 import Test.Hspec.Expectations.Pretty (shouldBe, shouldNotBe, shouldSatisfy)
+import qualified Test.QuickCheck as QC
 
 spec :: ClientEnv -> Hspec.Spec
 spec env = do
@@ -55,7 +56,8 @@ spec env = do
         Hspec.describe "testCaseBooks" $
             Hspec.it "non-empty order book list" $
                 allBooks `shouldNotBe` []
-        forM_ (take 20 allBooks) fullTestCaseBook
+        allBooksShuffled <- Hspec.runIO . QC.generate . QC.shuffle $ allBooks
+        forM_ (take 20 allBooksShuffled) fullTestCaseBook
   where
     runId = LibCalc.mkRunId 1
     allLiquidity' = allLiquidity "USD" 0.5 Nothing Nothing Nothing
