@@ -304,7 +304,7 @@ type NewestRun =
     Summary "Get newest run"
     :> "run"
     :> "newest"
-    :> Get '[JSON] (Maybe Query.Run)
+    :> Get '[JSON] (Maybe Query.Runs.Run)
 
 type GenericRunAllPaths runIdent statusCode a =
     Summary "Get all paths for newest run"
