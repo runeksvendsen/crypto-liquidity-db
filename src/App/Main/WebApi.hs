@@ -40,6 +40,7 @@ import qualified Query.Books as Lib
 import qualified Query.Calculations as Lib
 import qualified Schema.Calculation as LibCalc
 import qualified Query.Books
+import qualified Query.Runs
 
 -- crypto-orderbook-db
 import qualified CryptoDepth.OrderBook.Db.Schema.Run as Run
@@ -144,6 +145,7 @@ server timeout =
     :<|> pgReturn ... Lib.selectUnfinishedCalcCount
     :<|> pgReturn ... Query.Books.runBooks
     :<|> pgReturn ... Query.Books.runBook
+    :<|> Query.Runs.newestRun
     :<|> fmap cacheOneMinute ... selectNewestFinishedRunRedirect
     :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
@@ -197,6 +199,7 @@ type API'
     :<|> GetUnfinishedCalcCount
     :<|> GetRunBooks
     :<|> GetRunBook
+    :<|> NewestRun
     :<|> NewestRunAllPaths
     :<|> SpecificRunAllPaths
     :<|> PathSingle
@@ -296,6 +299,12 @@ type PathSingle =
         :> Capture' '[Description "Slippage"] "slippage" Double
         :> Capture' '[Description "Currency symbol"] "currency_symbol" Currency
         :> Get '[JSON] (Maybe Lib.TestPathsSingleRes)
+
+type NewestRun =
+    Summary "Get newest run"
+    :> "run"
+    :> "newest"
+    :> Verb 'GET statusCode '[JSON] a
 
 type GenericRunAllPaths runIdent statusCode a =
     Summary "Get all paths for newest run"
