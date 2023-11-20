@@ -101,10 +101,16 @@ logError ctx =
 runAppM :: conf -> AppM conf a -> IO a
 runAppM = flip R.runReaderT
 
+askRunner :: AppM conf (AppM conf a -> IO a)
+askRunner = do
+    conf <- R.ask
+    pure $ runAppM conf
+
 withDbConn :: Has DbConn r => (Pg.Connection -> AppM r a) -> AppM r a
 withDbConn f = do
     pool <- R.asks getter
-    Pool.withResource pool f
+    runner <- askRunner
+    R.lift $ Pool.withResource pool (runner . f)
 
 runDbTx :: Has DbConn r => DbTx a -> AppM r a
 runDbTx dbTxM = runDbTxWithConn (const dbTxM)

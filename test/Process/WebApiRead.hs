@@ -149,7 +149,7 @@ liquidity
     -> Maybe LibCalc.UTCTime
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
