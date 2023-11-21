@@ -145,7 +145,7 @@ server timeout =
     :<|> pgReturn ... Lib.selectUnfinishedCalcCount
     :<|> pgReturn ... Query.Books.runBooks
     :<|> pgReturn ... Query.Books.runBook
-    :<|> Query.Runs.newestRun
+    :<|> pgReturn Query.Runs.newestRun
     :<|> fmap cacheOneMinute ... selectNewestFinishedRunRedirect
     :<|> fmap cacheTwoDays . pgReturn ... Lib.selectNewestRunAllPaths
     :<|> pgReturn ... Lib.selectTestPathsSingle
@@ -183,7 +183,7 @@ server timeout =
         runM <- Lib.selectNewestFinishedRunId numeraire slippage
         maybe (pure $ Left err404) (pure . Right) runM
 
-    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|>  _ :<|> liquidityPure =
+    _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> specificRunAllPaths :<|> _ :<|> _ :<|>  _ :<|> liquidityPure =
         SCF.client (Proxy :: Proxy API)
 
 type CurrencySymbolList =
