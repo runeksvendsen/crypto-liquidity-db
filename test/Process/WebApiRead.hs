@@ -11,6 +11,8 @@ module Process.WebApiRead
 , LiquidityReq(..)
 , SC.ClientEnv
 , runPathAllReq
+, runNewestRunReq
+, Run.Run
 ) where
 
 -- crypto-liquidity-db
@@ -135,6 +137,12 @@ runPathAllReq env numeraire slippage limitM =
   where
     discardHeaders (Headers resp _) = resp
 
+runNewestRunReq
+    :: SC.ClientEnv
+    -> IO (Either SC.ClientError (Maybe Run.Run))
+runNewestRunReq =
+    SC.runClientM newestRun
+
 pathSingle
     :: Run.RunId
     -> App.Main.WebApi.Currency
@@ -149,7 +157,8 @@ liquidity
     -> Maybe LibCalc.UTCTime
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
+newestRun :: SC.ClientM (Maybe Run.Run)
+_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRun :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API
