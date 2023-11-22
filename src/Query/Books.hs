@@ -63,9 +63,10 @@ runBook runPk venue bookCurrency1 bookCurrency2 =
     checkCrossed ob =
         let bids' = G.bookBids ob
             asks' = G.bookAsks ob
+            headMay = (Vec.!? 0)
         in do
-            highestBid <- G.orderPrice <$> Vec.headM bids'
-            lowestAsk <- G.orderPrice <$> Vec.headM asks'
+            highestBid <- G.orderPrice <$> headMay bids'
+            lowestAsk <- G.orderPrice <$> headMay asks'
             if highestBid >= lowestAsk
                 then pure $ T.unwords
                     [ "Orderbook"
