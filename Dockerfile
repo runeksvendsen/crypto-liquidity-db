@@ -34,7 +34,7 @@ COPY test ./test
 # build+copy library, executables, tests
 RUN stack build --profile --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
 # copy test executable to /tmp/dist/
-RUN cp "$(stack exec -- which crypto-liquidity-db-test)" /tmp/dist/
+RUN cp "$(stack exec -- whereis crypto-liquidity-db-test|awk '{print $2}')" /tmp/dist/
 
 # RUNTIME
 FROM ubuntu:16.04 as runner
