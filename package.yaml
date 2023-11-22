@@ -104,22 +104,6 @@ executables:
     dependencies:
     - crypto-liquidity-db
 
-  crypto-liquidity-test:
-    main:                Main.hs
-    source-dirs:         app/test
-    ghc-options:
-    - -O2
-    dependencies:
-    - crypto-liquidity-db
-    - servant
-    - servant-server
-    - aeson
-    - warp
-    - aeson-casing
-    - servant-client
-    - http-client
-    - text
-
 tests:
   crypto-liquidity-db-test:
     main:                Spec.hs
