@@ -16,8 +16,8 @@ jobs:
       - name: docker-compose pull
         run: docker-compose pull --include-deps
 
-      - uses: satackey/action-docker-layer-caching@v0.0.11
-        continue-on-error: true
+      - name: Use cached build image
+        run: sed -i 's/FROM ubuntu:16.04 as builder/FROM runeks86\/crypto-liquidity-db-build-cache:0.3 as builder/' Dockerfile
 
       - name: docker-compose build
         run: docker-compose build
