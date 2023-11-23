@@ -21,12 +21,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: docker-compose pull
-        run: docker-compose pull --include-deps
-
-      - name: docker-compose build
-        run: docker-compose build
-
       - name: docker-compose test
         run: docker-compose up --exit-code-from liquidity-service-test
 
