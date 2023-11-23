@@ -33,6 +33,9 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
           restore-keys: ${{ runner.os }}-
 
+      - name: Install BASH
+        run: NIX_PATH="nixpkgs=https://github.com/NixOS/nixpkgs/archive/release-23.05.tar.gz" nix-env -iA nixpkgs.bash
+
       - name: Test nix-shell
         run: nix-shell --run "echo 'it works \o/'"
 
