@@ -41,7 +41,7 @@ RUN stack build --only-dependencies --test --no-run-tests crypto-liquidity-db:te
 # Build test suite
 RUN stack build --test --no-run-tests crypto-liquidity-db:test:crypto-liquidity-db-test
 # Copy test suite binary
-RUN cp "$(find . -name crypto-liquidity-db-test -type f)" /tmp/dist/
+RUN mkdir -p /tmp/dist/ && cp "$(find . -name crypto-liquidity-db-test -type f)" /tmp/dist/
 # Build executable deps
 RUN stack build --only-dependencies
 # Build executables and copy binaries
