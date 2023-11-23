@@ -19,20 +19,20 @@ COPY package.yaml ./package.yaml
 COPY crypto-liquidity-db.cabal ./crypto-liquidity-db.cabal
 COPY LICENSE ./LICENSE
 # build library and executable dependencies
-RUN stack build --profile --dependencies-only
+RUN stack build --dependencies-only
 
 # copy test data
 COPY test/data/double/test19.json ./test/data/double/test19.json
 COPY test/data/regression/double-test19.txt ./test/data/regression/double-test19.txt
 # build test dependencies
-RUN stack build --profile --dependencies-only --test --no-run-tests
+RUN stack build --dependencies-only --test --no-run-tests
 
 COPY app ./app
 COPY src ./src
 COPY test ./test
 
 # build+copy library, executables, tests
-RUN stack build --profile --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
+RUN stack build --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
 # copy test executable to /tmp/dist/
 RUN cp "$(find . -name crypto-liquidity-db-test -type f)" /tmp/dist/
 
