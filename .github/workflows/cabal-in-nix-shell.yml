@@ -6,7 +6,10 @@ on:
 
 jobs:
   build_test_nix_shell:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-12, macos-13]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
