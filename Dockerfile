@@ -31,10 +31,21 @@ COPY app ./app
 COPY src ./src
 COPY test ./test
 
-# build+copy library, executables, tests
-RUN stack build --test --no-run-tests --copy-bins --local-bin-path /tmp/dist/
-# copy test executable to /tmp/dist/
+### Build progressively more stuff to improve usefulness of Docker layer caching
+# Build library deps
+RUN stack build --only-dependencies crypto-liquidity-db:lib
+# Build library
+RUN stack build crypto-liquidity-db:lib
+# Build test suite deps
+RUN stack build --only-dependencies --test --no-run-tests crypto-liquidity-db:test:crypto-liquidity-db-test
+# Build test suite
+RUN stack build --test --no-run-tests crypto-liquidity-db:test:crypto-liquidity-db-test
+# Copy test suite binary
 RUN cp "$(find . -name crypto-liquidity-db-test -type f)" /tmp/dist/
+# Build executable deps
+RUN stack build --only-dependencies
+# Build executables and copy binaries
+RUN stack build --copy-bins --local-bin-path /tmp/dist/
 
 # RUNTIME
 FROM ubuntu:16.04 as runner
