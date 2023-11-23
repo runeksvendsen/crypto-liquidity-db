@@ -1,0 +1,55 @@
+name: Build & test in nix-shell
+
+on:
+  push:
+    paths:
+      - '**'
+      - '!README.md'
+      - '!.github/workflows/push.yml'
+
+jobs:
+  build_test_nix_shell:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-12, macos-13]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v22
+        with:
+          install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+          extra_nix_config: |
+            substituters = https://cache.nixos.org https://cache.iog.io
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=
+            system-features = benchmark big-parallel kvm nixos-test
+
+      - name: Cache cabal stuff
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: cabal-in-nix-shell-${{ matrix.os }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+          restore-keys: ${{ matrix.os }}-
+
+      - name: Install BASH
+        run: nix-env -f "https://github.com/NixOS/nixpkgs/archive/release-23.05.tar.gz" -iA bash
+
+      - name: Test nix-shell
+        run: nix-shell --run "echo 'it works \o/'"
+
+      - name: Run 'cabal update'
+        run: nix-shell --run "cabal update"
+
+      - name: Build library
+        run: nix-shell --run "cabal build lib:crypto-liquidity-db"
+
+      - name: Build tests
+        run: nix-shell --run "cabal build test-suite:crypto-liquidity-db-test"
+
+      - name: Build executables
+        run: nix-shell --run "cabal build all"
