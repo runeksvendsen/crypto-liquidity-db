@@ -2,7 +2,9 @@ name: Build & test in nix-shell
 
 on:
   push:
-  pull_request:
+    paths:
+      - '**'
+      - '!.github/workflows/push.yml'
 
 jobs:
   build_test_nix_shell:
