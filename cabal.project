@@ -2,6 +2,8 @@
 
 with-compiler: ghc-8.10.7
 
+test-show-details: direct
+
 packages:
     ./
 
