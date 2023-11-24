@@ -32,8 +32,8 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: cabal-in-nix-shell-${{ runner.os }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
-          restore-keys: ${{ runner.os }}-
+          key: cabal-in-nix-shell-${{ matrix.os }}-${{ hashFiles('**/*.cabal', '**/cabal.project', '**/cabal.project.freeze') }}
+          restore-keys: ${{ matrix.os }}-
 
       - name: Install BASH
         run: nix-env -f "https://github.com/NixOS/nixpkgs/archive/release-23.05.tar.gz" -iA bash
