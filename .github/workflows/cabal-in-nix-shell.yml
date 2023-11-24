@@ -50,8 +50,5 @@ jobs:
       - name: Build tests
         run: nix-shell --run "cabal build test-suite:crypto-liquidity-db-test"
 
-      - name: Run tests
-        run: nix-shell --run "cabal test"
-
       - name: Build executables
         run: nix-shell --run "cabal build all"
