@@ -36,9 +36,7 @@ jobs:
           restore-keys: ${{ runner.os }}-
 
       - name: Install BASH
-        run: nix-env -iA nixpkgs.bash
-        env:
-          NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/release-23.05.tar.gz
+        run: nix-env -f "https://github.com/NixOS/nixpkgs/archive/release-23.05.tar.gz" -iA bash
 
       - name: Test nix-shell
         run: nix-shell --run "echo 'it works \o/'"
