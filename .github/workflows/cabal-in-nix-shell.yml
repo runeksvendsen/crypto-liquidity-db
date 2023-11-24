@@ -10,7 +10,7 @@ jobs:
   build_test_nix_shell:
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-12, macos-13]
+        os: [ubuntu-22.04, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
