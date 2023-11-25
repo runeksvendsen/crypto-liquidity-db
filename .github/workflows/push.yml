@@ -5,6 +5,7 @@ on:
     paths:
       - '**'
       - '!README.md'
+      - '!.github/workflows/cabal-in-nix-shell.yml'
 
 jobs:
   build-test:
