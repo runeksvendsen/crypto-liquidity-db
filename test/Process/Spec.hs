@@ -82,6 +82,9 @@ tests env _ = TestLabel "regression" $ TestList
                 let request = Process.WebApiRead.LiquidityReq numeraire slippage currency
                 [testResult] <- throwError <$> Process.WebApiRead.runLiquidityReq env request
                 Query.Liquidity.ldQty testResult `shouldBe` 74956642
+        , TestLabel "newest run" $ TestCase $ do
+                res <- throwError <$> Process.WebApiRead.runNewestRunReq env
+                Beam.pk <$> res `shouldBe` Just (Run.RunId 1)
         ]
     ]
   where

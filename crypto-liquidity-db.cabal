@@ -58,6 +58,7 @@ library
       Query.Liquidity
       Query.Migrations
       Query.RunCurrencies
+      Query.Runs
       Schema.Calculation
       Schema.CalculationParameter
       Schema.Currency
