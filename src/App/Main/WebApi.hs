@@ -254,7 +254,7 @@ type SpecificTopLiquidity =
     GenericTopLiquidity (Capture' '[Description "Run ID (integer)"] "run_id" Run.RunId)
 
 type GetAllCalcs =
-    Summary "Get unfinished calculations"
+    Summary "Get all calculations"
         :> "calc"
         :> "all"
         :> Get '[JSON] [LibCalc.Calculation]
@@ -267,7 +267,7 @@ type GetUnfinishedCalcs =
         :> Get '[JSON] [LibCalc.Calculation]
 
 type GetUnfinishedCalcCount =
-    Summary "Get unfinished calculations"
+    Summary "Get unfinished calculation count"
         :> "calc"
         :> "unfinished"
         :> "count"
