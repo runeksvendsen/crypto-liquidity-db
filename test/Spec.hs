@@ -1,5 +1,7 @@
+{-# LANGUAGE BangPatterns #-}
 module Main where
 
+import qualified Util
 import qualified Process.Spec
 import qualified Process.Prop.Graph
 import qualified WebApi.Spec
@@ -23,6 +25,7 @@ import Data.List ((\\))
 main :: IO ()
 main = withSetup $ \done -> do
     env <- readBaseUrl >>= Process.Spec.mkClientEnv
+    waitForServer env 30 1
     Hspec.hspec $
         Hspec.describe "Unit tests" $
             fromHUnitTest $ Process.Spec.tests env done
@@ -30,6 +33,20 @@ main = withSetup $ \done -> do
         Process.Prop.Graph.spec env done
         WebApi.Spec.spec env
   where
+    waitForServer :: SC.ClientEnv -> Int -> Int -> IO ()
+    waitForServer env numRetries waitSeconds = do
+        let go !retriesLeft = do
+                isReady <- Util.isReadyClientEnv env
+                when (retriesLeft <= 0) $
+                    fail "Failed to connect to API server"
+                if isReady
+                    then putStrLn "API server ready!" >> pure ()
+                    else do
+                        putStrLn $ "API server not ready. Waiting " <> show waitSeconds <> " seconds..."
+                        threadDelay (waitSeconds * 1000000)
+                        go (retriesLeft - 1)
+        go numRetries
+
     runHspec = Run.hspecWith Run.defaultConfig
 
     -- Decides whether or not to run the "setup" phase (Process.Spec.setup) based on a CLI arg.
