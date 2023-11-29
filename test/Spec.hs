@@ -1,5 +1,3 @@
-{-# LANGUAGE NumDecimals #-}
-
 module Main where
 
 import qualified Process.Spec
@@ -17,6 +15,7 @@ import Test.Hspec.Contrib.HUnit (fromHUnitTest)
 import System.Environment (lookupEnv)
 import Data.Maybe (fromMaybe)
 import Control.Concurrent (threadDelay)
+import qualified Servant.Client as SC
 
 
 main :: IO ()
@@ -32,8 +31,16 @@ main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
   where
     runHspec = Run.hspecWith Run.defaultConfig
 
-readBaseUrl :: IO String
+readBaseUrl :: IO SC.BaseUrl
 readBaseUrl = do
     connStrM <- lookupEnv "SERVER_ADDRESS"
     let errorMsg = "Missing web-api server address in SERVER_ADDRESS environment variable"
-    pure $ fromMaybe (error errorMsg) connStrM
+    baseUrlString <- maybe (fail errorMsg) pure connStrM
+    let mkParseErrorMsg err = unwords
+            [ "Failed to parse URL"
+            , baseUrlString
+            , "in SERVER_ADDRESS environment variable."
+            , "Error:"
+            , show err
+            ]
+    either (fail . mkParseErrorMsg) pure (SC.parseBaseUrl baseUrlString)

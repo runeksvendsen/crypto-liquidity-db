@@ -94,14 +94,11 @@ import qualified Network.HTTP.Client as HTTP
 import Protolude (Bifunctor(bimap))
 
 
-mkClientEnv :: String -> IO SC.ClientEnv
-mkClientEnv baseUrlString = do
+mkClientEnv :: SC.BaseUrl -> IO SC.ClientEnv
+mkClientEnv baseUrl = do
     manager <- HTTP.newManager HTTP.defaultManagerSettings
     let clientEnv = SC.mkClientEnv manager baseUrl
     return clientEnv
-  where
-    baseUrl =
-        either (error . ("Failed to parse URL: " ++) . show) id (SC.parseBaseUrl baseUrlString)
 
 data PathSingleReq = PathSingleReq LibCalc.RunId G.Currency Double G.Currency
 
