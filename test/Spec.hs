@@ -17,14 +17,11 @@ import Data.Maybe (fromMaybe)
 import Control.Concurrent (threadDelay)
 import qualified Servant.Client as SC
 import qualified System.Environment as Arg
+import Data.List ((\\))
 
 
 main :: IO ()
-main = do
-    args <- Arg.getArgs
-    done <- if shouldPerformSetup args
-        then App.Main.Util.withDbPool App.Main.Util.LevelDebug Process.Spec.setup
-        else Process.Spec.unsafeManualSetup
+main = withSetup $ \done -> do
     env <- readBaseUrl >>= Process.Spec.mkClientEnv
     Hspec.hspec $
         Hspec.describe "Unit tests" $
@@ -35,11 +32,17 @@ main = do
   where
     runHspec = Run.hspecWith Run.defaultConfig
 
-    -- Whether to run the "setup" phase (Process.Spec.setup) or not based on CLI args
-    shouldPerformSetup args = case args of
-        [] -> True
-        ["--no-setup"] -> False
-        other -> error $ "Unknown argument(s): " <> unwords other
+    -- Decides whether or not to run the "setup" phase (Process.Spec.setup) based on a CLI arg.
+    --
+    -- NOTE: HSpec is used to handle CLI args, so we peek at the given args, and then
+    --       remove our custom arg before they're passed to HSpec.
+    withSetup f = do
+        let noSetupArg = "--no-setup"
+        args <- Arg.getArgs
+        done <- if noSetupArg `elem` args
+            then Process.Spec.unsafeManualSetup
+            else App.Main.Util.withDbPool App.Main.Util.LevelDebug Process.Spec.setup
+        Arg.withArgs (args \\ [noSetupArg]) $ f done
 
 readBaseUrl :: IO SC.BaseUrl
 readBaseUrl = do
