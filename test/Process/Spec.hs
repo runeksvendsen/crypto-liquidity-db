@@ -6,6 +6,7 @@ module Process.Spec
 ( tests
 , Process.WebApiRead.mkClientEnv
 , setup
+, unsafeManualSetup
 , SetupDone
 , numeraire
 , slippage
@@ -105,6 +106,10 @@ currency = fromString "BTC"
 
 setup :: App.Main.Util.Pool App.Main.Util.Connection -> IO SetupDone
 setup = setup_ testDataFilePath numeraire
+
+-- | Run this if you've performance the setup phase without using 'setup'
+unsafeManualSetup :: IO SetupDone
+unsafeManualSetup = pure SetupDone
 
 -- | A value of this type guarantees that 'setup' has been run
 data SetupDone = SetupDone

@@ -16,12 +16,16 @@ import System.Environment (lookupEnv)
 import Data.Maybe (fromMaybe)
 import Control.Concurrent (threadDelay)
 import qualified Servant.Client as SC
+import qualified System.Environment as Arg
 
 
 main :: IO ()
-main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
+main = do
+    args <- Arg.getArgs
+    done <- if shouldPerformSetup args
+        then App.Main.Util.withDbPool App.Main.Util.LevelDebug Process.Spec.setup
+        else Process.Spec.unsafeManualSetup
     env <- readBaseUrl >>= Process.Spec.mkClientEnv
-    done <- Process.Spec.setup pool
     Hspec.hspec $
         Hspec.describe "Unit tests" $
             fromHUnitTest $ Process.Spec.tests env done
@@ -30,6 +34,12 @@ main = App.Main.Util.withDbPool App.Main.Util.LevelDebug $ \pool -> do
         WebApi.Spec.spec env
   where
     runHspec = Run.hspecWith Run.defaultConfig
+
+    -- Whether to run the "setup" phase (Process.Spec.setup) or not based on CLI args
+    shouldPerformSetup args = case args of
+        [] -> True
+        ["--no-setup"] -> False
+        other -> error $ "Unknown argument(s): " <> unwords other
 
 readBaseUrl :: IO SC.BaseUrl
 readBaseUrl = do
