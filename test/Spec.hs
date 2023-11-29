@@ -23,26 +23,34 @@ import Data.List ((\\))
 
 
 main :: IO ()
-main = withSetup $ \done -> do
+main = do
     env <- readBaseUrl >>= Process.Spec.mkClientEnv
-    waitForServer env 30 1
-    Hspec.hspec $
-        Hspec.describe "Unit tests" $
-            fromHUnitTest $ Process.Spec.tests env done
-    runHspec $ do
-        Process.Prop.Graph.spec env done
-        WebApi.Spec.spec env
+    waitForApiServer env 30 1
+    withSetup env $ \done -> do
+        Hspec.hspec $
+            Hspec.describe "Unit tests" $
+                fromHUnitTest $ Process.Spec.tests env done
+        runHspec $ do
+            Process.Prop.Graph.spec env done
+            WebApi.Spec.spec env
   where
-    waitForServer :: SC.ClientEnv -> Int -> Int -> IO ()
-    waitForServer env numRetries waitSeconds = do
+    waitForApiServer :: SC.ClientEnv -> Int -> Int -> IO ()
+    waitForApiServer env numRetries waitSeconds = do
+        waitForTrue (Util.isReadyClientEnv env, "API server ready") numRetries waitSeconds
+
+    waitForAllCalculationsDone env numRetries waitSeconds =
+        waitForTrue (Util.allCalculationsProcessed env, "all calculations done") numRetries waitSeconds
+
+    waitForTrue :: (IO Bool, String) -> Int -> Int -> IO ()
+    waitForTrue (action, description) numRetries waitSeconds = do
         let go !retriesLeft = do
-                isReady <- Util.isReadyClientEnv env
+                isReady <- action
                 when (retriesLeft <= 0) $
-                    fail "Failed to connect to API server"
+                    fail $ "Timed out waiting for: " <> description
                 if isReady
-                    then putStrLn "API server ready!" >> pure ()
+                    then putStrLn description >> pure ()
                     else do
-                        putStrLn $ "API server not ready. Waiting " <> show waitSeconds <> " seconds..."
+                        putStrLn $ "Waiting for " <> description <> ". Sleeping " <> show waitSeconds <> " seconds..."
                         threadDelay (waitSeconds * 1000000)
                         go (retriesLeft - 1)
         go numRetries
@@ -53,11 +61,13 @@ main = withSetup $ \done -> do
     --
     -- NOTE: HSpec is used to handle CLI args, so we peek at the given args, and then
     --       remove our custom arg before they're passed to HSpec.
-    withSetup f = do
+    withSetup env f = do
         let noSetupArg = "--no-setup"
         args <- Arg.getArgs
         done <- if noSetupArg `elem` args
-            then Process.Spec.unsafeManualSetup
+            then do
+                waitForAllCalculationsDone env 20 10
+                Process.Spec.unsafeManualSetup
             else App.Main.Util.withDbPool App.Main.Util.LevelDebug Process.Spec.setup
         Arg.withArgs (args \\ [noSetupArg]) $ f done
 

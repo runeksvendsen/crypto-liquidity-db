@@ -12,6 +12,7 @@ module Process.WebApiRead
 , SC.ClientEnv
 , runPathAllReq
 , runNewestRunReq
+, runGetAllCalcs
 , Run.Run
 ) where
 
@@ -140,6 +141,12 @@ runNewestRunReq
 runNewestRunReq =
     SC.runClientM newestRun
 
+runGetAllCalcs
+    :: SC.ClientEnv
+    -> IO (Either SC.ClientError [LibCalc.Calculation])
+runGetAllCalcs =
+    SC.runClientM getAllCalcs
+
 pathSingle
     :: Run.RunId
     -> App.Main.WebApi.Currency
@@ -155,7 +162,8 @@ liquidity
     -> Maybe Word
     -> SC.ClientM [Lib.LiquidityData]
 newestRun :: SC.ClientM (Maybe Run.Run)
-_ :<|> liquidity :<|> _ :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRun :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
+getAllCalcs :: SC.ClientM [Lib.Calculation]
+_ :<|> liquidity :<|> getAllCalcs :<|> _ :<|> _ :<|> _ :<|> _ :<|> newestRun :<|> pathAll' :<|> _ :<|> pathSingle :<|> _ :<|> _ =
     SC.client api
   where
     api :: Proxy App.Main.WebApi.API

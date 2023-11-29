@@ -4,14 +4,23 @@
 module Util
 ( isReady
 , isReadyClientEnv
+, allCalculationsProcessed
 )
 where
 
+import qualified Process.WebApiRead as Lib
+import qualified Schema.Calculation as Lib
 import qualified Servant.Client as SC
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Client (HttpException(..), HttpExceptionContent(..))
 import Control.Exception (SomeException)
 import qualified Control.Exception as Catch
+import Data.Maybe (isJust)
+
+allCalculationsProcessed :: SC.ClientEnv -> IO Bool
+allCalculationsProcessed env = do
+    calcList <- either (fail . show) pure =<< Lib.runGetAllCalcs env
+    pure $ not (null calcList) && all (isJust . Lib.calculationDurationSeconds) calcList
 
 isReadyClientEnv :: SC.ClientEnv -> IO Bool
 isReadyClientEnv env =
